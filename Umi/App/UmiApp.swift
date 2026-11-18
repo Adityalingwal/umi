@@ -3,6 +3,7 @@ import AppKit
 @main
 enum UmiApp {
     static func main() {
+        ScreenAccessProbe.exitIfRequested(arguments: CommandLine.arguments)
         let application = NSApplication.shared
         let delegate = AppDelegate()
         application.delegate = delegate
@@ -13,14 +14,19 @@ enum UmiApp {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem?
+    private var statusMenu: StatusMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusItem = StatusMenu.makeStatusItem(appName: ProcessInfo.processInfo.processName)
+        statusMenu = StatusMenu(
+            appName: ProcessInfo.processInfo.processName,
+            microphone: MicrophonePermission(),
+            screen: .atLaunch(defaults: .standard),
+            relauncher: AppRelauncher()
+        )
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        statusItem?.button?.performClick(nil)
+        statusMenu?.open()
         return false
     }
 }
