@@ -9,6 +9,7 @@
 /* Begin PBXFileReference section */
 		0A0000000000000000000001 /* Umi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Umi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000002 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
+		0A0000000000000000000003 /* Umi.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Umi.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +35,7 @@
 			isa = PBXGroup;
 			children = (
 				0A0000000000000000000002 /* Local.xcconfig */,
+				0A0000000000000000000003 /* Umi.entitlements */,
 				0A0000000000000000000010 /* Umi */,
 				0A0000000000000000000031 /* Products */,
 			);
@@ -174,9 +176,11 @@
 		0A0000000000000000000072 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Umi.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = NO;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Umi uses the microphone to hear what you say to it.";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.adityalingwal.umi.dev;
 				PRODUCT_NAME = "Umi Dev";
@@ -186,9 +190,11 @@
 		0A0000000000000000000073 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Umi.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Umi uses the microphone to hear what you say to it.";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.adityalingwal.umi;
 				PRODUCT_NAME = Umi;
