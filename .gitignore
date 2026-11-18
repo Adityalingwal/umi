@@ -1,0 +1,7 @@
+.env
+Local.xcconfig
+.proof/
+.work/
+build/
+xcuserdata/
+.DS_Store
