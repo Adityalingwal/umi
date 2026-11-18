@@ -1,0 +1,36 @@
+included:
+  - Umi
+
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - fatal_error_message
+  - private_swiftui_state
+  - unhandled_throwing_task
+
+custom_rules:
+  no_print:
+    name: "No print"
+    regex: '\bprint\s*\('
+    match_kinds:
+      - identifier
+    message: "Log through Logger instead of print."
+    severity: error
+  no_unchecked_sendable:
+    name: "No @unchecked Sendable"
+    regex: '@unchecked\s+Sendable'
+    message: "Fix the isolation instead of @unchecked Sendable (docs/swift-style.md rule 1)."
+    severity: error
+  final_class:
+    name: "Final class"
+    regex: '(?<!final\s)\bclass\s+(?!(?:func|var|let|subscript)\b)[A-Za-z_]'
+    match_kinds:
+      - keyword
+      - identifier
+    message: "A class is final."
+    severity: error
+  no_swiftlint_disable:
+    name: "No swiftlint:disable"
+    regex: 'swiftlint:disable'
+    message: "Do not disable SwiftLint; fix the cause or stop and report (docs/swift-style.md rule 1)."
+    severity: error
