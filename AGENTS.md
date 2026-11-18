@@ -59,7 +59,7 @@ Stop and report instead of guessing when the ticket is unclear, when a decision 
 
 - Nothing private is published. A capture of the real screen, a recording of real audio, or its transcript never goes into a commit, a PR or an issue.
 - Files made while testing (screenshots, recordings, test notes) go in `.proof/<ticket number>/`. Other working files that are not meant to be pushed (findings, review answers, notes) go in `.work/<ticket number>/`. Both are git-ignored. In cleanup, delete only your own ticket's folder, never `.proof/` or `.work/` themselves and never another ticket's folder.
-- No committed file holds details of Aditya's Mac: his name, Apple Team ID, signing identity name, or paths under `/Users/`. Use a placeholder. When unsure, ask Aditya before committing.
+- No committed file holds details of Aditya's Mac or Apple account: the Apple Team ID, the signing identity, the Mac's user name, or paths under `/Users/`. Use a placeholder. When unsure, ask Aditya before committing.
 - Keys live in the git-ignored `.env`. Never read, print or commit a key. The build reads `.env` and writes a generated, git-ignored file the app reads; a new worktree links to the main checkout's `.env` instead of copying it.
 - The app may send the real screen and voice to the services it already uses (Claude, Codex, Deepgram). Ask Aditya before sending a capture anywhere else, a new model platform included, and before anything that costs money.
 - Never run `tccutil` or change macOS privacy grants; Aditya grants a permission himself when the app first asks.
