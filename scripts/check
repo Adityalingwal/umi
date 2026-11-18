@@ -14,31 +14,38 @@ if [[ -z "$team" ]]; then
   exit 1
 fi
 
+find_in_tracked_files() {
+  local found="" output grep_status
+  for place in "" "--cached"; do
+    grep_status=0
+    output="$(git grep ${place:+$place} "$@")" || grep_status=$?
+    if (( grep_status == 0 )); then
+      found+="$output"$'\n'
+    elif (( grep_status != 1 )); then
+      echo "check: git grep failed" >&2
+      exit 1
+    fi
+  done
+  printf '%s' "$found" | sort -u
+}
+
 echo "==> Team ID guard"
-grep_status=0
-leaks="$(git grep -l -F -e "$team" -- .)" || grep_status=$?
-if (( grep_status == 0 )); then
-  echo "check: the Team ID appears in these tracked files:" >&2
+leaks="$(find_in_tracked_files -l -F -e "$team" -- .)"
+if [[ -n "$leaks" ]]; then
+  echo "check: the Team ID appears in these tracked or staged files:" >&2
   echo "$leaks" >&2
   exit 1
-elif (( grep_status != 1 )); then
-  echo "check: git grep failed" >&2
-  exit 1
 fi
-echo "Team ID is in no tracked file."
+echo "Team ID is in no tracked or staged file."
 
 echo "==> swiftlint:disable ban"
-disable_status=0
-disables="$(git grep -n -F -e "swiftlint:disable" -- '*.swift')" || disable_status=$?
-if (( disable_status == 0 )); then
+disables="$(find_in_tracked_files -n -F -e "swiftlint:disable" -- '*.swift')"
+if [[ -n "$disables" ]]; then
   echo "check: swiftlint:disable is banned (docs/swift-style.md rule 1):" >&2
   echo "$disables" >&2
   exit 1
-elif (( disable_status != 1 )); then
-  echo "check: git grep failed" >&2
-  exit 1
 fi
-echo "No swiftlint:disable in Swift files."
+echo "No swiftlint:disable in tracked or staged Swift files."
 
 echo "==> SwiftLint"
 swiftlint lint --strict --quiet
