@@ -78,5 +78,6 @@ Launch only the `Umi Dev` build from your own checkout.
 It runs every local check and stops at the first failure:
 
 1. The Team ID from `Local.xcconfig` appears in no tracked file.
-2. SwiftLint with `--strict` (rules in `.swiftlint.yml`).
-3. The Debug build.
+2. No `swiftlint:disable` in any tracked Swift file.
+3. SwiftLint with `--strict` (rules in `.swiftlint.yml`).
+4. The Debug build.

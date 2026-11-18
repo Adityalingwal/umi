@@ -27,6 +27,19 @@ elif (( grep_status != 1 )); then
 fi
 echo "Team ID is in no tracked file."
 
+echo "==> swiftlint:disable ban"
+disable_status=0
+disables="$(git grep -n -F -e "swiftlint:disable" -- '*.swift')" || disable_status=$?
+if (( disable_status == 0 )); then
+  echo "check: swiftlint:disable is banned (docs/swift-style.md rule 1):" >&2
+  echo "$disables" >&2
+  exit 1
+elif (( disable_status != 1 )); then
+  echo "check: git grep failed" >&2
+  exit 1
+fi
+echo "No swiftlint:disable in Swift files."
+
 echo "==> SwiftLint"
 swiftlint lint --strict --quiet
 echo "SwiftLint passed."
