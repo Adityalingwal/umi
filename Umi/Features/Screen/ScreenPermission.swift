@@ -55,8 +55,10 @@ final class ScreenPermission {
     }
 
     func openSystemSettings() {
-        guard let settingsURL else { return }
-        NSWorkspace.shared.open(settingsURL)
+        guard let settingsURL, NSWorkspace.shared.open(settingsURL) else {
+            logger.error("Could not open the System Settings pane")
+            return
+        }
     }
 
     private static func access(isGrantedAtLaunch: Bool, wasRequested: Bool, isGrantedNow: Bool) -> ScreenAccess {
