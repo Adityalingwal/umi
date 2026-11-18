@@ -1,0 +1,48 @@
+#!/bin/zsh
+set -euo pipefail
+
+root="${0:A:h:h}"
+cd "$root"
+
+if [[ ! -f Local.xcconfig ]]; then
+  echo "check: Local.xcconfig is missing; see docs/build-and-run.md" >&2
+  exit 1
+fi
+team="$(awk -F'=' '/^[[:space:]]*DEVELOPMENT_TEAM[[:space:]]*=/ {gsub(/[[:space:]]/, "", $2); print $2}' Local.xcconfig)"
+if [[ -z "$team" ]]; then
+  echo "check: DEVELOPMENT_TEAM is empty in Local.xcconfig" >&2
+  exit 1
+fi
+
+echo "==> Team ID guard"
+grep_status=0
+leaks="$(git grep -l -F -e "$team" -- .)" || grep_status=$?
+if (( grep_status == 0 )); then
+  echo "check: the Team ID appears in these tracked files:" >&2
+  echo "$leaks" >&2
+  exit 1
+elif (( grep_status != 1 )); then
+  echo "check: git grep failed" >&2
+  exit 1
+fi
+echo "Team ID is in no tracked file."
+
+echo "==> SwiftLint"
+swiftlint lint --strict --quiet
+echo "SwiftLint passed."
+
+echo "==> Debug build"
+build_log="$(mktemp)"
+trap 'rm -f "$build_log"' EXIT
+build_status=0
+xcodebuild -project Umi.xcodeproj -scheme Umi -configuration Debug \
+  -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build \
+  -quiet build >"$build_log" 2>&1 || build_status=$?
+sed -e "s/$team/<team>/g" "$build_log" >&2
+if (( build_status != 0 )); then
+  echo "check: the Debug build failed" >&2
+  exit 1
+fi
+echo "Debug build passed."
+
+echo "All checks passed."
