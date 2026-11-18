@@ -81,7 +81,7 @@ Stop and report instead of guessing when the ticket is unclear, when a decision 
 
 ## Done means
 
-- The local checks pass. The one command that runs them all is not decided yet.
+- The local checks pass: `./scripts/check` runs them all.
 - The ticket's Proof is shown on the running app, adverse case included.
 - The report shows the real output and says what was not verified.
 - There is no CI; nothing runs on GitHub.
