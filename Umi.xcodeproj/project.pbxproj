@@ -6,10 +6,21 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		0A0000000000000000000080 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0000000000000000000050 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0A0000000000000000000040;
+			remoteInfo = Umi;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		0A0000000000000000000001 /* Umi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Umi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000002 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		0A0000000000000000000003 /* Umi.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Umi.entitlements; sourceTree = "<group>"; };
+		0A0000000000000000000004 /* UmiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UmiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -18,10 +29,22 @@
 			path = Umi;
 			sourceTree = "<group>";
 		};
+		0A0000000000000000000011 /* UmiTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UmiTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		0A0000000000000000000020 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A0000000000000000000024 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -37,6 +60,7 @@
 				0A0000000000000000000002 /* Local.xcconfig */,
 				0A0000000000000000000003 /* Umi.entitlements */,
 				0A0000000000000000000010 /* Umi */,
+				0A0000000000000000000011 /* UmiTests */,
 				0A0000000000000000000031 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -45,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				0A0000000000000000000001 /* Umi.app */,
+				0A0000000000000000000004 /* UmiTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -59,6 +84,7 @@
 				0A0000000000000000000021 /* Sources */,
 				0A0000000000000000000020 /* Frameworks */,
 				0A0000000000000000000022 /* Resources */,
+				0A0000000000000000000023 /* Write Keys */,
 			);
 			buildRules = (
 			);
@@ -74,6 +100,29 @@
 			productReference = 0A0000000000000000000001 /* Umi.app */;
 			productType = "com.apple.product-type.application";
 		};
+		0A0000000000000000000041 /* UmiTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A0000000000000000000062 /* Build configuration list for PBXNativeTarget "UmiTests" */;
+			buildPhases = (
+				0A0000000000000000000025 /* Sources */,
+				0A0000000000000000000024 /* Frameworks */,
+				0A0000000000000000000026 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0A0000000000000000000081 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0A0000000000000000000011 /* UmiTests */,
+			);
+			name = UmiTests;
+			packageProductDependencies = (
+			);
+			productName = UmiTests;
+			productReference = 0A0000000000000000000004 /* UmiTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -86,6 +135,10 @@
 				TargetAttributes = {
 					0A0000000000000000000040 = {
 						CreatedOnToolsVersion = 27.0;
+					};
+					0A0000000000000000000041 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 0A0000000000000000000040;
 					};
 				};
 			};
@@ -104,6 +157,7 @@
 			projectRoot = "";
 			targets = (
 				0A0000000000000000000040 /* Umi */,
+				0A0000000000000000000041 /* UmiTests */,
 			);
 		};
 /* End PBXProject section */
@@ -116,7 +170,38 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0A0000000000000000000026 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		0A0000000000000000000023 /* Write Keys */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Write Keys";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Keys.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "key=\"\"\nif [ -f \"$SRCROOT/.env\" ]; then\n  key=\"$(sed -n 's/^DEEPGRAM_API_KEY=//p' \"$SRCROOT/.env\" | tail -n 1 | tr -d \"\\\"' \\r\")\"\nfi\n{\n  printf '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<plist version=\"1.0\"><dict><key>DeepgramAPIKey</key><string>'\n  printf '%s' \"$key\"\n  printf '</string></dict></plist>\\n'\n} > \"$SCRIPT_OUTPUT_FILE_0\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0A0000000000000000000021 /* Sources */ = {
@@ -126,7 +211,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0A0000000000000000000025 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0A0000000000000000000081 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0A0000000000000000000040 /* Umi */;
+			targetProxy = 0A0000000000000000000080 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0A0000000000000000000070 /* Debug */ = {
@@ -191,6 +291,7 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Umi uses the microphone to hear what you say to it.";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.adityalingwal.umi.dev;
+				PRODUCT_MODULE_NAME = Umi;
 				PRODUCT_NAME = "Umi Dev";
 			};
 			name = Debug;
@@ -205,7 +306,34 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Umi uses the microphone to hear what you say to it.";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.adityalingwal.umi;
+				PRODUCT_MODULE_NAME = Umi;
 				PRODUCT_NAME = Umi;
+			};
+			name = Release;
+		};
+		0A0000000000000000000074 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.adityalingwal.umi.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Umi Dev.app/Contents/MacOS/Umi Dev";
+			};
+			name = Debug;
+		};
+		0A0000000000000000000075 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.adityalingwal.umi.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Umi.app/Contents/MacOS/Umi";
 			};
 			name = Release;
 		};
@@ -226,6 +354,15 @@
 			buildConfigurations = (
 				0A0000000000000000000072 /* Debug */,
 				0A0000000000000000000073 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0A0000000000000000000062 /* Build configuration list for PBXNativeTarget "UmiTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A0000000000000000000074 /* Debug */,
+				0A0000000000000000000075 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

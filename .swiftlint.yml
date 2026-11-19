@@ -1,5 +1,6 @@
 included:
   - Umi
+  - UmiTests
 
 opt_in_rules:
   - force_unwrapping
