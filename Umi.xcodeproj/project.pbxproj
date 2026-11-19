@@ -59,6 +59,7 @@
 				0A0000000000000000000021 /* Sources */,
 				0A0000000000000000000020 /* Frameworks */,
 				0A0000000000000000000022 /* Resources */,
+				0A0000000000000000000023 /* Write Keys */,
 			);
 			buildRules = (
 			);
@@ -117,6 +118,30 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		0A0000000000000000000023 /* Write Keys */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Write Keys";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Keys.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "key=\"\"\nif [ -f \"$SRCROOT/.env\" ]; then\n  key=\"$(sed -n 's/^DEEPGRAM_API_KEY=//p' \"$SRCROOT/.env\" | tail -n 1 | tr -d \"\\\"' \\r\")\"\nfi\n{\n  printf '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<plist version=\"1.0\"><dict><key>DeepgramAPIKey</key><string>'\n  printf '%s' \"$key\"\n  printf '</string></dict></plist>\\n'\n} > \"$SCRIPT_OUTPUT_FILE_0\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0A0000000000000000000021 /* Sources */ = {
