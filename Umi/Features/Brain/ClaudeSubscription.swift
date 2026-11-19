@@ -9,6 +9,7 @@ final class ClaudeSubscription: Brain {
     private let environment: [String: String]
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Brain")
     private var spare: ClaudeProcess?
+    private var answeringProcess: ClaudeProcess?
 
     init(executable: ClaudeExecutable, environment: [String: String]) {
         self.executable = executable
@@ -30,6 +31,8 @@ final class ClaudeSubscription: Brain {
     func stop() {
         spare?.stop()
         spare = nil
+        answeringProcess?.stop()
+        answeringProcess = nil
     }
 
     func answer(_ question: BrainQuestion) -> AsyncThrowingStream<String, any Error> {
@@ -38,8 +41,14 @@ final class ClaudeSubscription: Brain {
             guard let self else { return }
             do {
                 let process = try takeProcess()
+                answeringProcess = process
                 prepare()
-                defer { process.stop() }
+                defer {
+                    process.stop()
+                    if answeringProcess === process {
+                        answeringProcess = nil
+                    }
+                }
                 try await relay(answerTo: question, from: process, into: continuation)
                 continuation.finish()
             } catch {
