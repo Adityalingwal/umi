@@ -16,8 +16,10 @@ final class ClaudeSubscription: Brain {
         self.environment = environment
     }
 
+    private static let removedVariables: Set<String> = ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL"]
+
     static func childEnvironment(from environment: [String: String]) -> [String: String] {
-        environment.filter { $0.key != "ANTHROPIC_API_KEY" }
+        environment.filter { !removedVariables.contains($0.key) }
     }
 
     func prepare() {
