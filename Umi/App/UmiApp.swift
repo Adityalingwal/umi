@@ -15,16 +15,18 @@ enum UmiApp {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusMenu: StatusMenu?
+    private var keyListener: KeyListener?
     private var brain: ClaudeSubscription?
-    private var holding: Task<Void, Never>?
+    private var turns: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let listening = Listening.atLaunch(defaults: .standard)
+        let accessibility = AccessibilityPermission(defaults: .standard)
         statusMenu = StatusMenu(
             appName: ProcessInfo.processInfo.processName,
             microphone: MicrophonePermission(),
             screen: .atLaunch(defaults: .standard),
-            accessibility: AccessibilityPermission(defaults: .standard),
+            accessibility: accessibility,
             listening: listening,
             relauncher: AppRelauncher()
         )
@@ -32,8 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
             startTurns(audioSource: holdFile, holds: holdFile.holds)
+            return
         }
         #endif
+        let keyListener = KeyListener(accessibility: accessibility)
+        keyListener.start()
+        self.keyListener = keyListener
+        startTurns(audioSource: MicrophoneSource(permission: MicrophonePermission()), holds: keyListener.holds)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -42,7 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        holding?.cancel()
+        turns?.cancel()
+        keyListener?.stop()
         brain?.stop()
     }
 
@@ -57,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let subtitlePanel = SubtitlePanel(subtitles: subtitles)
         let screen = ScreenCapture.atLaunch(defaults: .standard, bundle: .main)
         let bundleURL = Bundle.main.bundleURL
-        holding = Task {
+        turns = Task {
             let turn = Turn(
                 audioSource: audioSource,
                 deepgramKey: await DeepgramKey.fromBundle(bundleURL),

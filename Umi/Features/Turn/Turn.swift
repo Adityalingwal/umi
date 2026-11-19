@@ -38,6 +38,9 @@ final class Turn {
             begin()
         case .ended:
             end()
+        case .cancelled:
+            cancel()
+            logger.notice("Hold cancelled by another key")
         }
     }
 
