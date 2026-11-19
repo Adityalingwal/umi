@@ -51,6 +51,7 @@ final class Listening {
         hearing = Task { [weak self] in
             do {
                 for try await chunk in chunks {
+                    guard !Task.isCancelled else { return }
                     self?.state = .hearing(AudioLevel(chunk))
                 }
                 guard !Task.isCancelled else { return }
@@ -58,8 +59,10 @@ final class Listening {
             } catch is CancellationError {
                 return
             } catch let failure as AudioSourceError {
+                guard !Task.isCancelled else { return }
                 self?.fail(failure)
             } catch {
+                guard !Task.isCancelled else { return }
                 self?.logger.error("Listening failed: \(error.localizedDescription)")
                 self?.finish()
             }
