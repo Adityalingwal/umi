@@ -17,12 +17,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusMenu: StatusMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let listening = Listening.atLaunch(defaults: .standard)
         statusMenu = StatusMenu(
             appName: ProcessInfo.processInfo.processName,
             microphone: MicrophonePermission(),
             screen: .atLaunch(defaults: .standard),
+            listening: listening,
             relauncher: AppRelauncher()
         )
+        listening.appDidLaunch()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

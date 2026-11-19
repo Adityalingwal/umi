@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 final class StatusMenu: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
@@ -6,13 +7,21 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let screenItem = NSMenuItem(title: "", action: #selector(screenItemClicked), keyEquivalent: "")
     private let microphone: MicrophonePermission
     private let screen: ScreenPermission
+    private let listening: Listening
     private let relauncher: AppRelauncher
     private var screenRefresh: Task<Void, Never>?
 
-    init(appName: String, microphone: MicrophonePermission, screen: ScreenPermission, relauncher: AppRelauncher) {
+    init(
+        appName: String,
+        microphone: MicrophonePermission,
+        screen: ScreenPermission,
+        listening: Listening,
+        relauncher: AppRelauncher
+    ) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         self.microphone = microphone
         self.screen = screen
+        self.listening = listening
         self.relauncher = relauncher
         super.init()
         statusItem.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: appName)
@@ -29,6 +38,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         refreshScreen()
     }
 
+    func menuWillOpen(_ menu: NSMenu) {
+        listening.menuDidOpen()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        listening.menuDidClose()
+    }
+
     private func makeMenu(appName: String) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -42,8 +59,19 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
+        menu.addItem(makeLevelItem())
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
+    }
+
+    private func makeLevelItem() -> NSMenuItem {
+        let hostingView = NSHostingView(rootView: LevelBar().environment(listening))
+        hostingView.frame = NSRect(origin: .zero, size: NSSize(width: 240, height: hostingView.fittingSize.height))
+        hostingView.autoresizingMask = .width
+        let item = NSMenuItem()
+        item.view = hostingView
+        return item
     }
 
     private func refreshScreen() {
