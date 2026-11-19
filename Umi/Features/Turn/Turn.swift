@@ -44,6 +44,10 @@ final class Turn {
     private func begin() {
         cancel()
         subtitles.clear()
+        guard let deepgramKey else {
+            logger.error("The Deepgram key is missing")
+            return
+        }
         guard let pointer = PointerScreen.current() else {
             logger.error("No screen is under the pointer")
             return
@@ -51,10 +55,6 @@ final class Turn {
         subtitlePanel.show(on: pointer.screen)
         picture = Task { [screen] in
             try await screen.picture(ofDisplay: pointer.displayID)
-        }
-        guard let deepgramKey else {
-            logger.error("The Deepgram key is missing")
-            return
         }
         let transcription = FluxTranscription(key: deepgramKey, source: audioSource, session: urlSession)
         transcription.start()
