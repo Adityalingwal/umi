@@ -5,14 +5,8 @@ struct CursorView: View {
 
     var body: some View {
         ZStack {
-            switch cursor.state {
-            case .hidden:
-                EmptyView()
-            case .listening:
-                CursorBadge { CursorWaveform() }
-                    .transition(.appear)
-            case .thinking:
-                CursorBadge { CursorSpinner() }
+            if cursor.state != .hidden {
+                CursorBadge(state: cursor.state)
                     .transition(.appear)
             }
         }
@@ -21,13 +15,24 @@ struct CursorView: View {
     }
 }
 
-private struct CursorBadge<Content: View>: View {
-    @ViewBuilder let content: Content
+private struct CursorBadge: View {
+    let state: CursorState
 
     var body: some View {
-        content
-            .frame(width: 40, height: 22)
-            .background(.black.opacity(0.75), in: .capsule)
+        ZStack {
+            switch state {
+            case .hidden:
+                EmptyView()
+            case .listening:
+                CursorWaveform()
+                    .transition(.opacity)
+            case .thinking:
+                CursorSpinner()
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: 40, height: 22)
+        .background(.black.opacity(0.75), in: .capsule)
     }
 }
 
