@@ -152,7 +152,7 @@ final class FluxTranscription {
             if let transcript = decoded.transcript, !transcript.isEmpty {
                 finishedTurns.append(transcript)
             }
-            isFinalTextReceived = isEndOfTurnForced
+            isFinalTextReceived = isEndOfTurnForced && decoded.trigger == "manual"
         case ("Warning", _) where decoded.code == "FORCE_END_TURN_NO_ACTIVE_TURN":
             isFinalTextReceived = isEndOfTurnForced
         case ("Error", _):
@@ -203,4 +203,5 @@ private nonisolated struct FluxMessage: Decodable {
     let event: String?
     let transcript: String?
     let code: String?
+    let trigger: String?
 }
