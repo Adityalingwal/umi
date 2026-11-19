@@ -5,8 +5,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let microphoneItem = NSMenuItem(title: "", action: #selector(microphoneItemClicked), keyEquivalent: "")
     private let screenItem = NSMenuItem(title: "", action: #selector(screenItemClicked), keyEquivalent: "")
+    private let accessibilityItem = NSMenuItem(
+        title: "",
+        action: #selector(accessibilityItemClicked),
+        keyEquivalent: ""
+    )
     private let microphone: MicrophonePermission
     private let screen: ScreenPermission
+    private let accessibility: AccessibilityPermission
     private let listening: Listening
     private let relauncher: AppRelauncher
     private var screenRefresh: Task<Void, Never>?
@@ -15,12 +21,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         appName: String,
         microphone: MicrophonePermission,
         screen: ScreenPermission,
+        accessibility: AccessibilityPermission,
         listening: Listening,
         relauncher: AppRelauncher
     ) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         self.microphone = microphone
         self.screen = screen
+        self.accessibility = accessibility
         self.listening = listening
         self.relauncher = relauncher
         super.init()
@@ -36,6 +44,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         showMicrophone(microphone.currentAccess())
         showScreen(screen.lastKnownAccess)
         refreshScreen()
+        showAccessibility(accessibility.currentAccess())
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -54,7 +63,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         nameItem.isEnabled = false
         menu.addItem(nameItem)
         menu.addItem(.separator())
-        for item in [microphoneItem, screenItem] {
+        for item in [microphoneItem, screenItem, accessibilityItem] {
             item.target = self
             menu.addItem(item)
         }
@@ -94,6 +103,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         screenItem.isEnabled = access != .allowed
     }
 
+    private func showAccessibility(_ access: AccessibilityAccess) {
+        accessibilityItem.title = "Accessibility: \(access.rowStatus)"
+        accessibilityItem.isEnabled = access != .allowed
+    }
+
     @objc private func microphoneItemClicked() {
         switch microphone.currentAccess() {
         case .notAsked:
@@ -123,6 +137,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             break
         }
     }
+
+    @objc private func accessibilityItemClicked() {
+        switch accessibility.currentAccess() {
+        case .notAsked:
+            showAccessibility(accessibility.requestAccess())
+        case .denied:
+            accessibility.openSystemSettings()
+        case .allowed:
+            break
+        }
+    }
 }
 
 private extension MicrophoneAccess {
@@ -142,6 +167,16 @@ private extension ScreenAccess {
         case .allowed: "Allowed"
         case .denied: "Denied"
         case .needsRelaunch: "Relaunch Umi"
+        }
+    }
+}
+
+private extension AccessibilityAccess {
+    var rowStatus: String {
+        switch self {
+        case .notAsked: "Allow…"
+        case .allowed: "Allowed"
+        case .denied: "Denied"
         }
     }
 }

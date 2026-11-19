@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             appName: ProcessInfo.processInfo.processName,
             microphone: MicrophonePermission(),
             screen: .atLaunch(defaults: .standard),
+            accessibility: AccessibilityPermission(defaults: .standard),
             listening: listening,
             relauncher: AppRelauncher()
         )
