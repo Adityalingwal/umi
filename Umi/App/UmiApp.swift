@@ -63,6 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.brain = brain
         let subtitles = Subtitles()
         let subtitlePanel = SubtitlePanel(subtitles: subtitles)
+        let cursor = UmiCursor()
+        let cursorPanel = CursorPanel(cursor: cursor)
         let screen = ScreenCapture.atLaunch(defaults: .standard, bundle: .main)
         let bundleURL = Bundle.main.bundleURL
         turns = Task {
@@ -73,7 +75,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 screen: screen,
                 brain: brain,
                 subtitles: subtitles,
-                subtitlePanel: subtitlePanel
+                subtitlePanel: subtitlePanel,
+                cursor: cursor,
+                cursorPanel: cursorPanel
             )
             for await hold in holds {
                 turn.handle(hold)
