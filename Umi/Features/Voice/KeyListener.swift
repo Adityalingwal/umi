@@ -1,14 +1,18 @@
 import AppKit
+import Carbon.HIToolbox
 import OSLog
 
 final class KeyListener {
+    private static let escapeKeyCode = UInt16(kVK_Escape)
     private static let accessCheckInterval = Duration.seconds(1)
     private static let keyEvents: NSEvent.EventTypeMask = [.flagsChanged, .keyDown]
 
     let holds: AsyncStream<HoldEvent>
+    let escapes: AsyncStream<Void>
 
     private let accessibility: AccessibilityPermission
     private let holdContinuation: AsyncStream<HoldEvent>.Continuation
+    private let escapeContinuation: AsyncStream<Void>.Continuation
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var hold = RightOptionHold()
     private var monitors: [Any] = []
@@ -17,6 +21,7 @@ final class KeyListener {
     init(accessibility: AccessibilityPermission) {
         self.accessibility = accessibility
         (holds, holdContinuation) = AsyncStream.makeStream(of: HoldEvent.self)
+        (escapes, escapeContinuation) = AsyncStream.makeStream(of: Void.self)
     }
 
     func start() {
@@ -36,6 +41,7 @@ final class KeyListener {
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
         holdContinuation.finish()
+        escapeContinuation.finish()
     }
 
     private func listen() {
@@ -60,6 +66,8 @@ final class KeyListener {
         case .keyDown:
             if let cancel = hold.keyPressed() {
                 holdContinuation.yield(cancel)
+            } else if event.keyCode == Self.escapeKeyCode, !hold.isKeyDown {
+                escapeContinuation.yield()
             }
         default:
             return

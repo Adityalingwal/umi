@@ -31,16 +31,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             relauncher: AppRelauncher()
         )
         listening.appDidLaunch()
-        #if DEBUG
-        if let holdFile = HoldFile.atLaunch(defaults: .standard) {
-            startTurns(audioSource: holdFile, holds: holdFile.holds)
-            return
-        }
-        #endif
         let keyListener = KeyListener(accessibility: accessibility)
         keyListener.start()
         self.keyListener = keyListener
-        startTurns(audioSource: MicrophoneSource(permission: MicrophonePermission()), holds: keyListener.holds)
+        #if DEBUG
+        if let holdFile = HoldFile.atLaunch(defaults: .standard) {
+            startTurns(audioSource: holdFile, holds: holdFile.holds, escapes: keyListener.escapes)
+            return
+        }
+        #endif
+        startTurns(
+            audioSource: MicrophoneSource(permission: MicrophonePermission()),
+            holds: keyListener.holds,
+            escapes: keyListener.escapes
+        )
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -54,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain?.stop()
     }
 
-    private func startTurns(audioSource: any AudioSource, holds: AsyncStream<HoldEvent>) {
+    private func startTurns(audioSource: any AudioSource, holds: AsyncStream<HoldEvent>, escapes: AsyncStream<Void>) {
         let brain = ClaudeSubscription(
             executable: ClaudeExecutable(fileManager: .default),
             environment: ProcessInfo.processInfo.environment
@@ -79,8 +83,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 cursor: cursor,
                 cursorPanel: cursorPanel
             )
-            for await hold in holds {
-                turn.handle(hold)
+            await withDiscardingTaskGroup { group in
+                group.addTask {
+                    for await hold in holds {
+                        await turn.handle(hold)
+                    }
+                }
+                group.addTask {
+                    for await _ in escapes {
+                        await turn.clearSubtitles()
+                    }
+                }
             }
         }
     }

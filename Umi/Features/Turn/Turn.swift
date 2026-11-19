@@ -50,6 +50,14 @@ final class Turn {
         }
     }
 
+    func clearSubtitles() {
+        guard subtitles.line != nil else { return }
+        answering?.cancel()
+        answering = nil
+        subtitles.clear()
+        logger.notice("Subtitles cleared")
+    }
+
     private func begin() {
         cancel()
         subtitles.clear()
