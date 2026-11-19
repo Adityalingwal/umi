@@ -14,6 +14,7 @@ nonisolated struct MicrophoneEngine: Sendable {
             continuation.finish(throwing: AudioSourceError.microphoneUnavailable)
             return
         }
+        guard !Task.isCancelled else { return }
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             continuation.yield(AudioChunk(buffer))
         }
