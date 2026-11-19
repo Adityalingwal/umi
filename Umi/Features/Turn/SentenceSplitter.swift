@@ -31,11 +31,17 @@ struct SentenceSplitter {
             if text[index].isNewline {
                 return next
             }
-            if endMarks.contains(text[index]), next < text.endIndex, text[next].isWhitespace {
+            if endMarks.contains(text[index]), next < text.endIndex, text[next].isWhitespace,
+               !isListNumber(endingAt: index, in: text) {
                 return next
             }
             index = next
         }
         return nil
+    }
+
+    private static func isListNumber(endingAt mark: String.Index, in text: String) -> Bool {
+        let word = text[..<mark].reversed().prefix { !$0.isWhitespace }
+        return !word.isEmpty && word.allSatisfy(\.isNumber)
     }
 }
