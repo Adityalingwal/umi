@@ -65,4 +65,18 @@ if (( build_status != 0 )); then
 fi
 echo "Debug build passed."
 
+echo "==> Tests"
+test_log="$(mktemp)"
+trap 'rm -f "$build_log" "$test_log"' EXIT
+test_status=0
+xcodebuild -project Umi.xcodeproj -scheme Umi \
+  -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build \
+  -quiet test >"$test_log" 2>&1 || test_status=$?
+if (( test_status != 0 )); then
+  sed -e "s/$team/<team>/g" "$test_log" >&2
+  echo "check: the tests failed" >&2
+  exit 1
+fi
+echo "Tests passed."
+
 echo "All checks passed."
