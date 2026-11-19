@@ -1,43 +1,47 @@
 #if DEBUG
-import AVFoundation
-import OSLog
+import Foundation
 
-struct HoldFile {
-    let audioSource: AudioFileSource
+struct HoldFile: AudioSource {
+    let holds: AsyncStream<HoldEvent>
 
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
+    private let playback: AudioFileSource
+    private let holdContinuation: AsyncStream<HoldEvent>.Continuation
+
+    var schedule: ListeningSchedule { .fromLaunch }
+
+    private init(fileURL: URL) {
+        playback = AudioFileSource(fileURL: fileURL)
+        (holds, holdContinuation) = AsyncStream.makeStream(of: HoldEvent.self)
+        holdContinuation.yield(.began)
+    }
 
     static func atLaunch(defaults: UserDefaults) -> HoldFile? {
-        guard let path = defaults.string(forKey: "UmiHoldFile") else { return nil }
-        return HoldFile(audioSource: AudioFileSource(fileURL: URL(filePath: path)))
+        defaults.string(forKey: "UmiHoldFile").map { HoldFile(fileURL: URL(filePath: $0)) }
     }
 
-    func events() -> AsyncStream<HoldEvent> {
-        let (stream, continuation) = AsyncStream.makeStream(of: HoldEvent.self)
-        let fileURL = audioSource.fileURL
-        let playing = Task {
-            continuation.yield(.began)
+    func chunks() -> AsyncThrowingStream<AudioChunk, any Error> {
+        let (stream, continuation) = AsyncThrowingStream.makeStream(of: AudioChunk.self)
+        let fileChunks = playback.chunks()
+        let holdContinuation = holdContinuation
+        let forwarding = Task {
+            var failure: (any Error)?
             do {
-                try await Task.sleep(for: .seconds(try await Self.duration(of: fileURL)))
-            } catch is CancellationError {
-                continuation.finish()
-                return
+                for try await chunk in fileChunks {
+                    continuation.yield(chunk)
+                }
             } catch {
-                logger.error("The hold file could not be read: \(error.localizedDescription)")
+                failure = error
             }
-            continuation.yield(.ended)
-            continuation.finish()
+            if !Task.isCancelled {
+                holdContinuation.yield(.ended)
+            }
+            holdContinuation.finish()
+            continuation.finish(throwing: failure)
         }
         continuation.onTermination = { _ in
-            playing.cancel()
+            forwarding.cancel()
         }
         return stream
-    }
-
-    @concurrent
-    private static func duration(of fileURL: URL) async throws -> Double {
-        let file = try AVAudioFile(forReading: fileURL)
-        return Double(file.length) / file.processingFormat.sampleRate
     }
 }
 #endif

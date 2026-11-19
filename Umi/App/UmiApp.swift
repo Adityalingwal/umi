@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         listening.appDidLaunch()
         #if DEBUG
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
-            startTurns(audioSource: holdFile.audioSource, holds: holdFile.events())
+            startTurns(audioSource: holdFile, holds: holdFile.holds)
         }
         #endif
     }
