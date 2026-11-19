@@ -36,11 +36,16 @@ How to set up a Mac for Umi, then build, sign, run and check the app.
 
    `Local.xcconfig.example` shows the format.
 
-A worktree links to the main checkout's file instead of copying it:
+7. Put the Deepgram key in `.env` in the main checkout, as one line `DEEPGRAM_API_KEY=<key>`. The file is git-ignored. Without it the app still builds; it only cannot hear questions.
+
+A worktree links to the main checkout's files instead of copying them:
 
 ```sh
 ln -s <main checkout>/Local.xcconfig Local.xcconfig
+ln -s <main checkout>/.env .env
 ```
+
+8. Install Claude Code (`claude`, version 2.1.328 or newer) and sign it in once with `claude auth login`. Umi answers through it on the user's own Claude subscription.
 
 ## Build
 
@@ -59,6 +64,8 @@ codesign -dvv "build/Build/Products/Debug/Umi Dev.app"
 
 The `Authority` and `TeamIdentifier` lines hold the account's details; leave them out of anything you share.
 
+The build's "Write Keys" step copies `DEEPGRAM_API_KEY` from `.env` into `Contents/Resources/Keys.plist` inside the built app, so a built app holds the key in plain text: never share a build. The step never prints the key.
+
 ## Run
 
 ```sh
@@ -68,6 +75,18 @@ open "build/Build/Products/Debug/Umi Dev.app"
 The app's icon is the `waveform` symbol in the menu bar; clicking it opens the menu. The Debug build also has a Dock icon, which opens the same menu, so computer use can find the app. The Release build lives only in the menu bar.
 
 Launch only the `Umi Dev` build from your own checkout.
+
+The Debug build takes these launch arguments:
+
+- `-UmiAudioFile <path>` plays the file into the menu's level bar instead of the microphone.
+- `-UmiHoldFile <path>` plays the file as one question: the hold starts when the app launches and ends when the file ends.
+- `-UmiScreenImage <path>` sends that image to Claude instead of a picture of the screen, so a proof never carries the real screen.
+
+```sh
+open "build/Build/Products/Debug/Umi Dev.app" --args -UmiHoldFile "$PWD/question.wav" -UmiScreenImage "$PWD/screen.jpg"
+```
+
+Read the app's log with `/usr/bin/log show --last 1m --style compact --predicate 'subsystem == "io.github.adityalingwal.umi.dev"'`.
 
 ## Check
 
@@ -81,3 +100,4 @@ It runs every local check and stops at the first failure:
 2. No `swiftlint:disable` in any tracked Swift file.
 3. SwiftLint with `--strict` (rules in `.swiftlint.yml`).
 4. The Debug build.
+5. The tests (`xcodebuild test`).
