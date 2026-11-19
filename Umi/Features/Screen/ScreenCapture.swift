@@ -29,6 +29,9 @@ nonisolated struct ScreenCapture: Sendable {
             return try replacementPicture(from: replacementImageURL)
         }
         #endif
+        guard CGPreflightScreenCaptureAccess() else {
+            throw ScreenError.notAllowed
+        }
         let image = try await capture(displayID: displayID)
         logger.notice("Screen captured, \(image.width, privacy: .public)x\(image.height, privacy: .public)")
         return ScreenPicture(jpegData: try JPEGEncoder.encode(image))
