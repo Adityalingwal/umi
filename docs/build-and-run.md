@@ -81,6 +81,7 @@ The Debug build takes these launch arguments:
 - `-UmiAudioFile <path>` plays the file into the menu's level bar instead of the microphone.
 - `-UmiHoldFile <path>` plays the file as one question: the hold starts when the app launches and ends when the file ends.
 - `-UmiScreenImage <path>` sends that image to Claude instead of a picture of the screen, so a proof never carries the real screen.
+- `-UmiFailFlux YES` points Flux at a local port where nothing listens, so every hold takes the fallback: the whole recording goes to Deepgram Nova-3 after release. Nothing about the network changes.
 
 ```sh
 open "build/Build/Products/Debug/Umi Dev.app" --args -UmiHoldFile "$PWD/question.wav" -UmiScreenImage "$PWD/screen.jpg"
