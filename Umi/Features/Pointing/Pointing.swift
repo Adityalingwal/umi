@@ -12,9 +12,8 @@ final class Pointing {
     }
 
     private enum Cue {
-        case voice
+        case nameAwaited
         case nameSpoken
-        case subtitles
         case nameShown
 
         var isMarkDue: Bool {
@@ -32,7 +31,7 @@ final class Pointing {
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
     private var phase = Phase.waiting
-    private var cue = Cue.voice
+    private var cue = Cue.nameAwaited
     private var subtitleMark = SubtitleMarkTime()
     private var departing: Task<Void, Never>?
     private var landing: Task<Void, Never>?
@@ -112,7 +111,7 @@ final class Pointing {
     }
 
     func nameStarted() {
-        guard cue == .voice else { return }
+        guard cue == .nameAwaited else { return }
         logger.notice("The name started playing")
         cue = .nameSpoken
         switch phase {
@@ -147,7 +146,9 @@ final class Pointing {
         case .waiting, .aimed, .travelling, .landed:
             departing?.cancel()
             departing = nil
-            cue = cue == .nameSpoken ? .nameShown : .subtitles
+            if cue == .nameSpoken {
+                cue = .nameShown
+            }
             logger.notice("The voice failed before the mark, so the mark goes with the name's subtitle")
         case .over:
             return
@@ -156,7 +157,7 @@ final class Pointing {
 
     func nameShown() {
         if case .over = phase { return }
-        guard cue == .voice || cue == .subtitles else {
+        guard cue == .nameAwaited else {
             logger.notice("The name's subtitle showed again, so nothing moves")
             return
         }
