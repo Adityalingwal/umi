@@ -1,4 +1,4 @@
 enum SpokenEvent {
-    case sentenceStarted(String)
+    case show(String)
     case finished
 }

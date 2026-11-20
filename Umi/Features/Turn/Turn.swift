@@ -147,7 +147,7 @@ final class Turn {
         let answer = brain.answer(BrainQuestion(text: text, screenJPEG: screenJPEG))
         try await withThrowingDiscardingTaskGroup { group in
             group.addTask { try await self.send(answer, to: voice) }
-            group.addTask { try await self.follow(voice) }
+            group.addTask { await self.follow(voice) }
         }
     }
 
@@ -161,12 +161,12 @@ final class Turn {
         voice.endText()
     }
 
-    private func follow(_ voice: SpokenAnswer) async throws {
-        for try await event in voice.events {
+    private func follow(_ voice: SpokenAnswer) async {
+        for await event in voice.events {
             guard !Task.isCancelled else { return }
             switch event {
-            case .sentenceStarted(let sentence):
-                show(sentence)
+            case .show(let text):
+                show(text)
             case .finished:
                 hideCursor()
                 subtitles.finish()
@@ -222,7 +222,6 @@ final class Turn {
         case let error as AudioSourceError: "audio: \(error)"
         case let error as ScreenError: "screen: \(error)"
         case let error as BrainError: "brain: \(error)"
-        case let error as SpeakingError: "voice: \(error)"
         default: "unexpected"
         }
     }
