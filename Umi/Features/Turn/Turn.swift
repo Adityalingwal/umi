@@ -161,9 +161,15 @@ final class Turn {
     }
 
     private func ask(_ text: String, picture: Task<ScreenPicture, any Error>, voice: SpokenAnswer) async throws {
-        let screenJPEG = try await picture.value.jpegData
+        let screen = try await picture.value
         try Task.checkCancellation()
-        let answer = brain.answer(BrainQuestion(text: text, screenJPEG: screenJPEG))
+        let question = BrainQuestion(
+            text: text,
+            screenJPEG: screen.jpegData,
+            screenWidth: screen.width,
+            screenHeight: screen.height
+        )
+        let answer = brain.answer(question)
         await withDiscardingTaskGroup { group in
             group.addTask { await self.send(answer, to: voice) }
             group.addTask { await self.follow(voice) }
