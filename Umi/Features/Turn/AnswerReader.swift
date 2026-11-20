@@ -25,7 +25,7 @@ struct AnswerReader {
             read(part)
         }
         if let sentence = splitter.flush() {
-            voice.speak(sentence)
+            speak(sentence)
         }
         voice.endText()
     }
@@ -34,12 +34,16 @@ struct AnswerReader {
         switch part {
         case .text(let text):
             for sentence in splitter.add(text) {
-                voice.speak(sentence)
+                speak(sentence)
             }
         case .nameStart:
-            return
+            splitter.markName()
         case .dropped(let problem):
             logger.notice("Location data was dropped: \(String(describing: problem), privacy: .public)")
         }
+    }
+
+    private func speak(_ sentence: SentenceSplitter.Sentence) {
+        voice.speak(sentence.text, nameStart: sentence.nameStart)
     }
 }

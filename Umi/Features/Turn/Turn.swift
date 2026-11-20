@@ -16,6 +16,9 @@ final class Turn {
     private var picture: Task<ScreenPicture, any Error>?
     private var answering: Task<Void, Never>?
     private var speaking: SpokenAnswer?
+    private lazy var follower = VoiceFollower(subtitles: subtitles) { [weak self] in
+        self?.hideCursor()
+    }
 
     init(
         audioSource: any AudioSource,
@@ -122,14 +125,14 @@ final class Turn {
                 logger.notice("Sound without words: Claude not asked")
                 voice.speak(UmiLine.couldNotHear)
                 voice.endText()
-                await follow(voice)
+                await follower.follow(voice, pointing: nil)
             }
         } catch is CancellationError {
             return
         } catch {
             guard !Task.isCancelled else { return }
             stop(because: error, voice: voice)
-            await follow(voice)
+            await follower.follow(voice, pointing: nil)
         }
     }
 
@@ -139,7 +142,7 @@ final class Turn {
             guard !Task.isCancelled, let self else { return }
             defer { release(voice) }
             stop(because: refusal, voice: voice)
-            await follow(voice)
+            await follower.follow(voice, pointing: nil)
         }
     }
 
@@ -172,7 +175,7 @@ final class Turn {
         let answer = brain.answer(question)
         await withDiscardingTaskGroup { group in
             group.addTask { await self.send(answer, to: voice) }
-            group.addTask { await self.follow(voice) }
+            group.addTask { await self.follower.follow(voice, pointing: nil) }
         }
     }
 
@@ -185,20 +188,6 @@ final class Turn {
         } catch {
             guard !Task.isCancelled else { return }
             stop(because: error, voice: voice)
-        }
-    }
-
-    private func follow(_ voice: SpokenAnswer) async {
-        for await event in voice.events {
-            guard !Task.isCancelled else { return }
-            switch event {
-            case .show(let text):
-                show(text)
-            case .finished:
-                hideCursor()
-                subtitles.finish()
-                logger.notice("Answer finished")
-            }
         }
     }
 

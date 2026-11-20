@@ -20,11 +20,7 @@ final class SpokenAnswer {
     private let player: SpeechPlayer
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var mode = Mode.voiced
-    private var sentences: [String] = []
-    private var sentencesShown = 0
-    private var sentencesStarted = 0
-    private var sentencesWithAudio = 0
-    private var sentencesEnded = 0
+    private var turns = SpokenTurns()
     private var isTextEnded = false
     private var isAudioComplete = false
     private var waitingSince: ContinuousClock.Instant?
@@ -54,15 +50,7 @@ final class SpokenAnswer {
     #endif
 
     private var owesSound: Bool {
-        sentencesEnded < sentences.count || queue.hasUnplayedSamples
-    }
-
-    private func cutSentence(unfinished: Int?) -> Int? {
-        if let unfinished {
-            return unfinished
-        }
-        let playing = sentencesShown - 1
-        return playing >= 0 && sentencesEnded <= playing ? playing : nil
+        turns.isAudioOwed || queue.hasUnplayedSamples
     }
 
     func start() {
@@ -86,31 +74,36 @@ final class SpokenAnswer {
         watchForSilence()
     }
 
-    func speak(_ sentence: String) {
+    func speak(_ sentence: String, nameStart: String.Index? = nil) {
         switch mode {
         case .over:
             return
         case .unvoiced:
-            sentences.append(sentence)
-            sentencesShown = sentences.count
-            logger.notice("Sentence \(self.sentences.count - 1, privacy: .public) shows unspoken")
+            turns.addUnspoken(sentence)
+            logger.notice("Sentence \(self.turns.sentences.count - 1, privacy: .public) shows unspoken")
             eventContinuation.yield(.show(sentence))
         case .voiced:
-            sentences.append(sentence)
+            let firstTurn = turns.count
+            let parts = turns.add(sentence, nameStart: nameStart)
             do {
-                try socket.speak(sentence)
+                try parts.forEach(socket.speak)
             } catch {
                 fail(error)
                 return
             }
-            logger.notice("Sentence \(self.sentences.count - 1, privacy: .public) sent to the voice")
+            logger.notice(
+                """
+                Sentence \(self.turns.sentences.count - 1, privacy: .public) sent to the voice as \
+                \(parts.count, privacy: .public) turns from turn \(firstTurn, privacy: .public)
+                """
+            )
         }
     }
 
     func endText() {
         guard mode != .over, !isTextEnded else { return }
         isTextEnded = true
-        logger.notice("The answer's text ended after \(self.sentences.count, privacy: .public) sentences")
+        logger.notice("The answer's text ended after \(self.turns.sentences.count, privacy: .public) sentences")
         if mode == .unvoiced {
             finish()
         } else {
@@ -144,22 +137,25 @@ final class SpokenAnswer {
             guard waitingSince != nil else { return }
             waitingSince = .now
             logger.notice("The voice connected after its first sentence was ready; the wait for sound starts now")
-        case .sentenceStarted:
-            sentencesStarted += 1
+        case .turnStarted:
+            turns.voiceStartedTurn()
         case .audio(let audio):
-            let isFirstAudio = sentencesWithAudio < sentencesStarted
-            sentencesWithAudio = sentencesStarted
-            queue.append(linear16: audio, startingSentence: isFirstAudio ? sentencesStarted - 1 : nil)
+            let openedTurn = turns.audioArrived()
+            queue.append(linear16: audio, startingTurn: openedTurn)
             try player.start()
-        case let .sentenceEnded(billableCharacters, audioMilliseconds):
+            if let openedTurn, turns.isName(openedTurn), let wait = queue.millisecondsBeforeTurn(openedTurn) {
+                logger.notice("The name's audio arrived; it plays in \(wait, privacy: .public) ms")
+                eventContinuation.yield(.nameComing(after: .milliseconds(wait)))
+            }
+        case let .turnEnded(billableCharacters, audioMilliseconds):
+            let turn = turns.voiceEndedTurn()
             logger.notice(
                 """
-                Sentence \(self.sentencesEnded, privacy: .public) audio complete: \
+                Turn \(turn, privacy: .public) audio complete: \
                 \(audioMilliseconds, privacy: .public) ms, \(billableCharacters, privacy: .public) billable characters
                 """
             )
-            sentencesEnded += 1
-            queue.sentenceAudioEnded()
+            queue.turnAudioEnded(turn)
             endAudioIfComplete()
         }
     }
@@ -167,14 +163,15 @@ final class SpokenAnswer {
     private func handle(_ event: SpeechQueue.Event) {
         guard mode == .voiced else { return }
         switch event {
-        case let .sentenceStarted(index, firstSample):
-            guard sentences.indices.contains(index) else { return }
-            let lag = Int((firstSample.duration(to: .now) / .milliseconds(1)).rounded())
-            logger.notice(
-                "Sentence \(index, privacy: .public) started playing \(lag, privacy: .public) ms after its first sample"
-            )
-            sentencesShown = max(sentencesShown, index + 1)
-            eventContinuation.yield(.show(sentences[index]))
+        case let .turnStarted(turn, firstSample):
+            let lag = Self.milliseconds(since: firstSample)
+            logger.notice("Turn \(turn, privacy: .public) started playing, seen \(lag, privacy: .public) ms later")
+            turns.startPlaying(turn).forEach { eventContinuation.yield($0) }
+        case let .turnEnded(turn, lastSample):
+            guard turns.endsNameLine(turn) else { return }
+            let ago = Self.milliseconds(since: lastSample)
+            logger.notice("The line that names the target finished playing \(ago, privacy: .public) ms ago")
+            eventContinuation.yield(.nameLineEnded)
         case .playedOut:
             logger.notice("The voice finished playing")
             finish()
@@ -204,7 +201,7 @@ final class SpokenAnswer {
     }
 
     private func endAudioIfComplete() {
-        guard isTextEnded, sentencesEnded == sentences.count else { return }
+        guard isTextEnded, !turns.isAudioOwed else { return }
         isAudioComplete = true
         socket.close()
         if player.isStarted {
@@ -222,12 +219,12 @@ final class SpokenAnswer {
     private func fail(_ error: any Error) {
         guard mode == .voiced else { return }
         logger.error("The voice failed (\(Self.reason(for: error), privacy: .public)); the rest shows unspoken")
-        let cut = cutSentence(unfinished: queue.cutReturningUnfinishedSentence())
+        let unfinishedTurn = queue.cutReturningUnfinishedTurn()
         silence()
         mode = .unvoiced
-        if let cut, cut < sentencesShown {
+        eventContinuation.yield(.voiceFailed)
+        if let cut = turns.cut(unfinishedTurn: unfinishedTurn) {
             logger.notice("Sentence \(cut, privacy: .public) was cut while it played, so it shows again")
-            sentencesShown = cut
         }
         showUnshown()
         if isTextEnded {
@@ -243,8 +240,7 @@ final class SpokenAnswer {
     }
 
     private func showUnshown() {
-        let unshown = sentences[sentencesShown...]
-        sentencesShown = sentences.count
+        let unshown = turns.takeUnshown()
         guard !unshown.isEmpty else { return }
         logger.notice("\(unshown.count, privacy: .public) sentences show together, unspoken")
         eventContinuation.yield(.show(unshown.joined(separator: " ")))
@@ -265,6 +261,10 @@ final class SpokenAnswer {
         #if DEBUG
         speechFile?.append(queue.takePlayed())
         #endif
+    }
+
+    private static func milliseconds(since instant: ContinuousClock.Instant) -> Int {
+        Int((instant.duration(to: .now) / .milliseconds(1)).rounded())
     }
 
     private static func reason(for error: any Error) -> String {
