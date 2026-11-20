@@ -185,11 +185,11 @@ final class Pointing {
         clearing = Task { [weak self] in
             try? await Task.sleep(for: Self.clearAfterLine)
             guard !Task.isCancelled else { return }
-            self?.end(because: "two seconds passed after its line")
+            self?.end(because: "two seconds passed after its line", fading: true)
         }
     }
 
-    private func end(because reason: String) {
+    private func end(because reason: String, fading: Bool = false) {
         if case .over = phase { return }
         let wasShowing = isShowing
         phase = .over
@@ -197,8 +197,11 @@ final class Pointing {
         landing?.cancel()
         clearing?.cancel()
         appSwitches.stop()
+        if wasShowing, !fading {
+            panel.hide()
+        }
         overlay.clear()
-        if wasShowing {
+        if wasShowing, fading {
             hideAfterFade()
         }
         logger.notice("Pointing ended: \(reason, privacy: .public); it was showing: \(wasShowing, privacy: .public)")
