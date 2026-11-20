@@ -68,7 +68,8 @@ nonisolated struct PointTagParser {
 
     private mutating func dropUnclosedTag(before end: String.Index, into parts: inout [Part]) {
         let tag = buffer[..<end]
-        let attributesEnd = tag.lastIndex(of: "\"").map(tag.index(after:))
+        let head = /<\/?point(?:\s+[a-z_\-]+\s*=\s*["']?[^\s"'<>]*["']?)*\s*/.ignoresCase()
+        let attributesEnd = tag.prefixMatch(of: head)?.range.upperBound
             ?? tag.firstIndex(where: \.isWhitespace)
             ?? tag.endIndex
         let rest = String(tag[attributesEnd...].drop(while: \.isWhitespace))
@@ -142,8 +143,9 @@ nonisolated struct PointTagParser {
         guard tag.lowercased().hasPrefix(openTag) else { return nil }
         var pixelX: Double?
         var pixelY: Double?
-        for match in tag.lowercased().matches(of: /\b([xy])\s*=\s*["']?\s*(-?[0-9]+(?:\.[0-9]+)?)/) {
-            guard let value = Double(match.output.2), value.isFinite else { return nil }
+        for match in tag.lowercased().matches(of: /\b([xy])\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'<>\/]*))/) {
+            let text = match.output.2 ?? match.output.3 ?? match.output.4 ?? ""
+            guard let value = coordinate(in: text) else { return nil }
             if match.output.1 == "x" {
                 guard pixelX == nil else { return nil }
                 pixelX = value
@@ -154,5 +156,10 @@ nonisolated struct PointTagParser {
         }
         guard let pixelX, let pixelY else { return nil }
         return PointLocation(pixelX: pixelX, pixelY: pixelY)
+    }
+
+    private static func coordinate(in text: Substring) -> Double? {
+        guard let match = text.wholeMatch(of: /\s*(-?[0-9]+(?:\.[0-9]+)?)\s*/) else { return nil }
+        return Double(match.output.1)
     }
 }
