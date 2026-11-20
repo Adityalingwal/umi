@@ -57,8 +57,13 @@ final class SpokenAnswer {
 
     func speak(_ sentence: String) {
         guard !isOver else { return }
+        do {
+            try socket.speak(sentence)
+        } catch {
+            logger.error("A sentence could not be sent to the voice: \(error.localizedDescription)")
+            return
+        }
         sentences.append(sentence)
-        socket.speak(sentence)
         logger.notice("Sentence \(self.sentences.count - 1, privacy: .public) sent to the voice")
     }
 

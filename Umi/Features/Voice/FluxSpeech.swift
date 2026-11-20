@@ -56,11 +56,9 @@ final class FluxSpeech {
         return stream
     }
 
-    func speak(_ sentence: String) {
-        guard let speak = try? JSONEncoder().encode(FluxSpeak(text: sentence)),
-              let json = String(bytes: speak, encoding: .utf8) else {
-            logger.error("A sentence could not be encoded for the voice")
-            return
+    func speak(_ sentence: String) throws {
+        guard let json = String(bytes: try JSONEncoder().encode(FluxSpeak(text: sentence)), encoding: .utf8) else {
+            throw SpeechError.serviceFailed
         }
         outgoing.continuation.yield(.string(json))
         outgoing.continuation.yield(.string(Self.flush))
