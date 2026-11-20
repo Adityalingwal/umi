@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var turns: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !Self.isTestHost(ProcessInfo.processInfo.environment) else { return }
         let listening = Listening.atLaunch(defaults: .standard)
         let accessibility = AccessibilityPermission(defaults: .standard)
         statusMenu = StatusMenu(
@@ -31,7 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             relauncher: AppRelauncher()
         )
         listening.appDidLaunch()
-        guard !Self.isTestHost(ProcessInfo.processInfo.environment) else { return }
         let keyListener = KeyListener(accessibility: accessibility)
         keyListener.start()
         self.keyListener = keyListener
@@ -48,9 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    // Xcode's test runner sets this variable in the app it hosts the tests in.
+    // The shared scheme's Test action sets this variable in the app that hosts the tests.
     private static func isTestHost(_ environment: [String: String]) -> Bool {
-        environment["XCTestConfigurationFilePath"] != nil
+        environment["UMI_TEST_HOST"] == "1"
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
