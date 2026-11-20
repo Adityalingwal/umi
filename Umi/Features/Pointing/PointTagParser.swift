@@ -68,12 +68,10 @@ nonisolated struct PointTagParser {
 
     private mutating func dropUnclosedTag(before end: String.Index, into parts: inout [Part]) {
         let tag = buffer[..<end]
-        let head = /<\/?point(?:[\s,]*[a-z_\-]+\s*=\s*(?:"[^"<>]*"|'[^'<>]*'|["']?[^\s"'<>,]*))*[\s,]*/
-            .ignoresCase()
-        let attributesEnd = tag.prefixMatch(of: head)?.range.upperBound
+        let attributesEnd = tag.lastIndex { "=\"'".contains($0) }.map(tag.index(after:))
             ?? tag.firstIndex(where: \.isWhitespace)
             ?? tag.endIndex
-        let rest = String(tag[attributesEnd...].drop(while: \.isWhitespace))
+        let rest = String(tag[attributesEnd...].drop { $0.isWhitespace || $0.isNumber || "+-.,".contains($0) })
         buffer = String(buffer[end...])
         parts.append(.dropped(.unfinishedTag))
         emit(rest, into: &parts)
