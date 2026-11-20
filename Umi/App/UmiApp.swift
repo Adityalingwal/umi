@@ -23,16 +23,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !Self.isTestHost(ProcessInfo.processInfo.environment) else { return }
         let listening = Listening.atLaunch(defaults: .standard)
         let accessibility = AccessibilityPermission(defaults: .standard)
+        let keyListener = KeyListener(accessibility: accessibility)
         statusMenu = StatusMenu(
             appName: ProcessInfo.processInfo.processName,
             microphone: MicrophonePermission(),
             screen: .atLaunch(defaults: .standard),
             accessibility: accessibility,
+            keyListener: keyListener,
             listening: listening,
             relauncher: AppRelauncher()
         )
         listening.appDidLaunch()
-        let keyListener = KeyListener(accessibility: accessibility)
         keyListener.start()
         self.keyListener = keyListener
         #if DEBUG

@@ -120,7 +120,9 @@ final class Turn {
     }
 
     private func ask(_ text: String, picture: Task<ScreenPicture, any Error>) async throws {
-        let question = BrainQuestion(text: text, screenJPEG: try await picture.value.jpegData)
+        let screenJPEG = try await picture.value.jpegData
+        try Task.checkCancellation()
+        let question = BrainQuestion(text: text, screenJPEG: screenJPEG)
         var splitter = SentenceSplitter()
         for try await piece in brain.answer(question) {
             splitter.add(piece).forEach(show)
