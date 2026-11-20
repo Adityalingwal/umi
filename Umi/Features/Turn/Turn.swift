@@ -92,9 +92,7 @@ final class Turn {
     }
 
     private func end() {
-        guard let hearing, let picture, let speaking else { return }
-        self.hearing = nil
-        self.picture = nil
+        guard answering == nil, let hearing, let picture, let speaking else { return }
         cursor.think()
         logger.notice("Hold ended")
         answering = Task { [weak self] in
@@ -107,7 +105,7 @@ final class Turn {
         picture: Task<ScreenPicture, any Error>,
         voice: SpokenAnswer
     ) async {
-        defer { release(voice) }
+        defer { release(hearing, picture, voice) }
         do {
             let heard = try await hearing.finish()
             guard !Task.isCancelled else { return }
@@ -188,8 +186,14 @@ final class Turn {
         subtitles.finish()
     }
 
-    private func release(_ voice: SpokenAnswer) {
+    private func release(_ hearing: HoldHearing, _ picture: Task<ScreenPicture, any Error>, _ voice: SpokenAnswer) {
         voice.stop()
+        if self.hearing === hearing {
+            self.hearing = nil
+        }
+        if self.picture == picture {
+            self.picture = nil
+        }
         if speaking === voice {
             speaking = nil
         }
