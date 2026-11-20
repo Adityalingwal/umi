@@ -33,6 +33,9 @@ final class SpokenAnswer {
     convenience init(socket: FluxSpeech, speechFile: SpeechFile?) {
         self.init(socket: socket)
         self.speechFile = speechFile
+        if speechFile != nil {
+            queue.recordPlayedSamples()
+        }
     }
     #endif
 

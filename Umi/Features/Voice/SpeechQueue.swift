@@ -42,6 +42,10 @@ nonisolated final class SpeechQueue: Sendable {
     }
 
     #if DEBUG
+    func recordPlayedSamples() {
+        state.withLock { $0.isRecording = true }
+    }
+
     func takePlayed() -> [Float] {
         state.withLock { state in
             defer { state.record = [] }
@@ -70,6 +74,7 @@ private nonisolated struct QueueState {
     var played = 0
     var isAudioComplete = false
     #if DEBUG
+    var isRecording = false
     var record: [Float] = []
     #endif
 
@@ -128,7 +133,7 @@ private nonisolated struct QueueState {
             played += 1
         }
         #if DEBUG
-        if isPlaying, !isCut, !isPlayedOut {
+        if isRecording, isPlaying, !isCut, !isPlayedOut {
             record.append(contentsOf: UnsafeBufferPointer(start: output, count: frameCount))
         }
         #endif
