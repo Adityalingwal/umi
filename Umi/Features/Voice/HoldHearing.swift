@@ -40,7 +40,8 @@ final class HoldHearing {
             throw error
         } catch {
             try Task.checkCancellation()
-            logger.error("Flux failed (\(String(describing: error), privacy: .public)), asking Nova-3")
+            let reason = (error as? SpeechError).map { "\($0)" } ?? "socket error"
+            logger.error("Flux failed (\(reason, privacy: .public)), asking Nova-3")
             guard !flux.recording.linear16.isEmpty else { return "" }
             return try await nova.text(of: flux.recording)
         }
