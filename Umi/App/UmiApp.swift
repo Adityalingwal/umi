@@ -82,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let turn = Turn(
                 audioSource: audioSource,
                 speech: await SpeechToText.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),
+                speaker: await Speaker.atLaunch(bundleURL: bundleURL, session: .shared),
                 screen: screen,
                 brain: brain,
                 subtitles: subtitles,
@@ -97,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 group.addTask {
                     for await _ in escapes {
-                        await turn.clearSubtitles()
+                        await turn.escape()
                     }
                 }
             }
