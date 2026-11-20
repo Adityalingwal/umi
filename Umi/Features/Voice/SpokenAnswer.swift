@@ -79,12 +79,9 @@ final class SpokenAnswer {
         case .over:
             return
         case .unvoiced:
-            turns.addUnspoken(sentence)
+            let events = turns.addUnspoken(sentence, nameStart: nameStart)
             logger.notice("Sentence \(self.turns.sentences.count - 1, privacy: .public) shows unspoken")
-            eventContinuation.yield(.show(sentence))
-            if nameStart != nil {
-                eventContinuation.yield(.nameShown)
-            }
+            events.forEach { eventContinuation.yield($0) }
         case .voiced:
             let firstTurn = turns.count
             let parts = turns.add(sentence, nameStart: nameStart)

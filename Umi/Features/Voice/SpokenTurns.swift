@@ -29,9 +29,11 @@ struct SpokenTurns {
         return parts.map(\.text)
     }
 
-    mutating func addUnspoken(_ sentence: String) {
+    mutating func addUnspoken(_ sentence: String, nameStart: String.Index?) -> [SpokenEvent] {
         sentences.append(sentence)
         sentencesShown = sentences.count
+        let namesTarget = Self.parts(of: sentence, nameStart: nameStart).contains(where: \.isName)
+        return namesTarget ? [.show(sentence), .nameShown] : [.show(sentence)]
     }
 
     mutating func voiceStartedTurn() {
