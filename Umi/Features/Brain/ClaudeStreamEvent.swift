@@ -4,6 +4,7 @@ nonisolated enum ClaudeStreamEvent {
     case started(apiKeySource: String, model: String)
     case text(String)
     case apiError(BrainError)
+    case connectionLost
     case finished
     case failed
     case other
@@ -20,6 +21,8 @@ nonisolated enum ClaudeStreamEvent {
                 apiKeySource: object["apiKeySource"] as? String ?? "unknown",
                 model: object["model"] as? String ?? "unknown"
             )
+        case "system" where object["subtype"] as? String == "api_retry" && object["error_status"] is NSNull:
+            self = .connectionLost
         case "assistant" where object["error"] is String:
             self = .apiError(Self.failure(error: object["error"] as? String, apiError: object["api_error"] as? String))
         case "stream_event":

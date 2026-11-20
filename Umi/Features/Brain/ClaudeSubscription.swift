@@ -80,6 +80,9 @@ final class ClaudeSubscription: Brain {
             case .apiError(let error):
                 logger.error("Claude reported an error: \(String(describing: error), privacy: .public)")
                 failure = error
+            case .connectionLost:
+                logger.error("Claude could not reach its server, stopping without retries")
+                throw BrainError.noInternet
             case .finished:
                 return
             case .failed:
