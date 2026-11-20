@@ -23,6 +23,8 @@ struct VoiceFollower {
                 pointing?.nameStarted()
             case .nameLineEnded:
                 pointing?.nameLineEnded()
+            case .nameShown:
+                pointing?.nameShown()
             case .voiceFailed:
                 pointing?.voiceFailed()
             case .finished:
