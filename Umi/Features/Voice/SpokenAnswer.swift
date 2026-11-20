@@ -82,7 +82,9 @@ final class SpokenAnswer {
         case .over:
             return
         case .unvoiced:
-            logger.notice("A sentence shows unspoken")
+            sentences.append(sentence)
+            sentencesShown = sentences.count
+            logger.notice("Sentence \(self.sentences.count - 1, privacy: .public) shows unspoken")
             eventContinuation.yield(.show(sentence))
         case .voiced:
             sentences.append(sentence)
