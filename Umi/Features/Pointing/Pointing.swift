@@ -12,10 +12,8 @@ final class Pointing {
     }
 
     private static let clearAfterLine = Duration.seconds(2)
-    private static let fadeOut = Duration.milliseconds(200)
 
-    private let panel: PointerPanel
-    private let overlay: PointerOverlay
+    private let stage: PointerStage
     private let displayFrame: CGRect
     private let appSwitches: AppSwitchWatch
     private let scrolls = ScrollWatch()
@@ -27,18 +25,15 @@ final class Pointing {
     private var departing: Task<Void, Never>?
     private var landing: Task<Void, Never>?
     private var clearing: Task<Void, Never>?
-    private var hiding: Task<Void, Never>?
 
     init(
-        panel: PointerPanel,
-        overlay: PointerOverlay,
+        stage: PointerStage,
         displayFrame: CGRect,
         workspace: NSWorkspace,
         cursorRest: @escaping () -> CGPoint,
         onDepart: @escaping () -> Void
     ) {
-        self.panel = panel
-        self.overlay = overlay
+        self.stage = stage
         self.displayFrame = displayFrame
         appSwitches = AppSwitchWatch(workspace: workspace)
         self.cursorRest = cursorRest
@@ -78,14 +73,14 @@ final class Pointing {
         phase = .aimed(target)
         logger.notice("The location is in hand; the name opens the answer: \(opensAnswer, privacy: .public)")
         if opensAnswer {
-            depart(taking: Travel.usualDuration(from: viewPoint(cursorRest()), to: viewPoint(target)))
+            depart(taking: stage.usualTravelTime(from: cursorRest(), to: target))
         }
         return true
     }
 
     func nameComing(after delay: Duration) {
         guard case .aimed(let target) = phase, departing == nil else { return }
-        let travelTime = Travel.usualDuration(from: viewPoint(cursorRest()), to: viewPoint(target))
+        let travelTime = stage.usualTravelTime(from: cursorRest(), to: target)
         let wait = delay - travelTime
         logger.notice(
             """
@@ -150,15 +145,7 @@ final class Pointing {
     private func depart(taking duration: Duration) {
         guard case .aimed(let target) = phase else { return }
         departing = nil
-        let bounds = CGRect(origin: .zero, size: displayFrame.size)
-        let rest = viewPoint(cursorRest())
-        let start = CGPoint(
-            x: min(max(rest.x, bounds.minX), bounds.maxX),
-            y: min(max(rest.y, bounds.minY), bounds.maxY)
-        )
-        let travel = Travel(from: start, to: viewPoint(target), within: bounds, duration: duration, startingAt: .now)
-        panel.show(on: displayFrame)
-        overlay.start(travel)
+        stage.travel(from: cursorRest(), to: target, taking: duration)
         onDepart()
         phase = .travelling
         logger.notice("The cursor left; it lands in \(Self.milliseconds(duration), privacy: .public) ms")
@@ -171,7 +158,7 @@ final class Pointing {
 
     private func land() {
         guard case .travelling = phase else { return }
-        overlay.land()
+        stage.land()
         phase = .landed
         logger.notice("The cursor landed")
         if isNameStarted {
@@ -180,7 +167,7 @@ final class Pointing {
     }
 
     private func showMark() {
-        overlay.mark()
+        stage.mark()
         phase = .marked
         logger.notice("The mark is on")
     }
@@ -202,26 +189,10 @@ final class Pointing {
         clearing?.cancel()
         appSwitches.stop()
         scrolls.stop()
-        if wasShowing, !fading {
-            panel.hide()
-        }
-        overlay.clear()
-        if wasShowing, fading {
-            hideAfterFade()
+        if wasShowing {
+            stage.clear(fading: fading)
         }
         logger.notice("Pointing ended: \(reason, privacy: .public); it was showing: \(wasShowing, privacy: .public)")
-    }
-
-    private func hideAfterFade() {
-        hiding = Task { [panel, overlay] in
-            try? await Task.sleep(for: Self.fadeOut)
-            guard overlay.travel == nil else { return }
-            panel.hide()
-        }
-    }
-
-    private func viewPoint(_ screenPoint: CGPoint) -> CGPoint {
-        CGPoint(x: screenPoint.x - displayFrame.minX, y: displayFrame.maxY - screenPoint.y)
     }
 
     private static func milliseconds(_ duration: Duration) -> Int {
