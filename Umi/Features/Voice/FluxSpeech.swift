@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import Synchronization
 
 nonisolated enum FluxSpeechMessage: Sendable {
     case audio(Data)
@@ -147,8 +148,11 @@ final class FluxSpeech {
     }
 
     private static func ping(_ socket: URLSessionWebSocketTask) async throws {
+        let answer = PingAnswer()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
             socket.sendPing { error in
+                // URLSession called this twice when the socket closed while a ping waited for its pong.
+                guard answer.isFirst() else { return }
                 if let error {
                     continuation.resume(throwing: error)
                 } else {
@@ -169,6 +173,14 @@ final class FluxSpeech {
             return SpeechError.keyRefused
         }
         return (error as? URLError).map(SpeechError.init) ?? SpeechError.connectionFailed
+    }
+}
+
+private nonisolated final class PingAnswer: Sendable {
+    private let isAnswered = Atomic(false)
+
+    func isFirst() -> Bool {
+        !isAnswered.exchange(true, ordering: .relaxed)
     }
 }
 
