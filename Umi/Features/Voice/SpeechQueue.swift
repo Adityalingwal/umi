@@ -4,7 +4,7 @@ import Synchronization
 nonisolated final class SpeechQueue: Sendable {
     enum Event: Sendable {
         case turnStarted(Int, playedAt: ContinuousClock.Instant)
-        case turnEnded(Int, playedAt: ContinuousClock.Instant)
+        case turnEnded(Int)
         case playedOut
     }
 
@@ -101,7 +101,6 @@ private nonisolated struct QueueState {
     private var nextTurnStart = 0
     private var turnEnds: [(sample: Int, turn: Int)] = []
     private var nextTurnEnd = 0
-    private var lastSampleEndedAt: ContinuousClock.Instant?
     private var oddByte: UInt8?
     private var wholeTurnsEnd = 0
     private var isPlaying = false
@@ -157,12 +156,9 @@ private nonisolated struct QueueState {
         at now: ContinuousClock.Instant
     ) -> [SpeechQueue.Event] {
         var events: [SpeechQueue.Event] = []
-        var lastPlayedFrame: Int?
         startIfReady()
         for frame in 0..<frameCount {
-            if hasTurnEndDue {
-                postTurnEnds(at: endOfPlayed(beforeFrame: frame, lastPlayedFrame, now), into: &events)
-            }
+            postTurnEnds(into: &events)
             guard isPlaying, !isCut, played < samples.count else {
                 output[frame] = 0
                 continue
@@ -174,14 +170,8 @@ private nonisolated struct QueueState {
             }
             output[frame] = samples[played]
             played += 1
-            lastPlayedFrame = frame
         }
-        if let lastPlayedFrame {
-            lastSampleEndedAt = Self.time(ofFrame: lastPlayedFrame + 1, after: now)
-        }
-        if hasTurnEndDue {
-            postTurnEnds(at: lastSampleEndedAt ?? Self.time(ofFrame: frameCount, after: now), into: &events)
-        }
+        postTurnEnds(into: &events)
         #if DEBUG
         if isRecording, isPlaying, !isCut, !isPlayedOut {
             record.append(contentsOf: UnsafeBufferPointer(start: output, count: frameCount))
@@ -201,22 +191,11 @@ private nonisolated struct QueueState {
         !isCut && nextTurnEnd < turnEnds.count && turnEnds[nextTurnEnd].sample <= played
     }
 
-    private mutating func postTurnEnds(at time: ContinuousClock.Instant, into events: inout [SpeechQueue.Event]) {
+    private mutating func postTurnEnds(into events: inout [SpeechQueue.Event]) {
         while hasTurnEndDue {
-            events.append(.turnEnded(turnEnds[nextTurnEnd].turn, playedAt: time))
+            events.append(.turnEnded(turnEnds[nextTurnEnd].turn))
             nextTurnEnd += 1
         }
-    }
-
-    private func endOfPlayed(
-        beforeFrame frame: Int,
-        _ lastPlayedFrame: Int?,
-        _ now: ContinuousClock.Instant
-    ) -> ContinuousClock.Instant {
-        if let lastPlayedFrame {
-            return Self.time(ofFrame: lastPlayedFrame + 1, after: now)
-        }
-        return lastSampleEndedAt ?? Self.time(ofFrame: frame, after: now)
     }
 
     private static func time(ofFrame frame: Int, after start: ContinuousClock.Instant) -> ContinuousClock.Instant {

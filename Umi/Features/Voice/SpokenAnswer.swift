@@ -167,10 +167,9 @@ final class SpokenAnswer {
             let lag = Self.milliseconds(since: firstSample)
             logger.notice("Turn \(turn, privacy: .public) started playing, seen \(lag, privacy: .public) ms later")
             turns.startPlaying(turn).forEach { eventContinuation.yield($0) }
-        case let .turnEnded(turn, lastSample):
+        case .turnEnded(let turn):
             guard turns.endsNameLine(turn) else { return }
-            let ago = Self.milliseconds(since: lastSample)
-            logger.notice("The line that names the target finished playing \(ago, privacy: .public) ms ago")
+            logger.notice("The line that names the target finished playing")
             eventContinuation.yield(.nameLineEnded)
         case .playedOut:
             logger.notice("The voice finished playing")
