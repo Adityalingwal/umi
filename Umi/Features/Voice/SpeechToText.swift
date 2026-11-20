@@ -12,8 +12,7 @@ struct SpeechToText {
         if defaults.bool(forKey: "UmiFailFlux") {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
                 .notice("Flux will fail on purpose (-UmiFailFlux)")
-            // Nothing listens on this port, so Flux fails at once and nothing leaves the Mac.
-            return SpeechToText(key: key, session: session, fluxEndpoint: URL(string: "wss://127.0.0.1:9"))
+            return SpeechToText(key: key, session: session, fluxEndpoint: nil)
         }
         #endif
         return SpeechToText(key: key, session: session, fluxEndpoint: FluxTranscription.endpoint)
