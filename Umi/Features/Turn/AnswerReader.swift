@@ -2,12 +2,16 @@ import OSLog
 
 struct AnswerReader {
     private let voice: SpokenAnswer
+    private let pointing: Pointing?
+    private let picture: ScreenPicture
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var tags = PointTagParser()
     private var splitter = SentenceSplitter()
 
-    init(voice: SpokenAnswer) {
+    init(voice: SpokenAnswer, pointing: Pointing?, picture: ScreenPicture) {
         self.voice = voice
+        self.pointing = pointing
+        self.picture = picture
     }
 
     mutating func read(_ answer: AsyncThrowingStream<String, any Error>) async throws {
@@ -36,8 +40,16 @@ struct AnswerReader {
             for sentence in splitter.add(text) {
                 speak(sentence)
             }
-        case .nameStart:
-            splitter.markName()
+        case .nameStart(let location):
+            let isAimed = pointing?.aim(
+                at: location,
+                pictureWidth: picture.width,
+                pictureHeight: picture.height,
+                opensAnswer: splitter.isAtStart
+            )
+            if isAimed == true {
+                splitter.markName()
+            }
         case .dropped(let problem):
             logger.notice("Location data was dropped: \(String(describing: problem), privacy: .public)")
         }

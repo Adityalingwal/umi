@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import OSLog
 
 final class Turn {
@@ -11,11 +11,13 @@ final class Turn {
     private let subtitlePanel: SubtitlePanel
     private let cursor: UmiCursor
     private let cursorPanel: CursorPanel
+    private let pointer: Pointer
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var hearing: HoldHearing?
     private var picture: Task<ScreenPicture, any Error>?
     private var answering: Task<Void, Never>?
     private var speaking: SpokenAnswer?
+    private var pointing: Pointing?
     private lazy var follower = VoiceFollower(subtitles: subtitles) { [weak self] in
         self?.hideCursor()
     }
@@ -29,7 +31,8 @@ final class Turn {
         subtitles: Subtitles,
         subtitlePanel: SubtitlePanel,
         cursor: UmiCursor,
-        cursorPanel: CursorPanel
+        cursorPanel: CursorPanel,
+        pointer: Pointer
     ) {
         self.audioSource = MeteredAudioSource(source: audioSource, cursor: cursor)
         self.speech = speech
@@ -40,6 +43,7 @@ final class Turn {
         self.subtitlePanel = subtitlePanel
         self.cursor = cursor
         self.cursorPanel = cursorPanel
+        self.pointer = pointer
     }
 
     func handle(_ event: HoldEvent) {
@@ -56,7 +60,7 @@ final class Turn {
     }
 
     func escape() {
-        guard speaking != nil || subtitles.line != nil else { return }
+        guard speaking != nil || subtitles.line != nil || pointing?.isShowing == true else { return }
         cancel()
         subtitles.clear()
         logger.notice("Esc: the question stopped and the subtitles cleared")
@@ -65,11 +69,11 @@ final class Turn {
     private func begin() {
         cancel()
         subtitles.clear()
-        guard let pointer = PointerScreen.current() else {
+        guard let underPointer = PointerScreen.current() else {
             logger.error("No screen is under the pointer")
             return
         }
-        subtitlePanel.show(on: pointer.screen)
+        subtitlePanel.show(on: underPointer.screen)
         let hearing: HoldHearing
         let speaking: SpokenAnswer
         do {
@@ -85,10 +89,15 @@ final class Turn {
             stopWithoutScreen(voice: speaking)
             return
         }
+        pointing = pointer.pointing(
+            on: underPointer.screen.frame,
+            cursorRest: { [cursorPanel] in cursorPanel.center },
+            onDepart: { [weak self] in self?.hideCursor() }
+        )
         cursorPanel.startFollowingPointer()
         cursor.listen()
         picture = Task { [screen] in
-            try await screen.picture(ofDisplay: pointer.displayID)
+            try await screen.picture(ofDisplay: underPointer.displayID)
         }
         hearing.start()
         speaking.start()
@@ -100,15 +109,17 @@ final class Turn {
         guard answering == nil, let hearing, let picture, let speaking else { return }
         cursor.think()
         logger.notice("Hold ended")
+        let pointing = pointing
         answering = Task { [weak self] in
-            await self?.answer(heardBy: hearing, picture: picture, voice: speaking)
+            await self?.answer(heardBy: hearing, picture: picture, voice: speaking, pointing: pointing)
         }
     }
 
     private func answer(
         heardBy hearing: HoldHearing,
         picture: Task<ScreenPicture, any Error>,
-        voice: SpokenAnswer
+        voice: SpokenAnswer,
+        pointing: Pointing?
     ) async {
         defer { release(hearing, picture, voice) }
         do {
@@ -117,22 +128,23 @@ final class Turn {
             switch heard {
             case .words(let text):
                 logger.notice("Heard \(text.count, privacy: .public) characters")
-                try await ask(text, picture: picture, voice: voice)
+                try await ask(text, picture: picture, voice: voice, pointing: pointing)
             case .silence:
                 hideCursor()
+                pointing?.voiceEnded()
                 logger.notice("Silence: the question ended quietly, Claude not asked")
             case .soundWithoutWords:
                 logger.notice("Sound without words: Claude not asked")
                 voice.speak(UmiLine.couldNotHear)
                 voice.endText()
-                await follower.follow(voice, pointing: nil)
+                await follower.follow(voice, pointing: pointing)
             }
         } catch is CancellationError {
             return
         } catch {
             guard !Task.isCancelled else { return }
             stop(because: error, voice: voice)
-            await follower.follow(voice, pointing: nil)
+            await follower.follow(voice, pointing: pointing)
         }
     }
 
@@ -163,7 +175,12 @@ final class Turn {
         }
     }
 
-    private func ask(_ text: String, picture: Task<ScreenPicture, any Error>, voice: SpokenAnswer) async throws {
+    private func ask(
+        _ text: String,
+        picture: Task<ScreenPicture, any Error>,
+        voice: SpokenAnswer,
+        pointing: Pointing?
+    ) async throws {
         let screen = try await picture.value
         try Task.checkCancellation()
         let question = BrainQuestion(
@@ -174,13 +191,18 @@ final class Turn {
         )
         let answer = brain.answer(question)
         await withDiscardingTaskGroup { group in
-            group.addTask { await self.send(answer, to: voice) }
-            group.addTask { await self.follower.follow(voice, pointing: nil) }
+            group.addTask { await self.send(answer, to: voice, pointing: pointing, on: screen) }
+            group.addTask { await self.follower.follow(voice, pointing: pointing) }
         }
     }
 
-    private func send(_ answer: AsyncThrowingStream<String, any Error>, to voice: SpokenAnswer) async {
-        var reader = AnswerReader(voice: voice)
+    private func send(
+        _ answer: AsyncThrowingStream<String, any Error>,
+        to voice: SpokenAnswer,
+        pointing: Pointing?,
+        on picture: ScreenPicture
+    ) async {
+        var reader = AnswerReader(voice: voice, pointing: pointing, picture: picture)
         do {
             try await reader.read(answer)
         } catch is CancellationError {
@@ -227,6 +249,8 @@ final class Turn {
         picture = nil
         speaking?.stop()
         speaking = nil
+        pointing?.stop()
+        pointing = nil
         hideCursor()
     }
 
