@@ -171,21 +171,15 @@ final class Turn {
     }
 
     private func send(_ answer: AsyncThrowingStream<String, any Error>, to voice: SpokenAnswer) async {
-        var splitter = SentenceSplitter()
+        var reader = AnswerReader(voice: voice)
         do {
-            for try await piece in answer {
-                splitter.add(piece).forEach(voice.speak)
-            }
-            try Task.checkCancellation()
+            try await reader.read(answer)
         } catch is CancellationError {
             return
         } catch {
             guard !Task.isCancelled else { return }
             stop(because: error, voice: voice)
-            return
         }
-        splitter.flush().map(voice.speak)
-        voice.endText()
     }
 
     private func follow(_ voice: SpokenAnswer) async {
