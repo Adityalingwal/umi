@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             relauncher: AppRelauncher()
         )
         listening.appDidLaunch()
+        guard !Self.isTestHost(ProcessInfo.processInfo.environment) else { return }
         let keyListener = KeyListener(accessibility: accessibility)
         keyListener.start()
         self.keyListener = keyListener
@@ -45,6 +46,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             holds: keyListener.holds,
             escapes: keyListener.escapes
         )
+    }
+
+    // Xcode's test runner sets this variable in the app it hosts the tests in.
+    private static func isTestHost(_ environment: [String: String]) -> Bool {
+        environment["XCTestConfigurationFilePath"] != nil
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
