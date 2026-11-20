@@ -67,8 +67,11 @@ final class Turn {
         do {
             hearing = try speech.hearing(from: audioSource)
         } catch {
-            logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
-            say(UmiLine.failure(error))
+            stop(because: error)
+            return
+        }
+        guard screen.isAllowed else {
+            stopWithoutScreen()
             return
         }
         cursorPanel.startFollowingPointer()
@@ -82,10 +85,7 @@ final class Turn {
     }
 
     private func end() {
-        guard let hearing, let picture else {
-            cancel()
-            return
-        }
+        guard let hearing, let picture else { return }
         self.hearing = nil
         self.picture = nil
         cursor.think()
@@ -114,9 +114,21 @@ final class Turn {
             return
         } catch {
             guard !Task.isCancelled else { return }
-            logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
-            say(UmiLine.failure(error))
+            stop(because: error)
         }
+    }
+
+    private func stopWithoutScreen() {
+        answering = Task { [weak self, screen] in
+            let refusal = await screen.refusal()
+            guard !Task.isCancelled else { return }
+            self?.stop(because: refusal)
+        }
+    }
+
+    private func stop(because error: any Error) {
+        logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+        say(UmiLine.failure(error))
     }
 
     private func ask(_ text: String, picture: Task<ScreenPicture, any Error>) async throws {

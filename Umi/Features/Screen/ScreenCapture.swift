@@ -28,6 +28,10 @@ nonisolated struct ScreenCapture: Sendable {
         )
     }
 
+    var isAllowed: Bool {
+        replacementImageURL != nil || CGPreflightScreenCaptureAccess()
+    }
+
     @concurrent
     func picture(ofDisplay displayID: CGDirectDisplayID) async throws -> ScreenPicture {
         #if DEBUG
@@ -43,7 +47,7 @@ nonisolated struct ScreenCapture: Sendable {
         return ScreenPicture(jpegData: try JPEGEncoder.encode(image))
     }
 
-    private func refusal() async -> ScreenError {
+    func refusal() async -> ScreenError {
         guard let probe else { return .notAllowed }
         do {
             return try await probe.isGrantedInFreshProcess() ? .needsRelaunch : .notAllowed
