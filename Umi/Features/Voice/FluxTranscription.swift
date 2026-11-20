@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 final class FluxTranscription {
-    private static let tail = Duration.milliseconds(200)
+    private static let tail = Duration.milliseconds(100)
     private static let finalTextWait = Duration.seconds(5)
     private static let endSilence = Data(count: 6_400)
     private static let forceEndTurn = #"{"type":"ForceEndTurn"}"#
