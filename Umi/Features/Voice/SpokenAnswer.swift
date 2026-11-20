@@ -57,9 +57,9 @@ final class SpokenAnswer {
         sentencesEnded < sentences.count || queue.hasUnplayedSamples
     }
 
-    private var cutSentence: Int? {
-        if let sentence = queue.unfinishedSentence {
-            return sentence
+    private func cutSentence(unfinished: Int?) -> Int? {
+        if let unfinished {
+            return unfinished
         }
         let playing = sentencesShown - 1
         return playing >= 0 && sentencesEnded <= playing ? playing : nil
@@ -222,7 +222,7 @@ final class SpokenAnswer {
     private func fail(_ error: any Error) {
         guard mode == .voiced else { return }
         logger.error("The voice failed (\(Self.reason(for: error), privacy: .public)); the rest shows unspoken")
-        let cut = cutSentence
+        let cut = cutSentence(unfinished: queue.cutReturningUnfinishedSentence())
         silence()
         mode = .unvoiced
         if let cut, cut < sentencesShown {
