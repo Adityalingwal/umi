@@ -17,6 +17,9 @@ final class SpokenAnswer {
     private var isOver = false
     private var listening: Task<Void, Never>?
     private var playing: Task<Void, Never>?
+    #if DEBUG
+    private var speechFile: SpeechFile?
+    #endif
 
     init(socket: FluxSpeech) {
         let queue = SpeechQueue()
@@ -25,6 +28,13 @@ final class SpokenAnswer {
         player = SpeechPlayer(queue: queue)
         (events, eventContinuation) = AsyncThrowingStream.makeStream(of: SpokenEvent.self)
     }
+
+    #if DEBUG
+    convenience init(socket: FluxSpeech, speechFile: SpeechFile?) {
+        self.init(socket: socket)
+        self.speechFile = speechFile
+    }
+    #endif
 
     func start() {
         let messages = socket.messages()
@@ -134,5 +144,8 @@ final class SpokenAnswer {
         socket.close()
         listening?.cancel()
         playing?.cancel()
+        #if DEBUG
+        speechFile?.append(queue.takePlayed())
+        #endif
     }
 }

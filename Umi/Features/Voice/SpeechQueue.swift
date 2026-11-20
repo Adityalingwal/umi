@@ -41,6 +41,15 @@ nonisolated final class SpeechQueue: Sendable {
         eventContinuation.finish()
     }
 
+    #if DEBUG
+    func takePlayed() -> [Float] {
+        state.withLock { state in
+            defer { state.record = [] }
+            return state.record
+        }
+    }
+    #endif
+
     func sourceNode(format: AVAudioFormat) -> AVAudioSourceNode {
         AVAudioSourceNode(format: format) { [self] _, _, frameCount, bufferList in
             render(Int(frameCount), into: bufferList)
@@ -61,6 +70,9 @@ private nonisolated struct QueueState {
     var played = 0
     var hasWholeSentence = false
     var isAudioComplete = false
+    #if DEBUG
+    var record: [Float] = []
+    #endif
 
     private var samples: [Float] = []
     private var sentenceStarts: [(sample: Int, sentence: Int)] = []
@@ -111,6 +123,11 @@ private nonisolated struct QueueState {
             output[frame] = samples[played]
             played += 1
         }
+        #if DEBUG
+        if isPlaying, !isCut, !isPlayedOut {
+            record.append(contentsOf: UnsafeBufferPointer(start: output, count: frameCount))
+        }
+        #endif
         if isPlaying, isAudioComplete, !isCut, !isPlayedOut, played == samples.count {
             isPlayedOut = true
             events.append(.playedOut)
