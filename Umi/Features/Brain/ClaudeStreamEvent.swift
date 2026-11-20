@@ -3,6 +3,7 @@ import Foundation
 nonisolated enum ClaudeStreamEvent {
     case started(apiKeySource: String, model: String)
     case text(String)
+    case apiError(BrainError)
     case finished
     case failed
     case other
@@ -19,12 +20,23 @@ nonisolated enum ClaudeStreamEvent {
                 apiKeySource: object["apiKeySource"] as? String ?? "unknown",
                 model: object["model"] as? String ?? "unknown"
             )
+        case "assistant" where object["error"] is String:
+            self = .apiError(Self.failure(error: object["error"] as? String, apiError: object["api_error"] as? String))
         case "stream_event":
             self = Self.text(in: object["event"] as? [String: Any]).map(Self.text) ?? .other
         case "result":
             self = object["is_error"] as? Bool == true ? .failed : .finished
         default:
             self = .other
+        }
+    }
+
+    private static func failure(error: String?, apiError: String?) -> BrainError {
+        switch (error, apiError) {
+        case ("authentication_failed", _): .notSignedIn
+        case ("rate_limit", _), ("billing_error", _): .limitReached
+        case (_, "connection_failed"): .noInternet
+        default: .claudeFailed
         }
     }
 
