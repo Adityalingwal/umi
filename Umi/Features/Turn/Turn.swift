@@ -47,6 +47,7 @@ final class Turn {
             end()
         case .cancelled:
             cancel()
+            subtitles.clear()
             logger.notice("Hold cancelled by another key")
         }
     }
