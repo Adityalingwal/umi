@@ -10,11 +10,14 @@ nonisolated enum FluxSpeechMessage: Sendable {
 final class FluxSpeech {
     private static let voice = "flux-divya-hi"
     private static let flush = #"{"type":"Flush"}"#
+    // Deepgram closes a voice socket idle for about 60 s; #14 kept one open 33 min with a ping every 20 s.
+    private static let keepAliveInterval = Duration.seconds(20)
 
     private let socket: URLSessionWebSocketTask?
     private let outgoing = AsyncStream.makeStream(of: URLSessionWebSocketTask.Message.self)
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var sending: Task<Void, Never>?
+    private var keepingAlive: Task<Void, Never>?
     private var isClosed = false
 
     private static var endpoint: URL? {
@@ -68,6 +71,7 @@ final class FluxSpeech {
         guard !isClosed else { return }
         isClosed = true
         sending?.cancel()
+        keepingAlive?.cancel()
         outgoing.continuation.finish()
         socket?.cancel(with: .normalClosure, reason: nil)
     }
@@ -89,6 +93,7 @@ final class FluxSpeech {
         case "Connected":
             logger.notice("The voice connected")
             startSending(to: socket)
+            keepAlive(socket)
             return nil
         case "SpeechStarted":
             return .sentenceStarted
@@ -118,6 +123,36 @@ final class FluxSpeech {
                 } catch {
                     logger.error("The voice could not be sent text: \(error.localizedDescription)")
                     return
+                }
+            }
+        }
+    }
+
+    private func keepAlive(_ socket: URLSessionWebSocketTask) {
+        guard keepingAlive == nil, !isClosed else { return }
+        keepingAlive = Task { [logger] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.keepAliveInterval)
+                guard !Task.isCancelled else { return }
+                do {
+                    try await Self.ping(socket)
+                    logger.notice("The voice's keep-alive ping came back")
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    logger.error("The voice's keep-alive ping failed: \(error.localizedDescription)")
+                    return
+                }
+            }
+        }
+    }
+
+    private static func ping(_ socket: URLSessionWebSocketTask) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            socket.sendPing { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
                 }
             }
         }
