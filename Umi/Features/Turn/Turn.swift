@@ -68,6 +68,7 @@ final class Turn {
             hearing = try speech.hearing(from: audioSource)
         } catch {
             logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+            say(UmiLine.failure(error))
             return
         }
         cursorPanel.startFollowingPointer()
@@ -113,8 +114,8 @@ final class Turn {
             return
         } catch {
             guard !Task.isCancelled else { return }
-            hideCursor()
             logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+            say(UmiLine.failure(error))
         }
     }
 
@@ -160,6 +161,7 @@ final class Turn {
     private static func reason(for error: any Error) -> String {
         switch error {
         case let error as SpeechError: "speech: \(error)"
+        case let error as AudioSourceError: "audio: \(error)"
         case let error as ScreenError: "screen: \(error)"
         case let error as BrainError: "brain: \(error)"
         default: "unexpected"

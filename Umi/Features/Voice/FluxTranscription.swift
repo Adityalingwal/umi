@@ -14,6 +14,7 @@ final class FluxTranscription {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var connection = FluxConnection.opening
     private(set) var recording = HoldRecording()
+    private var audioFailure: AudioSourceError?
     private var isEndOfTurnForced = false
     private var isFinalTextReceived = false
     private var finishedTurns: [String] = []
@@ -61,6 +62,9 @@ final class FluxTranscription {
             deadline.cancel()
             cancel()
         }
+        if let audioFailure {
+            throw audioFailure
+        }
         await sending?.value
         guard connection == .open, let socket else { throw SpeechError.connectionFailed }
         isEndOfTurnForced = true
@@ -90,7 +94,7 @@ final class FluxTranscription {
     private func startHearing() {
         let chunks = source.chunks()
         let output = audio.continuation
-        hearing = Task { [weak self, converter, logger] in
+        hearing = Task { [weak self, converter] in
             do {
                 for try await chunk in chunks {
                     let audio = converter.linear16(from: chunk)
@@ -99,10 +103,15 @@ final class FluxTranscription {
                 }
             } catch is CancellationError {
             } catch {
-                logger.error("The question's audio stopped: \(error.localizedDescription)")
+                self?.audioStopped(error)
             }
             output.finish()
         }
+    }
+
+    private func audioStopped(_ error: any Error) {
+        logger.error("The question's audio stopped: \(error.localizedDescription)")
+        audioFailure = error as? AudioSourceError ?? .microphoneUnavailable
     }
 
     private func startReceiving(from socket: URLSessionWebSocketTask) {
