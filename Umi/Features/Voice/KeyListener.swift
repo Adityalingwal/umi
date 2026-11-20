@@ -44,6 +44,17 @@ final class KeyListener {
         escapeContinuation.finish()
     }
 
+    func menuDidClose() {
+        guard hold.isKeyDown,
+              !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(RightOptionHold.keyCode)) else {
+            return
+        }
+        logger.notice("The right Option key was released while Umi's menu was open")
+        if let release = hold.keyWasReleased() {
+            holdContinuation.yield(release)
+        }
+    }
+
     private func listen() {
         waitingForAccess = nil
         let otherApps = NSEvent.addGlobalMonitorForEvents(matching: Self.keyEvents) { [weak self] event in

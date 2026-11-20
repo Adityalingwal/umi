@@ -13,6 +13,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let microphone: MicrophonePermission
     private let screen: ScreenPermission
     private let accessibility: AccessibilityPermission
+    private let keyListener: KeyListener
     private let listening: Listening
     private let relauncher: AppRelauncher
     private var screenRefresh: Task<Void, Never>?
@@ -22,6 +23,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         microphone: MicrophonePermission,
         screen: ScreenPermission,
         accessibility: AccessibilityPermission,
+        keyListener: KeyListener,
         listening: Listening,
         relauncher: AppRelauncher
     ) {
@@ -29,6 +31,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         self.microphone = microphone
         self.screen = screen
         self.accessibility = accessibility
+        self.keyListener = keyListener
         self.listening = listening
         self.relauncher = relauncher
         super.init()
@@ -53,6 +56,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     func menuDidClose(_ menu: NSMenu) {
         listening.menuDidClose()
+        keyListener.menuDidClose()
     }
 
     private func makeMenu(appName: String) -> NSMenu {
