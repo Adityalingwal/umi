@@ -13,7 +13,8 @@ struct SpeechToText {
     func hearing(from source: any AudioSource) throws -> HoldHearing {
         guard let key else { throw SpeechError.keyMissing }
         return HoldHearing(
-            flux: FluxTranscription(key: key, endpoint: fluxEndpoint, source: source, session: session)
+            flux: FluxTranscription(key: key, endpoint: fluxEndpoint, source: source, session: session),
+            nova: NovaTranscription(key: key, session: session)
         )
     }
 }
