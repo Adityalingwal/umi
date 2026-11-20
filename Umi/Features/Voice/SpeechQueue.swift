@@ -132,7 +132,7 @@ private nonisolated struct QueueState {
             record.append(contentsOf: UnsafeBufferPointer(start: output, count: frameCount))
         }
         #endif
-        if isPlaying, isAudioComplete, !isCut, !isPlayedOut, played == samples.count {
+        if isAudioComplete, !isCut, !isPlayedOut, played == samples.count {
             isPlayedOut = true
             events.append(.playedOut)
         }
