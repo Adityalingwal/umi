@@ -69,6 +69,7 @@ final class ClaudeSubscription: Brain {
         into continuation: AsyncThrowingStream<String, any Error>.Continuation
     ) async throws {
         var failure: BrainError?
+        var hasText = false
         for try await line in try await process.ask(question) {
             try Task.checkCancellation()
             switch ClaudeStreamEvent(line: line) {
@@ -76,7 +77,11 @@ final class ClaudeSubscription: Brain {
                 logger.notice("Claude stream started, model \(model, privacy: .public)")
                 logger.notice("Claude key source: \(apiKeySource, privacy: .public)")
             case .text(let piece):
+                hasText = true
                 continuation.yield(piece)
+            case .blockEnded where hasText:
+                logger.notice("Claude's answer text ended")
+                return
             case .apiError(let error):
                 logger.error("Claude reported an error: \(String(describing: error), privacy: .public)")
                 failure = error
@@ -90,7 +95,7 @@ final class ClaudeSubscription: Brain {
                 return
             case .failed:
                 throw failure ?? .claudeFailed
-            case .other:
+            case .blockEnded, .other:
                 continue
             }
         }
