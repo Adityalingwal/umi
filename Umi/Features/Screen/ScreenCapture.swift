@@ -63,6 +63,7 @@ nonisolated struct ScreenCapture: Sendable {
         let configuration = SCStreamConfiguration()
         configuration.width = display.width
         configuration.height = display.height
+        try Task.checkCancellation()
         do {
             return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
         } catch {
