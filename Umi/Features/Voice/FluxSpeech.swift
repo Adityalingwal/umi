@@ -3,6 +3,7 @@ import OSLog
 import Synchronization
 
 nonisolated enum FluxSpeechMessage: Sendable {
+    case connected
     case audio(Data)
     case sentenceStarted
     case sentenceEnded(billableCharacters: Int, audioMilliseconds: Int)
@@ -95,7 +96,7 @@ final class FluxSpeech {
             logger.notice("The voice connected")
             startSending(to: socket)
             keepAlive(socket)
-            return nil
+            return .connected
         case "SpeechStarted":
             return .sentenceStarted
         case "SpeechMetadata":

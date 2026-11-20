@@ -27,6 +27,7 @@ final class SpokenAnswer {
     private var sentencesEnded = 0
     private var isTextEnded = false
     private var isAudioComplete = false
+    private var waitingSince: ContinuousClock.Instant?
     private var listening: Task<Void, Never>?
     private var playing: Task<Void, Never>?
     private var watching: Task<Void, Never>?
@@ -131,6 +132,10 @@ final class SpokenAnswer {
     private func handle(_ message: FluxSpeechMessage) throws {
         guard mode == .voiced else { return }
         switch message {
+        case .connected:
+            guard waitingSince != nil else { return }
+            waitingSince = .now
+            logger.notice("The voice connected after its first sentence was ready; the wait for sound starts now")
         case .sentenceStarted:
             sentencesStarted += 1
         case .audio(let audio):
@@ -170,7 +175,6 @@ final class SpokenAnswer {
 
     private func watchForSilence() {
         watching = Task { [weak self] in
-            var waitingSince: ContinuousClock.Instant?
             var lastPlayed = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: Self.watchInterval)
