@@ -36,7 +36,7 @@ enum UmiLine {
     private static func screen(_ error: ScreenError) -> String {
         switch error {
         case .notAllowed: "Umi can't see your screen. Allow Screen Recording from Umi's menu or System Settings."
-        case .needsRelaunch: "Screen Recording is on, but Umi needs a relaunch. Use Relaunch Umi in its menu."
+        case .needsRelaunch: "Screen Recording is on, but Umi needs a relaunch. Quit Umi and open it again."
         default: "Umi couldn't take a picture of your screen. Please try again."
         }
     }
