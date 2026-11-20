@@ -57,6 +57,14 @@ final class SpokenAnswer {
         sentencesEnded < sentences.count || queue.hasUnplayedSamples
     }
 
+    private var cutSentence: Int? {
+        if let sentence = queue.unfinishedSentence {
+            return sentence
+        }
+        let playing = sentencesShown - 1
+        return playing >= 0 && sentencesEnded <= playing ? playing : nil
+    }
+
     func start() {
         let messages = socket.messages()
         listening = Task { [weak self] in
@@ -214,8 +222,13 @@ final class SpokenAnswer {
     private func fail(_ error: any Error) {
         guard mode == .voiced else { return }
         logger.error("The voice failed (\(Self.reason(for: error), privacy: .public)); the rest shows unspoken")
+        let cut = cutSentence
         silence()
         mode = .unvoiced
+        if let cut, cut < sentencesShown {
+            logger.notice("Sentence \(cut, privacy: .public) was cut while it played, so it shows again")
+            sentencesShown = cut
+        }
         showUnshown()
         if isTextEnded {
             finish()
