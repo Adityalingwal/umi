@@ -22,8 +22,20 @@ final class FluxTranscription {
     private var receiving: Task<Void, Never>?
     private var sending: Task<Void, Never>?
 
-    init(key: DeepgramKey, source: any AudioSource, session: URLSession) {
-        socket = Self.endpoint().map { session.webSocketTask(with: $0, protocols: ["token", key.value]) }
+    static var endpoint: URL? {
+        var components = URLComponents(string: "wss://api.deepgram.com/v2/listen")
+        components?.queryItems = [
+            URLQueryItem(name: "model", value: "flux-general-multi"),
+            URLQueryItem(name: "encoding", value: "linear16"),
+            URLQueryItem(name: "sample_rate", value: String(Int(SpeechAudioConverter.sampleRate))),
+            URLQueryItem(name: "eot_threshold", value: "0.9"),
+            URLQueryItem(name: "eot_timeout_ms", value: "60000")
+        ]
+        return components?.url
+    }
+
+    init(key: DeepgramKey, endpoint: URL?, source: any AudioSource, session: URLSession) {
+        socket = endpoint.map { session.webSocketTask(with: $0, protocols: ["token", key.value]) }
         self.source = source
     }
 
@@ -73,18 +85,6 @@ final class FluxTranscription {
             connection = .closed
         }
         stateChanged()
-    }
-
-    private static func endpoint() -> URL? {
-        var components = URLComponents(string: "wss://api.deepgram.com/v2/listen")
-        components?.queryItems = [
-            URLQueryItem(name: "model", value: "flux-general-multi"),
-            URLQueryItem(name: "encoding", value: "linear16"),
-            URLQueryItem(name: "sample_rate", value: String(Int(SpeechAudioConverter.sampleRate))),
-            URLQueryItem(name: "eot_threshold", value: "0.9"),
-            URLQueryItem(name: "eot_timeout_ms", value: "60000")
-        ]
-        return components?.url
     }
 
     private func startHearing() {

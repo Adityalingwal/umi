@@ -3,8 +3,7 @@ import OSLog
 
 final class Turn {
     private let audioSource: any AudioSource
-    private let deepgramKey: DeepgramKey?
-    private let urlSession: URLSession
+    private let speech: SpeechToText
     private let screen: ScreenCapture
     private let brain: any Brain
     private let subtitles: Subtitles
@@ -12,14 +11,13 @@ final class Turn {
     private let cursor: UmiCursor
     private let cursorPanel: CursorPanel
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
-    private var transcription: FluxTranscription?
+    private var hearing: HoldHearing?
     private var picture: Task<ScreenPicture, any Error>?
     private var answering: Task<Void, Never>?
 
     init(
         audioSource: any AudioSource,
-        deepgramKey: DeepgramKey?,
-        urlSession: URLSession,
+        speech: SpeechToText,
         screen: ScreenCapture,
         brain: any Brain,
         subtitles: Subtitles,
@@ -28,8 +26,7 @@ final class Turn {
         cursorPanel: CursorPanel
     ) {
         self.audioSource = MeteredAudioSource(source: audioSource, cursor: cursor)
-        self.deepgramKey = deepgramKey
-        self.urlSession = urlSession
+        self.speech = speech
         self.screen = screen
         self.brain = brain
         self.subtitles = subtitles
@@ -61,60 +58,57 @@ final class Turn {
     private func begin() {
         cancel()
         subtitles.clear()
-        guard let deepgramKey else {
-            logger.error("The Deepgram key is missing")
-            return
-        }
         guard let pointer = PointerScreen.current() else {
             logger.error("No screen is under the pointer")
             return
         }
         subtitlePanel.show(on: pointer.screen)
+        let hearing: HoldHearing
+        do {
+            hearing = try speech.hearing(from: audioSource)
+        } catch {
+            logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+            return
+        }
         cursorPanel.startFollowingPointer()
         cursor.listen()
         picture = Task { [screen] in
             try await screen.picture(ofDisplay: pointer.displayID)
         }
-        let transcription = FluxTranscription(key: deepgramKey, source: audioSource, session: urlSession)
-        transcription.start()
-        self.transcription = transcription
+        hearing.start()
+        self.hearing = hearing
         logger.notice("Hold began")
     }
 
     private func end() {
-        guard let transcription, let picture else {
+        guard let hearing, let picture else {
             cancel()
             return
         }
-        self.transcription = nil
+        self.hearing = nil
         self.picture = nil
         cursor.think()
         logger.notice("Hold ended")
         answering = Task { [weak self] in
-            await self?.answer(heardBy: transcription, picture: picture)
+            await self?.answer(heardBy: hearing, picture: picture)
         }
     }
 
-    private func answer(heardBy transcription: FluxTranscription, picture: Task<ScreenPicture, any Error>) async {
+    private func answer(heardBy hearing: HoldHearing, picture: Task<ScreenPicture, any Error>) async {
         do {
-            let text = try await transcription.finish()
+            let heard = try await hearing.finish()
             guard !Task.isCancelled else { return }
-            guard !text.isEmpty else {
+            switch heard {
+            case .words(let text):
+                logger.notice("Heard \(text.count, privacy: .public) characters")
+                try await ask(text, picture: picture)
+            case .silence:
                 hideCursor()
-                logger.notice("Nothing was heard")
-                return
+                logger.notice("Silence: the question ended quietly, Claude not asked")
+            case .soundWithoutWords:
+                logger.notice("Sound without words: Claude not asked")
+                say(UmiLine.couldNotHear)
             }
-            logger.notice("Heard \(text.count, privacy: .public) characters")
-            let question = BrainQuestion(text: text, screenJPEG: try await picture.value.jpegData)
-            var splitter = SentenceSplitter()
-            for try await piece in brain.answer(question) {
-                splitter.add(piece).forEach(show)
-            }
-            splitter.flush().map(show)
-            guard !Task.isCancelled else { return }
-            hideCursor()
-            subtitles.finish()
-            logger.notice("Answer finished")
         } catch is CancellationError {
             return
         } catch {
@@ -124,10 +118,28 @@ final class Turn {
         }
     }
 
+    private func ask(_ text: String, picture: Task<ScreenPicture, any Error>) async throws {
+        let question = BrainQuestion(text: text, screenJPEG: try await picture.value.jpegData)
+        var splitter = SentenceSplitter()
+        for try await piece in brain.answer(question) {
+            splitter.add(piece).forEach(show)
+        }
+        splitter.flush().map(show)
+        guard !Task.isCancelled else { return }
+        hideCursor()
+        subtitles.finish()
+        logger.notice("Answer finished")
+    }
+
     private func show(_ sentence: String) {
         guard !Task.isCancelled else { return }
         hideCursor()
         subtitles.show(sentence)
+    }
+
+    private func say(_ line: String) {
+        show(line)
+        subtitles.finish()
     }
 
     private func hideCursor() {
@@ -138,8 +150,8 @@ final class Turn {
     private func cancel() {
         answering?.cancel()
         answering = nil
-        transcription?.cancel()
-        transcription = nil
+        hearing?.cancel()
+        hearing = nil
         picture?.cancel()
         picture = nil
         hideCursor()
