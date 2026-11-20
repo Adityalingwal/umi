@@ -16,6 +16,7 @@ final class PointerPanel {
         panel.hasShadow = false
         panel.level = .statusBar
         panel.ignoresMouseEvents = true
+        panel.animationBehavior = .none
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         let hostingView = NSHostingView(rootView: PointerView().environment(overlay))
         hostingView.sizingOptions = []
