@@ -84,8 +84,8 @@ final class Turn {
         picture = Task { [screen] in
             try await screen.picture(ofDisplay: pointer.displayID)
         }
-        speaking.start()
         hearing.start()
+        speaking.start()
         self.hearing = hearing
         self.speaking = speaking
         logger.notice("Hold began")
