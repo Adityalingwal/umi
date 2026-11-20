@@ -188,6 +188,7 @@ final class FluxTranscription {
         guard connection == .opening || connection == .open, !isFinalTextReceived else { return }
         logger.error("Deepgram gave no final text in time")
         connection = .timedOut
+        socket?.cancel(with: .goingAway, reason: nil)
         stateChanged()
     }
 
