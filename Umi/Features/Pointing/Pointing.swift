@@ -84,7 +84,7 @@ final class Pointing {
         }
         phase = .aimed(target)
         logger.notice("The location is in hand; the name opens the answer: \(opensAnswer, privacy: .public)")
-        if opensAnswer, cue == .voice {
+        if opensAnswer {
             depart(taking: stage.usualTravelTime(from: cursorRest(), to: target))
         }
         return true

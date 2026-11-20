@@ -49,6 +49,8 @@ final class SpokenAnswer {
     }
     #endif
 
+    var isSpeaking: Bool { mode == .voiced }
+
     private var owesSound: Bool {
         turns.isAudioOwed || queue.hasUnplayedSamples
     }
