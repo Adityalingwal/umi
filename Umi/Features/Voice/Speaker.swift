@@ -10,7 +10,9 @@ struct Speaker {
     static func atLaunch(bundleURL: URL, defaults: UserDefaults, session: URLSession) async -> Speaker {
         let key = await DeepgramKey.fromBundle(bundleURL)
         #if DEBUG
-        return Speaker(key: key, session: session, speechFile: SpeechFile.atLaunch(defaults: defaults))
+        let speechFile = SpeechFile.atLaunch(defaults: defaults)
+        speechFile?.startEmpty()
+        return Speaker(key: key, session: session, speechFile: speechFile)
         #else
         return Speaker(key: key, session: session)
         #endif

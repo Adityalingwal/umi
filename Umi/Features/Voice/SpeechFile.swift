@@ -15,9 +15,18 @@ final class SpeechFile {
         defaults.string(forKey: "UmiSpeechFile").map { SpeechFile(fileURL: URL(filePath: $0)) }
     }
 
+    func startEmpty() {
+        samples = []
+        save()
+    }
+
     func append(_ played: [Float]) {
         guard !played.isEmpty else { return }
         samples += played
+        save()
+    }
+
+    private func save() {
         let everything = samples
         let fileURL = fileURL
         let previous = writing
@@ -30,17 +39,6 @@ final class SpeechFile {
     @concurrent
     private static func write(_ samples: [Float], to fileURL: URL) async {
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: SpeechQueue.sampleRate, channels: 1),
-              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
-              let channel = buffer.floatChannelData?[0] else {
-            logger.error("The speech file could not be prepared")
-            return
-        }
-        samples.withUnsafeBufferPointer { played in
-            guard let base = played.baseAddress else { return }
-            channel.update(from: base, count: played.count)
-        }
-        buffer.frameLength = AVAudioFrameCount(samples.count)
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM,
             AVSampleRateKey: SpeechQueue.sampleRate,
@@ -55,11 +53,26 @@ final class SpeechFile {
                 commonFormat: .pcmFormatFloat32,
                 interleaved: false
             )
-            try file.write(from: buffer)
+            if !samples.isEmpty {
+                try file.write(from: try buffer(holding: samples, format: file.processingFormat))
+            }
             logger.notice("The speech file now holds \(samples.count, privacy: .public) samples")
         } catch {
             logger.error("The speech file could not be written: \(error.localizedDescription)")
         }
+    }
+
+    nonisolated private static func buffer(holding samples: [Float], format: AVAudioFormat) throws -> AVAudioPCMBuffer {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
+              let channel = buffer.floatChannelData?[0] else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        samples.withUnsafeBufferPointer { played in
+            guard let base = played.baseAddress else { return }
+            channel.update(from: base, count: played.count)
+        }
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        return buffer
     }
 }
 #endif
