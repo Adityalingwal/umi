@@ -15,24 +15,43 @@ enum UmiApp {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusMenu: StatusMenu?
+    private var keyListener: KeyListener?
     private var brain: ClaudeSubscription?
-    private var holding: Task<Void, Never>?
+    private var turns: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !Self.isTestHost(ProcessInfo.processInfo.environment) else { return }
         let listening = Listening.atLaunch(defaults: .standard)
+        let accessibility = AccessibilityPermission(defaults: .standard)
+        let keyListener = KeyListener(accessibility: accessibility)
         statusMenu = StatusMenu(
             appName: ProcessInfo.processInfo.processName,
             microphone: MicrophonePermission(),
             screen: .atLaunch(defaults: .standard),
+            accessibility: accessibility,
+            keyListener: keyListener,
             listening: listening,
             relauncher: AppRelauncher()
         )
         listening.appDidLaunch()
+        keyListener.start()
+        self.keyListener = keyListener
         #if DEBUG
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
-            startTurns(audioSource: holdFile, holds: holdFile.holds)
+            startTurns(audioSource: holdFile, holds: holdFile.holds, escapes: keyListener.escapes)
+            return
         }
         #endif
+        startTurns(
+            audioSource: MicrophoneSource(permission: MicrophonePermission()),
+            holds: keyListener.holds,
+            escapes: keyListener.escapes
+        )
+    }
+
+    // The shared scheme's Test action sets this variable in the app that hosts the tests.
+    private static func isTestHost(_ environment: [String: String]) -> Bool {
+        environment["UMI_TEST_HOST"] == "1"
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -41,11 +60,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        holding?.cancel()
+        turns?.cancel()
+        keyListener?.stop()
         brain?.stop()
     }
 
-    private func startTurns(audioSource: any AudioSource, holds: AsyncStream<HoldEvent>) {
+    private func startTurns(audioSource: any AudioSource, holds: AsyncStream<HoldEvent>, escapes: AsyncStream<Void>) {
         let brain = ClaudeSubscription(
             executable: ClaudeExecutable(fileManager: .default),
             environment: ProcessInfo.processInfo.environment
@@ -54,9 +74,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.brain = brain
         let subtitles = Subtitles()
         let subtitlePanel = SubtitlePanel(subtitles: subtitles)
+        let cursor = UmiCursor()
+        let cursorPanel = CursorPanel(cursor: cursor)
         let screen = ScreenCapture.atLaunch(defaults: .standard, bundle: .main)
         let bundleURL = Bundle.main.bundleURL
-        holding = Task {
+        turns = Task {
             let turn = Turn(
                 audioSource: audioSource,
                 deepgramKey: await DeepgramKey.fromBundle(bundleURL),
@@ -64,10 +86,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 screen: screen,
                 brain: brain,
                 subtitles: subtitles,
-                subtitlePanel: subtitlePanel
+                subtitlePanel: subtitlePanel,
+                cursor: cursor,
+                cursorPanel: cursorPanel
             )
-            for await hold in holds {
-                turn.handle(hold)
+            await withDiscardingTaskGroup { group in
+                group.addTask {
+                    for await hold in holds {
+                        await turn.handle(hold)
+                    }
+                }
+                group.addTask {
+                    for await _ in escapes {
+                        await turn.clearSubtitles()
+                    }
+                }
             }
         }
     }

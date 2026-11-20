@@ -9,6 +9,8 @@ final class Turn {
     private let brain: any Brain
     private let subtitles: Subtitles
     private let subtitlePanel: SubtitlePanel
+    private let cursor: UmiCursor
+    private let cursorPanel: CursorPanel
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var transcription: FluxTranscription?
     private var picture: Task<ScreenPicture, any Error>?
@@ -21,15 +23,19 @@ final class Turn {
         screen: ScreenCapture,
         brain: any Brain,
         subtitles: Subtitles,
-        subtitlePanel: SubtitlePanel
+        subtitlePanel: SubtitlePanel,
+        cursor: UmiCursor,
+        cursorPanel: CursorPanel
     ) {
-        self.audioSource = audioSource
+        self.audioSource = MeteredAudioSource(source: audioSource, cursor: cursor)
         self.deepgramKey = deepgramKey
         self.urlSession = urlSession
         self.screen = screen
         self.brain = brain
         self.subtitles = subtitles
         self.subtitlePanel = subtitlePanel
+        self.cursor = cursor
+        self.cursorPanel = cursorPanel
     }
 
     func handle(_ event: HoldEvent) {
@@ -38,7 +44,18 @@ final class Turn {
             begin()
         case .ended:
             end()
+        case .cancelled:
+            cancel()
+            logger.notice("Hold cancelled by another key")
         }
+    }
+
+    func clearSubtitles() {
+        guard subtitles.line != nil else { return }
+        answering?.cancel()
+        answering = nil
+        subtitles.clear()
+        logger.notice("Subtitles cleared")
     }
 
     private func begin() {
@@ -53,6 +70,8 @@ final class Turn {
             return
         }
         subtitlePanel.show(on: pointer.screen)
+        cursorPanel.startFollowingPointer()
+        cursor.listen()
         picture = Task { [screen] in
             try await screen.picture(ofDisplay: pointer.displayID)
         }
@@ -69,6 +88,7 @@ final class Turn {
         }
         self.transcription = nil
         self.picture = nil
+        cursor.think()
         logger.notice("Hold ended")
         answering = Task { [weak self] in
             await self?.answer(heardBy: transcription, picture: picture)
@@ -78,24 +98,43 @@ final class Turn {
     private func answer(heardBy transcription: FluxTranscription, picture: Task<ScreenPicture, any Error>) async {
         do {
             let text = try await transcription.finish()
+            guard !Task.isCancelled else { return }
             guard !text.isEmpty else {
+                hideCursor()
                 logger.notice("Nothing was heard")
                 return
             }
             logger.notice("Heard \(text.count, privacy: .public) characters")
-            let question = BrainQuestion(text: text, screenJPEG: try await picture.value.jpegData)
+            let screenJPEG = try await picture.value.jpegData
+            try Task.checkCancellation()
+            let question = BrainQuestion(text: text, screenJPEG: screenJPEG)
             var splitter = SentenceSplitter()
             for try await piece in brain.answer(question) {
-                splitter.add(piece).forEach(subtitles.show)
+                splitter.add(piece).forEach(show)
             }
-            splitter.flush().map(subtitles.show)
+            splitter.flush().map(show)
+            guard !Task.isCancelled else { return }
+            hideCursor()
             subtitles.finish()
             logger.notice("Answer finished")
         } catch is CancellationError {
             return
         } catch {
+            guard !Task.isCancelled else { return }
+            hideCursor()
             logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
         }
+    }
+
+    private func show(_ sentence: String) {
+        guard !Task.isCancelled else { return }
+        hideCursor()
+        subtitles.show(sentence)
+    }
+
+    private func hideCursor() {
+        cursor.hide()
+        cursorPanel.stopFollowingPointer()
     }
 
     private func cancel() {
@@ -105,6 +144,7 @@ final class Turn {
         transcription = nil
         picture?.cancel()
         picture = nil
+        hideCursor()
     }
 
     private static func reason(for error: any Error) -> String {
