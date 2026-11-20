@@ -18,6 +18,7 @@ final class Pointing {
     private let overlay: PointerOverlay
     private let displayFrame: CGRect
     private let appSwitches: AppSwitchWatch
+    private let scrolls = ScrollWatch()
     private let cursorRest: () -> CGPoint
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
@@ -54,6 +55,9 @@ final class Pointing {
     func start(capturedApp: pid_t?) {
         appSwitches.start(capturedApp: capturedApp) { [weak self] in
             self?.end(because: "another app became active")
+        }
+        scrolls.start { [weak self] in
+            self?.end(because: "a scroll moved the screen")
         }
     }
 
@@ -197,6 +201,7 @@ final class Pointing {
         landing?.cancel()
         clearing?.cancel()
         appSwitches.stop()
+        scrolls.stop()
         if wasShowing, !fading {
             panel.hide()
         }
