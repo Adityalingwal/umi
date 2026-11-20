@@ -48,13 +48,7 @@ nonisolated struct ScreenCapture: Sendable {
     }
 
     func refusal() async -> ScreenError {
-        guard let probe else { return .notAllowed }
-        do {
-            return try await probe.isGrantedInFreshProcess() ? .needsRelaunch : .notAllowed
-        } catch {
-            logger.error("Screen access probe failed: \(error.localizedDescription)")
-            return .notAllowed
-        }
+        await probe?.isGrantedNow() == true ? .needsRelaunch : .notAllowed
     }
 
     private func capture(displayID: CGDirectDisplayID) async throws -> CGImage {
