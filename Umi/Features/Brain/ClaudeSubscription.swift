@@ -84,6 +84,9 @@ final class ClaudeSubscription: Brain {
                 logger.error("Claude could not reach its server, stopping without retries")
                 throw BrainError.noInternet
             case .finished:
+                if let failure {
+                    throw failure
+                }
                 return
             case .failed:
                 throw failure ?? .claudeFailed
