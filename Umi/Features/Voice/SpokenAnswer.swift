@@ -107,7 +107,9 @@ final class SpokenAnswer {
         case let .sentenceStarted(index, firstSample):
             guard sentences.indices.contains(index) else { return }
             let lag = Int((firstSample.duration(to: .now) / .milliseconds(1)).rounded())
-            logger.notice("Sentence \(index, privacy: .public) started playing \(lag, privacy: .public) ms ago")
+            logger.notice(
+                "Sentence \(index, privacy: .public) started playing \(lag, privacy: .public) ms after its first sample"
+            )
             eventContinuation.yield(.sentenceStarted(sentences[index]))
         case .playedOut:
             logger.notice("The voice finished playing")
