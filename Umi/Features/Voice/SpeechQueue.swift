@@ -8,7 +8,7 @@ nonisolated final class SpeechQueue: Sendable {
     }
 
     static let sampleRate = 24_000.0
-    // #14 measured a stutter at the start of most answers; 250 ms in hand removed it.
+    // #14 measured a stutter when audio plays the moment it arrives; 250 ms in hand removed it.
     fileprivate static let samplesBeforePlaying = Int(sampleRate / 4)
 
     let events: AsyncStream<Event>
@@ -29,7 +29,7 @@ nonisolated final class SpeechQueue: Sendable {
     }
 
     func sentenceAudioEnded() {
-        state.withLock { $0.hasWholeSentence = true }
+        state.withLock { $0.sentenceAudioEnded() }
     }
 
     func audioEnded() {
@@ -68,7 +68,6 @@ nonisolated final class SpeechQueue: Sendable {
 
 private nonisolated struct QueueState {
     var played = 0
-    var hasWholeSentence = false
     var isAudioComplete = false
     #if DEBUG
     var record: [Float] = []
@@ -78,6 +77,7 @@ private nonisolated struct QueueState {
     private var sentenceStarts: [(sample: Int, sentence: Int)] = []
     private var nextSentenceStart = 0
     private var oddByte: UInt8?
+    private var wholeSentencesEnd = 0
     private var isPlaying = false
     private var isPlayedOut = false
     private var isCut = false
@@ -96,6 +96,10 @@ private nonisolated struct QueueState {
             let sample = Int16(bitPattern: UInt16(bytes[index]) | UInt16(bytes[index + 1]) << 8)
             samples.append(Float(sample) / 32_768)
         }
+    }
+
+    mutating func sentenceAudioEnded() {
+        wholeSentencesEnd = samples.count
     }
 
     mutating func cut() {
@@ -132,11 +136,15 @@ private nonisolated struct QueueState {
             isPlayedOut = true
             events.append(.playedOut)
         }
+        if isPlaying, !isAudioComplete, played == samples.count {
+            isPlaying = false
+        }
         return events
     }
 
     private mutating func startIfReady() {
         guard !isPlaying, !isCut, played < samples.count else { return }
-        isPlaying = samples.count - played >= SpeechQueue.samplesBeforePlaying || hasWholeSentence || isAudioComplete
+        isPlaying = samples.count - played >= SpeechQueue.samplesBeforePlaying || wholeSentencesEnd > played
+            || isAudioComplete
     }
 }
