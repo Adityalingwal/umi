@@ -11,6 +11,17 @@ final class Pointing {
         case over
     }
 
+    private enum Cue {
+        case voice
+        case nameSpoken
+        case subtitles
+        case nameShown
+
+        var isMarkDue: Bool {
+            self == .nameSpoken || self == .nameShown
+        }
+    }
+
     private static let clearAfterLine = Duration.seconds(2)
 
     private let stage: PointerStage
@@ -21,7 +32,8 @@ final class Pointing {
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
     private var phase = Phase.waiting
-    private var isNameStarted = false
+    private var cue = Cue.voice
+    private var subtitleMark = SubtitleMarkTime()
     private var departing: Task<Void, Never>?
     private var landing: Task<Void, Never>?
     private var clearing: Task<Void, Never>?
@@ -100,8 +112,9 @@ final class Pointing {
     }
 
     func nameStarted() {
+        guard cue == .voice else { return }
         logger.notice("The name started playing")
-        isNameStarted = true
+        cue = .nameSpoken
         switch phase {
         case .aimed:
             logger.notice("The name started before the cursor left, so it leaves now")
@@ -125,16 +138,53 @@ final class Pointing {
         }
     }
 
-    func voiceEnded() {
+    func voiceFailed() {
         switch phase {
         case .marked:
             if clearing == nil {
                 clearLater()
             }
         case .waiting, .aimed, .travelling, .landed:
-            end(because: "the voice ended before the name")
+            departing?.cancel()
+            departing = nil
+            cue = cue == .nameSpoken ? .nameShown : .subtitles
+            logger.notice("The voice failed before the mark, so the mark goes with the name's subtitle")
         case .over:
             return
+        }
+    }
+
+    func nameShown() {
+        if case .over = phase { return }
+        guard cue == .voice || cue == .subtitles else {
+            logger.notice("The name's subtitle showed again, so nothing moves")
+            return
+        }
+        cue = .nameShown
+        logger.notice("The name's subtitle is shown")
+        switch phase {
+        case .aimed(let target):
+            depart(taking: stage.usualTravelTime(from: cursorRest(), to: target))
+        case .landed:
+            showMark()
+        case .waiting, .travelling, .marked, .over:
+            return
+        }
+    }
+
+    func answerEnded(subtitlesLingerFor linger: Duration) {
+        switch (phase, cue) {
+        case (.over, _):
+            return
+        case (.travelling, .nameShown), (.marked, .nameShown):
+            subtitleMark.subtitlesGo(at: ContinuousClock.now + linger)
+            clearWithSubtitles()
+        case (.marked, _):
+            if clearing == nil {
+                clearLater()
+            }
+        default:
+            end(because: "the answer ended before the name")
         }
     }
 
@@ -161,7 +211,7 @@ final class Pointing {
         stage.land()
         phase = .landed
         logger.notice("The cursor landed")
-        if isNameStarted {
+        if cue.isMarkDue {
             showMark()
         }
     }
@@ -170,6 +220,10 @@ final class Pointing {
         stage.mark()
         phase = .marked
         logger.notice("The mark is on")
+        if cue == .nameShown {
+            subtitleMark.marked(at: .now)
+            clearWithSubtitles()
+        }
     }
 
     private func clearLater() {
@@ -177,6 +231,18 @@ final class Pointing {
             try? await Task.sleep(for: Self.clearAfterLine)
             guard !Task.isCancelled else { return }
             self?.end(because: "two seconds passed after its line", fading: true)
+        }
+    }
+
+    private func clearWithSubtitles() {
+        guard case .marked = phase, let clearAt = subtitleMark.clearAt else { return }
+        let wait = Self.milliseconds(ContinuousClock.now.duration(to: clearAt))
+        logger.notice("The mark clears in \(wait, privacy: .public) ms, with the subtitles or 4 s after it showed")
+        clearing?.cancel()
+        clearing = Task { [weak self] in
+            try? await Task.sleep(until: clearAt)
+            guard !Task.isCancelled else { return }
+            self?.end(because: "the answer's subtitles faded", fading: true)
         }
     }
 

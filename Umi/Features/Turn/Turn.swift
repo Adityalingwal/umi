@@ -131,7 +131,7 @@ final class Turn {
                 try await ask(text, picture: picture, voice: voice, pointing: pointing)
             case .silence:
                 hideCursor()
-                pointing?.voiceEnded()
+                pointing?.answerEnded(subtitlesLingerFor: .zero)
                 logger.notice("Silence: the question ended quietly, Claude not asked")
             case .soundWithoutWords:
                 logger.notice("Sound without words: Claude not asked")
