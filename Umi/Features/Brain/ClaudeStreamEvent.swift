@@ -3,6 +3,7 @@ import Foundation
 nonisolated enum ClaudeStreamEvent {
     case started(apiKeySource: String, model: String)
     case text(String)
+    case blockEnded
     case apiError(BrainError)
     case connectionLost
     case finished
@@ -26,7 +27,7 @@ nonisolated enum ClaudeStreamEvent {
         case "assistant" where object["error"] is String:
             self = .apiError(Self.failure(error: object["error"] as? String, apiError: object["api_error"] as? String))
         case "stream_event":
-            self = Self.text(in: object["event"] as? [String: Any]).map(Self.text) ?? .other
+            self = Self.streamEvent(object["event"] as? [String: Any])
         case "result":
             self = object["is_error"] as? Bool == true ? .failed : .finished
         default:
@@ -43,9 +44,16 @@ nonisolated enum ClaudeStreamEvent {
         }
     }
 
+    private static func streamEvent(_ event: [String: Any]?) -> ClaudeStreamEvent {
+        switch event?["type"] as? String {
+        case "content_block_delta": text(in: event).map(Self.text) ?? .other
+        case "content_block_stop": .blockEnded
+        default: .other
+        }
+    }
+
     private static func text(in event: [String: Any]?) -> String? {
-        guard event?["type"] as? String == "content_block_delta",
-              let delta = event?["delta"] as? [String: Any],
+        guard let delta = event?["delta"] as? [String: Any],
               delta["type"] as? String == "text_delta" else {
             return nil
         }

@@ -3,7 +3,7 @@ import Observation
 
 @Observable
 final class Subtitles {
-    private static let lingerAfterEnd = Duration.seconds(2.5)
+    private static let lingerAfterEnd = Duration.seconds(1.5)
 
     private(set) var line: String?
 

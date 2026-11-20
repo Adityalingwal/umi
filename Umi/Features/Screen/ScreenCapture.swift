@@ -42,8 +42,10 @@ nonisolated struct ScreenCapture: Sendable {
         guard CGPreflightScreenCaptureAccess() else {
             throw await refusal()
         }
+        try Task.checkCancellation()
         let image = try await capture(displayID: displayID)
         logger.notice("Screen captured, \(image.width, privacy: .public)x\(image.height, privacy: .public)")
+        try Task.checkCancellation()
         return ScreenPicture(jpegData: try JPEGEncoder.encode(image))
     }
 
@@ -61,6 +63,7 @@ nonisolated struct ScreenCapture: Sendable {
         let configuration = SCStreamConfiguration()
         configuration.width = display.width
         configuration.height = display.height
+        try Task.checkCancellation()
         do {
             return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
         } catch {
@@ -76,6 +79,7 @@ nonisolated struct ScreenCapture: Sendable {
             throw ScreenError.replacementImageUnreadable
         }
         logger.notice("Using the replacement screen image")
+        try Task.checkCancellation()
         return ScreenPicture(jpegData: try JPEGEncoder.encode(image))
     }
     #endif
