@@ -93,14 +93,18 @@ struct SpokenTurns {
         return turnsEnded <= last || turnsPlaying <= last ? playing : nil
     }
 
+    private static func isSpoken(_ character: Character) -> Bool {
+        character.isLetter || character.isNumber
+    }
+
     // A Flush just before the name makes the name start its own voice turn, so its first sound is known exactly.
-    // A head with no letters could get no turn from the voice, which would shift every later subtitle.
+    // A head with no letters or digits could get no turn from the voice, which would shift every later subtitle.
     private static func parts(of sentence: String, nameStart: String.Index?) -> [(text: String, isName: Bool)] {
         guard let nameStart else { return [(sentence, false)] }
         let head = sentence[..<nameStart].trimmingCharacters(in: .whitespacesAndNewlines)
         let tail = sentence[nameStart...].trimmingCharacters(in: .whitespacesAndNewlines)
-        guard tail.contains(where: \.isLetter) else { return [(sentence, false)] }
-        guard head.contains(where: \.isLetter) else { return [(sentence, true)] }
+        guard tail.contains(where: isSpoken) else { return [(sentence, false)] }
+        guard head.contains(where: isSpoken) else { return [(sentence, true)] }
         return [(head, false), (tail, true)]
     }
 }
