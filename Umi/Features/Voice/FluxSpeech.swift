@@ -1,7 +1,9 @@
 import Foundation
 import OSLog
+import Synchronization
 
 nonisolated enum FluxSpeechMessage: Sendable {
+    case connected
     case audio(Data)
     case sentenceStarted
     case sentenceEnded(billableCharacters: Int, audioMilliseconds: Int)
@@ -10,11 +12,14 @@ nonisolated enum FluxSpeechMessage: Sendable {
 final class FluxSpeech {
     private static let voice = "flux-divya-hi"
     private static let flush = #"{"type":"Flush"}"#
+    // Deepgram closes a voice socket idle for about 60 s; #14 kept one open 33 min with a ping every 20 s.
+    private static let keepAliveInterval = Duration.seconds(20)
 
     private let socket: URLSessionWebSocketTask?
     private let outgoing = AsyncStream.makeStream(of: URLSessionWebSocketTask.Message.self)
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var sending: Task<Void, Never>?
+    private var keepingAlive: Task<Void, Never>?
     private var isClosed = false
 
     private static var endpoint: URL? {
@@ -68,6 +73,7 @@ final class FluxSpeech {
         guard !isClosed else { return }
         isClosed = true
         sending?.cancel()
+        keepingAlive?.cancel()
         outgoing.continuation.finish()
         socket?.cancel(with: .normalClosure, reason: nil)
     }
@@ -89,7 +95,8 @@ final class FluxSpeech {
         case "Connected":
             logger.notice("The voice connected")
             startSending(to: socket)
-            return nil
+            keepAlive(socket)
+            return .connected
         case "SpeechStarted":
             return .sentenceStarted
         case "SpeechMetadata":
@@ -123,6 +130,39 @@ final class FluxSpeech {
         }
     }
 
+    private func keepAlive(_ socket: URLSessionWebSocketTask) {
+        guard keepingAlive == nil, !isClosed else { return }
+        keepingAlive = Task { [logger] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.keepAliveInterval)
+                guard !Task.isCancelled else { return }
+                do {
+                    try await Self.ping(socket)
+                    logger.notice("The voice's keep-alive ping came back")
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    logger.error("The voice's keep-alive ping failed: \(error.localizedDescription)")
+                    return
+                }
+            }
+        }
+    }
+
+    private static func ping(_ socket: URLSessionWebSocketTask) async throws {
+        let answer = PingAnswer()
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            socket.sendPing { error in
+                // URLSession called this twice when the socket closed while a ping waited for its pong.
+                guard answer.isFirst() else { return }
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
     private func failure(after error: any Error, response: URLResponse?) -> (any Error)? {
         guard !isClosed else { return nil }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -134,6 +174,14 @@ final class FluxSpeech {
             return SpeechError.keyRefused
         }
         return (error as? URLError).map(SpeechError.init) ?? SpeechError.connectionFailed
+    }
+}
+
+private nonisolated final class PingAnswer: Sendable {
+    private let isAnswered = Atomic(false)
+
+    func isFirst() -> Bool {
+        !isAnswered.exchange(true, ordering: .relaxed)
     }
 }
 

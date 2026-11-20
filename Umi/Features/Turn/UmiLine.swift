@@ -4,6 +4,14 @@ enum UmiLine {
     private static let noInternet = "No internet. Check your connection and try again."
     private static let somethingWentWrong = "Something went wrong. Please try again."
 
+    // The voice needs the same internet and the same Deepgram service, so these lines are only shown.
+    static func isSpoken(_ error: any Error) -> Bool {
+        switch error {
+        case is SpeechError, BrainError.noInternet: false
+        default: true
+        }
+    }
+
     static func failure(_ error: any Error) -> String {
         switch error {
         case let error as SpeechError: speech(error)

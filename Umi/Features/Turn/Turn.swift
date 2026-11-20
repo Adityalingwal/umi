@@ -47,6 +47,7 @@ final class Turn {
             end()
         case .cancelled:
             cancel()
+            subtitles.clear()
             logger.notice("Hold cancelled by another key")
         }
     }
@@ -75,8 +76,10 @@ final class Turn {
             stop(because: error)
             return
         }
+        self.speaking = speaking
         guard screen.isAllowed else {
-            stopWithoutScreen()
+            speaking.start()
+            stopWithoutScreen(voice: speaking)
             return
         }
         cursorPanel.startFollowingPointer()
@@ -87,7 +90,6 @@ final class Turn {
         hearing.start()
         speaking.start()
         self.hearing = hearing
-        self.speaking = speaking
         logger.notice("Hold began")
     }
 
@@ -118,55 +120,80 @@ final class Turn {
                 logger.notice("Silence: the question ended quietly, Claude not asked")
             case .soundWithoutWords:
                 logger.notice("Sound without words: Claude not asked")
-                say(UmiLine.couldNotHear)
+                voice.speak(UmiLine.couldNotHear)
+                voice.endText()
+                await follow(voice)
             }
         } catch is CancellationError {
             return
         } catch {
             guard !Task.isCancelled else { return }
-            stop(because: error)
+            stop(because: error, voice: voice)
+            await follow(voice)
         }
     }
 
-    private func stopWithoutScreen() {
+    private func stopWithoutScreen(voice: SpokenAnswer) {
         answering = Task { [weak self, screen] in
             let refusal = await screen.refusal()
-            guard !Task.isCancelled else { return }
-            self?.stop(because: refusal)
+            guard !Task.isCancelled, let self else { return }
+            defer { release(voice) }
+            stop(because: refusal, voice: voice)
+            await follow(voice)
         }
     }
 
     private func stop(because error: any Error) {
         logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
-        say(UmiLine.failure(error))
+        show(UmiLine.failure(error))
+        subtitles.finish()
+    }
+
+    private func stop(because error: any Error, voice: SpokenAnswer) {
+        logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+        let line = UmiLine.failure(error)
+        if UmiLine.isSpoken(error) {
+            voice.speak(line)
+            voice.endText()
+        } else {
+            voice.stop(showing: line)
+        }
     }
 
     private func ask(_ text: String, picture: Task<ScreenPicture, any Error>, voice: SpokenAnswer) async throws {
         let screenJPEG = try await picture.value.jpegData
         try Task.checkCancellation()
         let answer = brain.answer(BrainQuestion(text: text, screenJPEG: screenJPEG))
-        try await withThrowingDiscardingTaskGroup { group in
-            group.addTask { try await self.send(answer, to: voice) }
-            group.addTask { try await self.follow(voice) }
+        await withDiscardingTaskGroup { group in
+            group.addTask { await self.send(answer, to: voice) }
+            group.addTask { await self.follow(voice) }
         }
     }
 
-    private func send(_ answer: AsyncThrowingStream<String, any Error>, to voice: SpokenAnswer) async throws {
+    private func send(_ answer: AsyncThrowingStream<String, any Error>, to voice: SpokenAnswer) async {
         var splitter = SentenceSplitter()
-        for try await piece in answer {
-            splitter.add(piece).forEach(voice.speak)
+        do {
+            for try await piece in answer {
+                splitter.add(piece).forEach(voice.speak)
+            }
+            try Task.checkCancellation()
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            stop(because: error, voice: voice)
+            return
         }
-        try Task.checkCancellation()
         splitter.flush().map(voice.speak)
         voice.endText()
     }
 
-    private func follow(_ voice: SpokenAnswer) async throws {
-        for try await event in voice.events {
+    private func follow(_ voice: SpokenAnswer) async {
+        for await event in voice.events {
             guard !Task.isCancelled else { return }
             switch event {
-            case .sentenceStarted(let sentence):
-                show(sentence)
+            case .show(let text):
+                show(text)
             case .finished:
                 hideCursor()
                 subtitles.finish()
@@ -180,20 +207,18 @@ final class Turn {
         subtitles.show(sentence)
     }
 
-    private func say(_ line: String) {
-        guard !Task.isCancelled else { return }
-        show(line)
-        subtitles.finish()
-    }
-
     private func release(_ hearing: HoldHearing, _ picture: Task<ScreenPicture, any Error>, _ voice: SpokenAnswer) {
-        voice.stop()
+        release(voice)
         if self.hearing === hearing {
             self.hearing = nil
         }
         if self.picture == picture {
             self.picture = nil
         }
+    }
+
+    private func release(_ voice: SpokenAnswer) {
+        voice.stop()
         if speaking === voice {
             speaking = nil
         }
@@ -222,7 +247,6 @@ final class Turn {
         case let error as AudioSourceError: "audio: \(error)"
         case let error as ScreenError: "screen: \(error)"
         case let error as BrainError: "brain: \(error)"
-        case let error as SpeakingError: "voice: \(error)"
         default: "unexpected"
         }
     }

@@ -24,6 +24,10 @@ nonisolated final class SpeechQueue: Sendable {
         state.withLock { $0.played }
     }
 
+    var hasUnplayedSamples: Bool {
+        state.withLock { $0.hasUnplayedSamples }
+    }
+
     func append(linear16 audio: Data, startingSentence sentence: Int?) {
         state.withLock { $0.append(linear16: audio, startingSentence: sentence) }
     }
@@ -39,6 +43,15 @@ nonisolated final class SpeechQueue: Sendable {
     func cut() {
         state.withLock { $0.cut() }
         eventContinuation.finish()
+    }
+
+    func cutReturningUnfinishedSentence() -> Int? {
+        let sentence = state.withLock { state in
+            defer { state.cut() }
+            return state.unfinishedSentence
+        }
+        eventContinuation.finish()
+        return sentence
     }
 
     #if DEBUG
@@ -86,6 +99,16 @@ private nonisolated struct QueueState {
     private var isPlaying = false
     private var isPlayedOut = false
     private var isCut = false
+
+    var hasUnplayedSamples: Bool {
+        !isCut && played < samples.count
+    }
+
+    var unfinishedSentence: Int? {
+        guard !isCut, nextSentenceStart > 0 else { return nil }
+        let end = nextSentenceStart < sentenceStarts.count ? sentenceStarts[nextSentenceStart].sample : samples.count
+        return played < end ? sentenceStarts[nextSentenceStart - 1].sentence : nil
+    }
 
     mutating func append(linear16 audio: Data, startingSentence sentence: Int?) {
         guard !isCut else { return }
