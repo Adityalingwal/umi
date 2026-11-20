@@ -105,7 +105,9 @@ final class Turn {
                 return
             }
             logger.notice("Heard \(text.count, privacy: .public) characters")
-            let question = BrainQuestion(text: text, screenJPEG: try await picture.value.jpegData)
+            let screenJPEG = try await picture.value.jpegData
+            try Task.checkCancellation()
+            let question = BrainQuestion(text: text, screenJPEG: screenJPEG)
             var splitter = SentenceSplitter()
             for try await piece in brain.answer(question) {
                 splitter.add(piece).forEach(show)
