@@ -2,7 +2,7 @@ import AVFoundation
 import OSLog
 
 final class SpeechAudioConverter {
-    static let sampleRate = 16_000.0
+    nonisolated static let sampleRate = 16_000.0
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var converter: AVAudioConverter?

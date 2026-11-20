@@ -81,8 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         turns = Task {
             let turn = Turn(
                 audioSource: audioSource,
-                deepgramKey: await DeepgramKey.fromBundle(bundleURL),
-                urlSession: .shared,
+                speech: await SpeechToText.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),
                 screen: screen,
                 brain: brain,
                 subtitles: subtitles,

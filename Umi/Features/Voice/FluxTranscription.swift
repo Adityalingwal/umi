@@ -13,6 +13,8 @@ final class FluxTranscription {
     private let audio = AsyncStream.makeStream(of: Data.self)
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var connection = FluxConnection.opening
+    private(set) var recording = HoldRecording()
+    private var audioFailure: AudioSourceError?
     private var isEndOfTurnForced = false
     private var isFinalTextReceived = false
     private var finishedTurns: [String] = []
@@ -21,8 +23,20 @@ final class FluxTranscription {
     private var receiving: Task<Void, Never>?
     private var sending: Task<Void, Never>?
 
-    init(key: DeepgramKey, source: any AudioSource, session: URLSession) {
-        socket = Self.endpoint().map { session.webSocketTask(with: $0, protocols: ["token", key.value]) }
+    static var endpoint: URL? {
+        var components = URLComponents(string: "wss://api.deepgram.com/v2/listen")
+        components?.queryItems = [
+            URLQueryItem(name: "model", value: "flux-general-multi"),
+            URLQueryItem(name: "encoding", value: "linear16"),
+            URLQueryItem(name: "sample_rate", value: String(Int(SpeechAudioConverter.sampleRate))),
+            URLQueryItem(name: "eot_threshold", value: "0.9"),
+            URLQueryItem(name: "eot_timeout_ms", value: "60000")
+        ]
+        return components?.url
+    }
+
+    init(key: DeepgramKey, endpoint: URL?, source: any AudioSource, session: URLSession) {
+        socket = endpoint.map { session.webSocketTask(with: $0, protocols: ["token", key.value]) }
         self.source = source
     }
 
@@ -47,6 +61,9 @@ final class FluxTranscription {
         defer {
             deadline.cancel()
             cancel()
+        }
+        if let audioFailure {
+            throw audioFailure
         }
         await sending?.value
         guard connection == .open, let socket else { throw SpeechError.connectionFailed }
@@ -74,32 +91,27 @@ final class FluxTranscription {
         stateChanged()
     }
 
-    private static func endpoint() -> URL? {
-        var components = URLComponents(string: "wss://api.deepgram.com/v2/listen")
-        components?.queryItems = [
-            URLQueryItem(name: "model", value: "flux-general-multi"),
-            URLQueryItem(name: "encoding", value: "linear16"),
-            URLQueryItem(name: "sample_rate", value: String(Int(SpeechAudioConverter.sampleRate))),
-            URLQueryItem(name: "eot_threshold", value: "0.9"),
-            URLQueryItem(name: "eot_timeout_ms", value: "60000")
-        ]
-        return components?.url
-    }
-
     private func startHearing() {
         let chunks = source.chunks()
         let output = audio.continuation
-        hearing = Task { [converter, logger] in
+        hearing = Task { [weak self, converter] in
             do {
                 for try await chunk in chunks {
-                    output.yield(converter.linear16(from: chunk))
+                    let audio = converter.linear16(from: chunk)
+                    self?.recording.append(audio)
+                    output.yield(audio)
                 }
             } catch is CancellationError {
             } catch {
-                logger.error("The question's audio stopped: \(error.localizedDescription)")
+                self?.audioStopped(error)
             }
             output.finish()
         }
+    }
+
+    private func audioStopped(_ error: any Error) {
+        logger.error("The question's audio stopped: \(error.localizedDescription)")
+        audioFailure = error as? AudioSourceError ?? .microphoneUnavailable
     }
 
     private func startReceiving(from socket: URLSessionWebSocketTask) {
@@ -176,6 +188,7 @@ final class FluxTranscription {
         guard connection == .opening || connection == .open, !isFinalTextReceived else { return }
         logger.error("Deepgram gave no final text in time")
         connection = .timedOut
+        socket?.cancel(with: .goingAway, reason: nil)
         stateChanged()
     }
 

@@ -6,11 +6,13 @@ import ScreenCaptureKit
 
 nonisolated struct ScreenCapture: Sendable {
     private let ownBundleID: String?
+    private let probe: ScreenAccessProbe?
     private let replacementImageURL: URL?
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Screen")
 
-    private init(ownBundleID: String?, replacementImageURL: URL?) {
+    private init(ownBundleID: String?, probe: ScreenAccessProbe?, replacementImageURL: URL?) {
         self.ownBundleID = ownBundleID
+        self.probe = probe
         self.replacementImageURL = replacementImageURL
     }
 
@@ -19,7 +21,15 @@ nonisolated struct ScreenCapture: Sendable {
         #if DEBUG
         replacementImageURL = defaults.string(forKey: "UmiScreenImage").map { URL(filePath: $0) }
         #endif
-        return ScreenCapture(ownBundleID: bundle.bundleIdentifier, replacementImageURL: replacementImageURL)
+        return ScreenCapture(
+            ownBundleID: bundle.bundleIdentifier,
+            probe: bundle.executableURL.map(ScreenAccessProbe.init),
+            replacementImageURL: replacementImageURL
+        )
+    }
+
+    var isAllowed: Bool {
+        replacementImageURL != nil || CGPreflightScreenCaptureAccess()
     }
 
     @concurrent
@@ -30,11 +40,15 @@ nonisolated struct ScreenCapture: Sendable {
         }
         #endif
         guard CGPreflightScreenCaptureAccess() else {
-            throw ScreenError.notAllowed
+            throw await refusal()
         }
         let image = try await capture(displayID: displayID)
         logger.notice("Screen captured, \(image.width, privacy: .public)x\(image.height, privacy: .public)")
         return ScreenPicture(jpegData: try JPEGEncoder.encode(image))
+    }
+
+    func refusal() async -> ScreenError {
+        await probe?.isGrantedNow() == true ? .needsRelaunch : .notAllowed
     }
 
     private func capture(displayID: CGDirectDisplayID) async throws -> CGImage {

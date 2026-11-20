@@ -80,12 +80,6 @@ final class ScreenPermission {
     }
 
     private func isGrantedNow() async -> Bool {
-        guard let probe else { return CGPreflightScreenCaptureAccess() }
-        do {
-            return try await probe.isGrantedInFreshProcess()
-        } catch {
-            logger.error("Screen access probe failed: \(error.localizedDescription)")
-            return CGPreflightScreenCaptureAccess()
-        }
+        await probe?.isGrantedNow() ?? CGPreflightScreenCaptureAccess()
     }
 }
