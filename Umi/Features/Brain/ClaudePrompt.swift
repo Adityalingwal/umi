@@ -7,6 +7,8 @@ enum ClaudePrompt {
         and longer only when the task needs it or the user asks for detail. \
         Answer in the user's language, and count Hindi and English mixed as Hindi. \
         Write a Hindi answer in Devanagari, with every English word in English letters, \
-        like "Signing tab में जाके team select कर दो।"
+        like "Signing tab में जाके team select कर दो।" \
+        Never write digits: write every number, price and amount as words in the answer's language, \
+        like "four hundred twenty rupees" in English or "चार सौ बीस रुपये" in Hindi.
         """
 }
