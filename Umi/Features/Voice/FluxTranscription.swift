@@ -13,6 +13,7 @@ final class FluxTranscription {
     private let audio = AsyncStream.makeStream(of: Data.self)
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var connection = FluxConnection.opening
+    private(set) var recording = HoldRecording()
     private var isEndOfTurnForced = false
     private var isFinalTextReceived = false
     private var finishedTurns: [String] = []
@@ -89,10 +90,12 @@ final class FluxTranscription {
     private func startHearing() {
         let chunks = source.chunks()
         let output = audio.continuation
-        hearing = Task { [converter, logger] in
+        hearing = Task { [weak self, converter, logger] in
             do {
                 for try await chunk in chunks {
-                    output.yield(converter.linear16(from: chunk))
+                    let audio = converter.linear16(from: chunk)
+                    self?.recording.append(audio)
+                    output.yield(audio)
                 }
             } catch is CancellationError {
             } catch {
