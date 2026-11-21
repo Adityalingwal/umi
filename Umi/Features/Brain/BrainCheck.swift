@@ -29,9 +29,11 @@ struct BrainCheck {
             }
         } catch is CancellationError {
             return nil
+        } catch StatusCommand.Failure.tookTooLong {
+            logger.error("The \(brain.title, privacy: .public) check took too long")
+            return nil
         } catch {
-            let reason = String(describing: error)
-            logger.error("The \(brain.title, privacy: .public) check did not finish: \(reason, privacy: .public)")
+            logger.error("The \(brain.title, privacy: .public) check could not run")
             return nil
         }
     }
