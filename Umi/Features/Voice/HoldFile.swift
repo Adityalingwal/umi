@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import OSLog
 
 final class HoldFile: AudioSource {
     private static let pauseBetweenHolds = Duration.seconds(25)
@@ -15,13 +16,23 @@ final class HoldFile: AudioSource {
     private init(fileURLs: [URL]) {
         self.fileURLs = fileURLs
         (holds, holdContinuation) = AsyncStream.makeStream(of: HoldEvent.self)
-        holdContinuation.yield(.began)
+        if fileURLs.isEmpty {
+            holdContinuation.finish()
+        } else {
+            holdContinuation.yield(.began)
+        }
     }
 
     static func atLaunch(defaults: UserDefaults) -> HoldFile? {
         let key = "UmiHoldFile"
         let paths = defaults.stringArray(forKey: key) ?? defaults.string(forKey: key).map { [$0] } ?? []
-        return paths.isEmpty ? nil : HoldFile(fileURLs: paths.map { URL(filePath: $0) })
+        guard !paths.isEmpty else { return nil }
+        guard paths.count == 1 || defaults.string(forKey: "UmiScreenImage") != nil else {
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
+                .error("Several hold files need -UmiScreenImage, so no hold plays")
+            return HoldFile(fileURLs: [])
+        }
+        return HoldFile(fileURLs: paths.map { URL(filePath: $0) })
     }
 
     func chunks() -> AsyncThrowingStream<AudioChunk, any Error> {
