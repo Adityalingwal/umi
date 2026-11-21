@@ -18,6 +18,7 @@ struct CodexTurn {
         defer { connection.forget(thread: thread.id) }
         let id = connection.nextRequestID()
         let line = try await CodexTurnRequest.line(id: id, threadID: thread.id, effort: effort, question: question)
+        try Task.checkCancellation()
         let started = try await connection.send(line, awaiting: id)
         guard let turnID = (started["turn"] as? [String: Any])?["id"] as? String else {
             throw BrainError.failed(.codex)
