@@ -12,10 +12,10 @@ struct CodexTurn {
         into continuation: AsyncThrowingStream<String, any Error>.Continuation
     ) async throws {
         let connection = thread.connection
+        defer { connection.release(thread: thread.id) }
         try await CodexGate.checkSignIn(connection)
         try Task.checkCancellation()
         let events = connection.events(forThread: thread.id)
-        defer { connection.forget(thread: thread.id) }
         let id = connection.nextRequestID()
         let line = try await CodexTurnRequest.line(id: id, threadID: thread.id, effort: effort, question: question)
         try Task.checkCancellation()

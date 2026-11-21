@@ -104,8 +104,14 @@ final class CodexConnection {
         return stream
     }
 
-    func forget(thread threadID: String) {
+    // Unsubscribing lets the warm Codex unload the thread, and with it the question's screen picture.
+    func release(thread threadID: String) {
         threads.removeValue(forKey: threadID)?.finish()
+        do {
+            try fire("thread/unsubscribe", ["threadId": threadID])
+        } catch {
+            logger.error("Codex's thread could not be released: \(error.localizedDescription)")
+        }
     }
 
     private func write(_ line: Data) {
