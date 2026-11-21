@@ -32,8 +32,9 @@ struct SpokenTurns {
     mutating func addUnspoken(_ sentence: String, nameStart: String.Index?) -> [SpokenEvent] {
         sentences.append(sentence)
         sentencesShown = sentences.count
+        let shown: [SpokenEvent] = [.show(sentence), .sentencesShown(sentencesShown)]
         let namesTarget = Self.parts(of: sentence, nameStart: nameStart).contains(where: \.isName)
-        return namesTarget ? [.show(sentence), .nameShown] : [.show(sentence)]
+        return namesTarget ? shown + [.nameShown] : shown
     }
 
     mutating func voiceStartedTurn() {
@@ -67,7 +68,7 @@ struct SpokenTurns {
         let sentence = turnSentences[turn]
         if turn == 0 || turnSentences[turn - 1] != sentence {
             sentencesShown = max(sentencesShown, sentence + 1)
-            events.append(.show(sentences[sentence]))
+            events += [.show(sentences[sentence]), .sentencesShown(sentencesShown)]
         }
         if turn == nameTurn {
             events.append(.nameStarted)
@@ -85,9 +86,9 @@ struct SpokenTurns {
         let unshown = sentences[sentencesShown...]
         sentencesShown = sentences.count
         guard !unshown.isEmpty else { return (0, []) }
-        let shown = SpokenEvent.show(unshown.joined(separator: " "))
+        let shown: [SpokenEvent] = [.show(unshown.joined(separator: " ")), .sentencesShown(sentencesShown)]
         let namesTarget = nameTurn.map { unshown.indices.contains(turnSentences[$0]) } ?? false
-        return (unshown.count, namesTarget ? [shown, .nameShown] : [shown])
+        return (unshown.count, namesTarget ? shown + [.nameShown] : shown)
     }
 
     private func cutSentence(unfinishedTurn: Int?) -> Int? {

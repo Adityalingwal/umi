@@ -1,5 +1,6 @@
 enum UmiLine {
     static let couldNotHear = "Couldn't hear you, say it again"
+    static let couldNotDraw = "Sorry, I couldn't make that drawing."
 
     private static let noInternet = "No internet. Check your connection and try again."
     private static let somethingWentWrong = "Something went wrong. Please try again."

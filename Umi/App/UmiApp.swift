@@ -94,6 +94,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let pointerOverlay = PointerOverlay()
         let pointer = Pointer(overlay: pointerOverlay, panel: PointerPanel(overlay: pointerOverlay), workspace: .shared)
         let screen = ScreenCapture.atLaunch(defaults: .standard, bundle: .main)
+        let boardContent = BoardContent()
+        let board = Board(content: boardContent, window: BoardWindow(content: boardContent))
         let bundleURL = Bundle.main.bundleURL
         turns = Task {
             let turn = Turn(
@@ -107,7 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 subtitlePanel: subtitlePanel,
                 cursor: cursor,
                 cursorPanel: cursorPanel,
-                pointer: pointer
+                pointer: pointer,
+                board: board
             )
             await withDiscardingTaskGroup { group in
                 group.addTask {
