@@ -3,10 +3,6 @@ import CoreGraphics
 struct BoardSegment {
     let start: CGPoint
     let end: CGPoint
-
-    var middle: CGPoint {
-        CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
-    }
 }
 
 enum PlacedShape {
