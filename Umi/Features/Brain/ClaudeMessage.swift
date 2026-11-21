@@ -1,8 +1,11 @@
 import Foundation
 
-nonisolated enum ClaudeMessage {
-    static func line(for question: BrainQuestion) throws -> Data {
-        let content = history(question.earlierExchanges) + [
+nonisolated struct ClaudeMessage: Sendable {
+    let line: Data
+    let pictureCount: Int
+
+    init(for question: BrainQuestion) throws {
+        let content = Self.history(question.earlierExchanges) + [
             [
                 "type": "image",
                 "source": [
@@ -17,10 +20,11 @@ nonisolated enum ClaudeMessage {
             ],
             ["type": "text", "text": question.text]
         ]
+        pictureCount = content.count { $0["type"] as? String == "image" }
         let message: [String: Any] = ["type": "user", "message": ["role": "user", "content": content]]
         var line = try JSONSerialization.data(withJSONObject: message)
         line.append(UInt8(ascii: "\n"))
-        return line
+        self.line = line
     }
 
     private static func history(_ exchanges: [Exchange]) -> [[String: Any]] {
