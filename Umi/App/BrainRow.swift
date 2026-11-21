@@ -43,7 +43,9 @@ final class BrainRow: NSObject {
                 guard let found, !Task.isCancelled else { return }
                 availability[kind] = found
                 show()
+                #if DEBUG
                 logShownOptions()
+                #endif
             }
         }
     }
@@ -59,6 +61,7 @@ final class BrainRow: NSObject {
         }
     }
 
+    #if DEBUG
     private func logShownOptions() {
         for option in item.submenu?.items ?? [] {
             let title = option.title
@@ -70,6 +73,7 @@ final class BrainRow: NSObject {
             logger.notice("Brain option \(title, privacy: .public): hint \(hint, privacy: .public)")
         }
     }
+    #endif
 
     private static func kind(of option: NSMenuItem) -> BrainKind? {
         (option.representedObject as? String).flatMap(BrainKind.init(rawValue:))
