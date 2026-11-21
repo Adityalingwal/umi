@@ -39,8 +39,7 @@ struct DrawingReader {
     private var isEmpty: Bool {
         switch start {
         case .newDrawing, nil: !hasMarks
-        case .edit: parts == 0
-        case .reopen: false
+        case .edit, .reopen: parts == 0
         }
     }
 
@@ -69,7 +68,9 @@ struct DrawingReader {
             try begin(.reopen)
         case .part(_, let marks, let removedIDs):
             guard start != nil else { throw DrawingError.unreadableLine }
-            if start == .reopen, !marks.isEmpty || !removedIDs.isEmpty { throw DrawingError.unreadableLine }
+            if start == .reopen, parts > 0 || !marks.isEmpty || !removedIDs.isEmpty {
+                throw DrawingError.unreadableLine
+            }
             parts += 1
             guard parts <= Self.mostParts else { throw DrawingError.tooLarge }
             hasMarks = hasMarks || !marks.isEmpty
