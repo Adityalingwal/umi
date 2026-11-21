@@ -24,9 +24,9 @@ struct CodexTurn {
         }
         do {
             try await follow(events, turnID: turnID, into: continuation)
-        } catch {
+        } catch is CancellationError {
             interrupt(turnID)
-            throw error
+            throw CancellationError()
         }
     }
 
@@ -48,6 +48,7 @@ struct CodexTurn {
                 items[type, default: 0] += 1
             case let .error(_, error, willRetry) where willRetry && error == .noInternet:
                 logger.error("Codex could not reach its server, stopping without retries")
+                interrupt(turnID)
                 throw error
             case let .error(_, error, willRetry) where !willRetry:
                 failure = error

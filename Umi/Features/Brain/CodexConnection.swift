@@ -25,9 +25,14 @@ final class CodexConnection {
         process.standardError = FileHandle.nullDevice
     }
 
+    // A write to a stopped Codex must throw instead of killing Umi with SIGPIPE.
     // FileHandle.bytes reads on one serial queue shared by the whole app, so a long-lived Codex reader
     // there would block the Claude plug's reader; this handler reads on its own.
     func start() throws {
+        if fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) == -1 {
+            logger.error("Writing to a stopped Codex could not be made safe, so Codex is not started")
+            throw BrainError.didNotStart(.codex)
+        }
         try process.run()
         let (chunks, chunkContinuation) = AsyncStream.makeStream(of: Data.self)
         output.fileHandleForReading.readabilityHandler = { handle in
@@ -104,6 +109,7 @@ final class CodexConnection {
     }
 
     private func write(_ line: Data) {
+        guard !hasEnded else { return }
         let previous = writing
         let handle = input.fileHandleForWriting
         writing = Task { [weak self] in
