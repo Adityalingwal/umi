@@ -10,13 +10,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         action: #selector(accessibilityItemClicked),
         keyEquivalent: ""
     )
-    private let brainItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let microphone: MicrophonePermission
     private let screen: ScreenPermission
     private let accessibility: AccessibilityPermission
     private let keyListener: KeyListener
     private let listening: Listening
-    private let brain: ChosenBrain
+    private let brainRow: BrainRow
     private let relauncher: AppRelauncher
     private var screenRefresh: Task<Void, Never>?
 
@@ -27,7 +26,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         accessibility: AccessibilityPermission,
         keyListener: KeyListener,
         listening: Listening,
-        brain: ChosenBrain,
+        brainRow: BrainRow,
         relauncher: AppRelauncher
     ) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -36,7 +35,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         self.accessibility = accessibility
         self.keyListener = keyListener
         self.listening = listening
-        self.brain = brain
+        self.brainRow = brainRow
         self.relauncher = relauncher
         super.init()
         statusItem.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: appName)
@@ -47,12 +46,19 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         statusItem.button?.performClick(nil)
     }
 
+    #if DEBUG
+    func updateAsIfOpened() {
+        guard let menu = statusItem.menu else { return }
+        menuNeedsUpdate(menu)
+    }
+    #endif
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         showMicrophone(microphone.currentAccess())
         showScreen(screen.lastKnownAccess)
         refreshScreen()
         showAccessibility(accessibility.currentAccess())
-        showBrain()
+        brainRow.menuNeedsUpdate()
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -77,24 +83,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        brainItem.submenu = makeBrainMenu()
-        menu.addItem(brainItem)
+        menu.addItem(brainRow.item)
         menu.addItem(.separator())
         menu.addItem(makeLevelItem())
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        return menu
-    }
-
-    private func makeBrainMenu() -> NSMenu {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-        for kind in BrainKind.allCases {
-            let item = NSMenuItem(title: kind.title, action: #selector(brainItemClicked(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = kind.rawValue
-            menu.addItem(item)
-        }
         return menu
     }
 
@@ -114,13 +107,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             let access = await screen.currentAccess()
             guard !Task.isCancelled else { return }
             showScreen(access)
-        }
-    }
-
-    private func showBrain() {
-        brainItem.title = "Brain: \(brain.choice.title)"
-        for item in brainItem.submenu?.items ?? [] {
-            item.state = item.representedObject as? String == brain.choice.rawValue ? .on : .off
         }
     }
 
@@ -167,12 +153,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         case .allowed:
             break
         }
-    }
-
-    @objc private func brainItemClicked(_ item: NSMenuItem) {
-        guard let kind = (item.representedObject as? String).flatMap(BrainKind.init(rawValue:)) else { return }
-        brain.choose(kind)
-        showBrain()
     }
 
     @objc private func accessibilityItemClicked() {

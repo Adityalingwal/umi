@@ -2,12 +2,17 @@ import Foundation
 
 struct ClaudeExecutable {
     let fileManager: FileManager
+    // Set only by the Debug launch argument -UmiBrainExecutables.
+    let onlyFolder: URL?
 
     func locate(environment: [String: String]) -> URL? {
         candidates(environment: environment).first { fileManager.isExecutableFile(atPath: $0.path) }
     }
 
     private func candidates(environment: [String: String]) -> [URL] {
+        if let onlyFolder {
+            return [onlyFolder.appending(path: "claude")]
+        }
         let home = fileManager.homeDirectoryForCurrentUser
         let usual = [
             home.appending(path: ".local/bin/claude"),

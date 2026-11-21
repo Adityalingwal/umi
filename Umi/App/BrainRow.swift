@@ -1,0 +1,100 @@
+import AppKit
+import OSLog
+
+final class BrainRow: NSObject {
+    let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+
+    private let brain: ChosenBrain
+    private let check: BrainCheck
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Brain")
+    private var availability: [BrainKind: BrainAvailability] = [:]
+    private var refreshes: [BrainKind: Task<Void, Never>] = [:]
+
+    init(brain: ChosenBrain, check: BrainCheck) {
+        self.brain = brain
+        self.check = check
+        super.init()
+        item.submenu = makeSubmenu()
+    }
+
+    func menuNeedsUpdate() {
+        show()
+        refreshAvailability()
+    }
+
+    private func makeSubmenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        for kind in BrainKind.allCases {
+            let item = NSMenuItem(title: kind.title, action: #selector(brainItemClicked(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = kind.rawValue
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    private func refreshAvailability() {
+        for kind in BrainKind.allCases {
+            refreshes[kind]?.cancel()
+            refreshes[kind] = Task { [weak self] in
+                guard let self else { return }
+                let found = await check.availability(of: kind)
+                guard let found, !Task.isCancelled else { return }
+                availability[kind] = found
+                show()
+                #if DEBUG
+                logShownOptions()
+                #endif
+            }
+        }
+    }
+
+    private func show() {
+        item.title = "Brain: \(brain.choice.title)"
+        for option in item.submenu?.items ?? [] {
+            guard let kind = Self.kind(of: option) else { continue }
+            let found = availability[kind]
+            option.state = kind == brain.choice ? .on : .off
+            option.isEnabled = found.map { $0 == .usable } ?? true
+            option.subtitle = found.flatMap { $0.hint(for: kind) }
+        }
+    }
+
+    #if DEBUG
+    private func logShownOptions() {
+        for option in item.submenu?.items ?? [] {
+            let title = option.title
+            let isChosen = option.state == .on
+            let isEnabled = option.isEnabled
+            let hint = option.subtitle ?? "none"
+            logger.notice("Brain option \(title, privacy: .public): chosen \(isChosen, privacy: .public)")
+            logger.notice("Brain option \(title, privacy: .public): enabled \(isEnabled, privacy: .public)")
+            logger.notice("Brain option \(title, privacy: .public): hint \(hint, privacy: .public)")
+        }
+    }
+    #endif
+
+    private static func kind(of option: NSMenuItem) -> BrainKind? {
+        (option.representedObject as? String).flatMap(BrainKind.init(rawValue:))
+    }
+
+    @objc private func brainItemClicked(_ option: NSMenuItem) {
+        guard let kind = Self.kind(of: option) else { return }
+        brain.choose(kind)
+        show()
+    }
+}
+
+private extension BrainAvailability {
+    func hint(for brain: BrainKind) -> String? {
+        switch (self, brain) {
+        case (.usable, _): nil
+        case (.notInstalled, .claude): "Install Claude Code"
+        case (.notInstalled, .codex): "Install Codex"
+        case (.notSignedIn, .claude): "Sign in: run claude auth login in Terminal"
+        case (.notSignedIn(.noLogin), .codex): "Sign in: run codex login in Terminal"
+        case (.notSignedIn(.notChatGPT), .codex): "Sign in with ChatGPT: run codex login in Terminal"
+        }
+    }
+}
