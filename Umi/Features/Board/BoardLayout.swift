@@ -69,7 +69,7 @@ struct BoardLayout {
         let text = BoardLabel.size(of: label, style: .connector, maxWidth: 150)
         let size = CGSize(width: text.width + 10, height: text.height + 4)
         let frames = Self.labelSpots(for: size, along: segment)
-        return frames.first { !collides($0, isRegion: false) } ?? frames[0]
+        return frames.first { Self.fits($0) && !collides($0, isRegion: false) } ?? frames[0]
     }
 
     private static let labelSpots = [0.5] + stride(from: 0.05, through: 0.4, by: 0.05).flatMap { [0.5 - $0, 0.5 + $0] }
