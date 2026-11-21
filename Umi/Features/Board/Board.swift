@@ -44,13 +44,22 @@ final class Board {
     }
 
     func edit(_ title: String) throws {
-        guard let base = unfinished ?? lastComplete else { throw DrawingError.nothingToEdit }
+        guard let base = unfinished ?? lastComplete else { throw DrawingError.noDiagram }
         let source = unfinished == nil ? "the last complete drawing" : "the drawing that was stopped"
         draft = DrawingDraft(title: title, base: base)
         content.startEditing(base)
         window.setTitle(title)
         window.show()
         logger.notice("Board edits \(source, privacy: .public): \(base.marks.count, privacy: .public) marks stay")
+    }
+
+    func reopen() throws {
+        guard let lastComplete else { throw DrawingError.noDiagram }
+        content.show(lastComplete)
+        window.setTitle(lastComplete.title)
+        window.show()
+        let count = lastComplete.marks.count
+        logger.notice("Board shows the last complete drawing again: \(count, privacy: .public) marks")
     }
 
     func add(_ marks: [BoardMark], removing removedIDs: [String]) throws {

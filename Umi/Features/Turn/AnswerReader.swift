@@ -114,6 +114,8 @@ struct AnswerReader {
                 board.open(title)
             case .edit(let title):
                 try board.edit(title)
+            case .reopen:
+                try board.reopen()
             case let .part(say, marks, removedIDs):
                 try board.add(marks, removing: removedIDs)
                 voice.speak(say)

@@ -78,7 +78,7 @@ enum UmiPrompt {
         New diagram or edit. Umi keeps one diagram while it runs, even after the user closes the board. \
         A drawing answer either draws a new diagram, which replaces it, or edits the current diagram.
         Draw a new diagram when the user clearly asks for a new one or for a diagram of something unrelated. \
-        Edit the current diagram when the user asks to change, add to, remove from or correct it, or to see it again.
+        Edit the current diagram when the user asks to change, add to, remove from or correct it.
         When a drawing request could mean either adding to the current diagram or making a new one, \
         like a diagram of a related flow without saying which, draw nothing: \
         give a spoken answer that asks once whether to add it to the current diagram or make a new one. \
@@ -96,7 +96,9 @@ enum UmiPrompt {
         Removing or replacing a mark also removes the arrows, lines and notes joined to it, \
         so add again the ones that should stay. Removing a region keeps the marks inside it. \
         Put new marks in free space, clear of the marks on the board.
-        To show the diagram again unchanged, write the edit line, then one line with only a "say", \
-        like {"say":"Here is the checkout flow again."}.
+        When the user asks to see the diagram again, show the last complete diagram unchanged: \
+        the first line is only {"reopen":"Title"}, with that diagram's title, \
+        then one line with only a "say", like {"say":"Here is the checkout flow again."}. \
+        A reopen never shows a diagram that was stopped while it was being drawn.
         """
 }
