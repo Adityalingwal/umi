@@ -71,11 +71,12 @@ nonisolated struct PointTagParser {
         let attributesEnd = tag.lastIndex { "=\"'".contains($0) }.map(tag.index(after:))
             ?? tag.firstIndex(where: \.isWhitespace)
             ?? tag.endIndex
-        let rest = String(tag[attributesEnd...].drop { $0.isWhitespace || $0.isNumber || "+-.,".contains($0) })
+        let rest = tag[attributesEnd...].drop { $0.isWhitespace || $0.isNumber || "+-.,".contains($0) }
+        let keepsRest = !isCutOff || Self.hasWholeLocation(String(tag[..<rest.startIndex]))
         buffer = String(buffer[end...])
         parts.append(.dropped(.unfinishedTag))
-        if !isCutOff || Self.hasWholeLocation(String(tag[..<attributesEnd])) {
-            emit(rest, into: &parts)
+        if keepsRest {
+            emit(String(rest), into: &parts)
         }
     }
 
