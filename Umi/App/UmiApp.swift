@@ -16,7 +16,7 @@ enum UmiApp {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusMenu: StatusMenu?
     private var keyListener: KeyListener?
-    private var brain: ClaudeSubscription?
+    private var brain: ChosenBrain?
     private var turns: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let listening = Listening.atLaunch(defaults: .standard)
         let accessibility = AccessibilityPermission(defaults: .standard)
         let keyListener = KeyListener(accessibility: accessibility)
+        let brain = Self.makeBrain(environment: ProcessInfo.processInfo.environment)
+        brain.prepare()
+        self.brain = brain
         statusMenu = StatusMenu(
             appName: ProcessInfo.processInfo.processName,
             microphone: MicrophonePermission(),
@@ -31,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             accessibility: accessibility,
             keyListener: keyListener,
             listening: listening,
+            brain: brain,
             relauncher: AppRelauncher()
         )
         listening.appDidLaunch()
@@ -38,14 +42,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         #if DEBUG
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
-            startTurns(audioSource: holdFile, holds: holdFile.holds, escapes: keyListener.escapes)
+            let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
+            let holds = picks?.applied(to: holdFile.holds) ?? holdFile.holds
+            startTurns(audioSource: holdFile, holds: holds, escapes: keyListener.escapes, brain: brain)
             return
         }
         #endif
         startTurns(
             audioSource: MicrophoneSource(permission: MicrophonePermission()),
             holds: keyListener.holds,
-            escapes: keyListener.escapes
+            escapes: keyListener.escapes,
+            brain: brain
+        )
+    }
+
+    private static func makeBrain(environment: [String: String]) -> ChosenBrain {
+        ChosenBrain(
+            claude: ClaudeSubscription(executable: ClaudeExecutable(fileManager: .default), environment: environment),
+            codex: CodexSubscription(
+                executable: CodexExecutable(fileManager: .default),
+                folders: CodexFolders(bundleID: Bundle.main.bundleIdentifier ?? "Umi", environment: environment),
+                environment: environment
+            ),
+            defaults: .standard
         )
     }
 
@@ -65,13 +84,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain?.stop()
     }
 
-    private func startTurns(audioSource: any AudioSource, holds: AsyncStream<HoldEvent>, escapes: AsyncStream<Void>) {
-        let brain = ClaudeSubscription(
-            executable: ClaudeExecutable(fileManager: .default),
-            environment: ProcessInfo.processInfo.environment
-        )
-        brain.prepare()
-        self.brain = brain
+    private func startTurns(
+        audioSource: any AudioSource,
+        holds: AsyncStream<HoldEvent>,
+        escapes: AsyncStream<Void>,
+        brain: ChosenBrain
+    ) {
         let conversation = Conversation()
         let subtitles = Subtitles()
         let subtitlePanel = SubtitlePanel(subtitles: subtitles)

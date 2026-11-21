@@ -1,9 +1,10 @@
-nonisolated enum BrainError: Error {
-    case claudeNotInstalled
-    case claudeDidNotStart
-    case notSignedIn
-    case limitReached
+nonisolated enum BrainError: Error, Equatable {
+    case notInstalled(BrainKind)
+    case didNotStart(BrainKind)
+    case notSignedIn(BrainKind)
+    case limitReached(BrainKind)
     case noInternet
-    case claudeFailed
-    case answerEndedEarly
+    case codexCannotUseModel
+    case failed(BrainKind)
+    case answerEndedEarly(BrainKind)
 }

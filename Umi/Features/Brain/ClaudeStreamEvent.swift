@@ -37,10 +37,10 @@ nonisolated enum ClaudeStreamEvent {
 
     private static func failure(error: String?, apiError: String?) -> BrainError {
         switch (error, apiError) {
-        case ("authentication_failed", _): .notSignedIn
-        case ("rate_limit", _), ("billing_error", _): .limitReached
+        case ("authentication_failed", _): .notSignedIn(.claude)
+        case ("rate_limit", _), ("billing_error", _): .limitReached(.claude)
         case (_, "connection_failed"): .noInternet
-        default: .claudeFailed
+        default: .failed(.claude)
         }
     }
 

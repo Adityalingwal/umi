@@ -135,9 +135,9 @@ final class Turn {
             case .silence:
                 hideCursor()
                 pointing?.answerEnded(subtitlesLingerFor: .zero)
-                logger.notice("Silence: the question ended quietly, Claude not asked")
+                logger.notice("Silence: the question ended quietly, the brain not asked")
             case .soundWithoutWords:
-                logger.notice("Sound without words: Claude not asked")
+                logger.notice("Sound without words: the brain not asked")
                 voice.speak(UmiLine.couldNotHear)
                 voice.endText()
                 await follower.follow(voice, pointing: pointing)

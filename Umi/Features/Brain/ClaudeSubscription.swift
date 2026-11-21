@@ -30,6 +30,11 @@ final class ClaudeSubscription: Brain {
         }
     }
 
+    func prepareIfNeeded() {
+        guard spare?.isRunning != true else { return }
+        prepare()
+    }
+
     func stop() {
         spare?.stop()
         spare = nil
@@ -94,12 +99,12 @@ final class ClaudeSubscription: Brain {
                 }
                 return
             case .failed:
-                throw failure ?? .claudeFailed
+                throw failure ?? .failed(.claude)
             case .blockEnded, .other:
                 continue
             }
         }
-        throw BrainError.answerEndedEarly
+        throw BrainError.answerEndedEarly(.claude)
     }
 
     private func takeProcess() throws -> ClaudeProcess {
@@ -112,7 +117,7 @@ final class ClaudeSubscription: Brain {
 
     private func startProcess() throws -> ClaudeProcess {
         guard let executableURL = executable.locate(environment: environment) else {
-            throw BrainError.claudeNotInstalled
+            throw BrainError.notInstalled(.claude)
         }
         let process = ClaudeProcess(
             executableURL: executableURL,
@@ -123,7 +128,7 @@ final class ClaudeSubscription: Brain {
             try process.start()
         } catch {
             logger.error("Claude did not start: \(error.localizedDescription)")
-            throw BrainError.claudeDidNotStart
+            throw BrainError.didNotStart(.claude)
         }
         return process
     }
@@ -136,7 +141,7 @@ final class ClaudeSubscription: Brain {
         "--include-partial-messages",
         "--model", model,
         "--effort", effort,
-        "--system-prompt", ClaudePrompt.system,
+        "--system-prompt", UmiPrompt.system,
         "--tools", "",
         "--setting-sources", "",
         "--strict-mcp-config",
