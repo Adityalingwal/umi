@@ -41,6 +41,7 @@ struct AnswerReader {
     mutating func read(_ answer: AsyncThrowingStream<String, any Error>) async throws {
         do {
             for try await piece in answer {
+                try Task.checkCancellation()
                 try add(piece)
             }
             try Task.checkCancellation()
