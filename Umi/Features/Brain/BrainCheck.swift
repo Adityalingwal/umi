@@ -46,17 +46,23 @@ struct BrainCheck {
         return ClaudeAuthStatus.availability(statusOutput: output.standardOutput)
     }
 
-    // The status runs in the user's own Codex home, with their own credential store, minus the key variables.
+    // The status runs exactly as the answers do: Umi's Codex home with the linked login file, the file store only,
+    // so it never reaches the Keychain. Without the user's login file there is nothing to link, so nothing runs.
     private func codexAvailability() async throws -> BrainAvailability {
         guard let executableURL = codexExecutable.locate(environment: environment) else { return .notInstalled }
+        guard FileManager.default.fileExists(atPath: codexFolders.userLogin.path) else { return .notSignedIn(.noLogin) }
+        do {
+            try await codexFolders.prepare()
+        } catch BrainError.notSignedIn {
+            return .notSignedIn(.noLogin)
+        }
         let output = try await StatusCommand(
             executableURL: executableURL,
-            arguments: ["login", "status"],
-            environment: CodexSubscription.environmentWithoutKeys(environment)
+            arguments: CodexArguments.loginStatus,
+            environment: CodexSubscription.childEnvironment(from: environment, home: codexFolders.home)
         ).run()
         return CodexLoginStatus.availability(
-            statusOutput: String(bytes: output.standardError + output.standardOutput, encoding: .utf8) ?? "",
-            hasLoginFile: FileManager.default.fileExists(atPath: codexFolders.userLogin.path)
+            statusOutput: String(bytes: output.standardError + output.standardOutput, encoding: .utf8) ?? ""
         )
     }
 }

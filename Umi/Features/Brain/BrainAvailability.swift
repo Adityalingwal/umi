@@ -6,6 +6,5 @@ nonisolated enum BrainAvailability: Equatable, Sendable {
     enum SignInProblem: Equatable, Sendable {
         case noLogin
         case notChatGPT
-        case loginNotInFile
     }
 }

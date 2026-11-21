@@ -8,8 +8,12 @@ nonisolated enum CodexArguments {
         ["app-server"] + switches + features.flatMap { ["--disable", $0] } + ["-c", "model=\(tomlString(model))"]
     }
 
+    static let loginStatus = ["-c", fileStore, "login", "status"]
+
+    private static let fileStore = "cli_auth_credentials_store=\"file\""
+
     private static let switches = [
-        "cli_auth_credentials_store=\"file\"",
+        fileStore,
         "project_doc_max_bytes=0",
         "web_search=\"disabled\"",
         "mcp_servers={}",

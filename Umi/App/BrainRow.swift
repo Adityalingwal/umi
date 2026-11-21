@@ -91,8 +91,6 @@ private extension BrainAvailability {
         case (.notSignedIn, .claude): "Sign in: run claude auth login in Terminal"
         case (.notSignedIn(.noLogin), .codex): "Sign in: run codex login in Terminal"
         case (.notSignedIn(.notChatGPT), .codex): "Sign in with ChatGPT: run codex login in Terminal"
-        case (.notSignedIn(.loginNotInFile), .codex):
-            "Keep the login in a file: run codex -c cli_auth_credentials_store=file login"
         }
     }
 }

@@ -8,7 +8,7 @@ struct CodexLoginStatusTests {
         Authentication is checked when you send a request.
         """
 
-        let availability = CodexLoginStatus.availability(statusOutput: statusOutput, hasLoginFile: true)
+        let availability = CodexLoginStatus.availability(statusOutput: statusOutput)
 
         #expect(availability == .notSignedIn(.notChatGPT))
     }
