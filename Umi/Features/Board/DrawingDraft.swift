@@ -1,7 +1,11 @@
 struct DrawingDraft {
     private static let mostMarks = 80
+    private static let untitled = "Umi Board"
 
-    var title: String
+    var title: String {
+        didSet { isNamed = true }
+    }
+    private(set) var isNamed: Bool
     let isEdit: Bool
     private(set) var rows: [DrawingRow] = []
     private(set) var revealedRows = 0
@@ -10,8 +14,9 @@ struct DrawingDraft {
     private var shownMarks: [PlacedMark]
     private var layout: BoardLayout
 
-    init(title: String, base: Drawing? = nil) {
-        self.title = title
+    init(title: String?, base: Drawing? = nil) {
+        self.title = title ?? Self.untitled
+        isNamed = title != nil
         isEdit = base != nil
         shownMarks = base?.marks ?? []
         layout = BoardLayout(marks: base?.marks ?? [])

@@ -1,8 +1,6 @@
 import OSLog
 
 final class Board {
-    private static let untitled = "Umi Board"
-
     private let content: BoardContent
     private let window: BoardWindow
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Board")
@@ -25,20 +23,21 @@ final class Board {
 
     func expectDrawing() {
         guard draft == nil, lastComplete == nil, unfinished == nil else { return }
-        open(Self.untitled)
+        open(nil)
     }
 
-    func open(_ title: String) {
-        if var draft, !draft.isEdit, draft.rows.isEmpty {
+    func open(_ title: String?) {
+        if var draft, let title, !draft.isEdit, draft.rows.isEmpty {
             draft.title = title
             self.draft = draft
             window.setTitle(title)
             return
         }
         unfinished = nil
-        draft = DrawingDraft(title: title)
+        let draft = DrawingDraft(title: title)
+        self.draft = draft
         content.startDrawing()
-        window.setTitle(title)
+        window.setTitle(draft.title)
         window.show()
         logger.notice("Board opened for a new drawing, Drawing… shows")
     }
@@ -118,7 +117,7 @@ final class Board {
 
     func stop() {
         guard let draft else { return }
-        if !draft.isComplete, draft.revealedRows > 0 || !draft.isEdit {
+        if !draft.isComplete, draft.revealedRows > 0 || !draft.isEdit && draft.isNamed {
             let stopped = draft.shownDrawing
             unfinished = stopped
             let count = stopped.marks.count
