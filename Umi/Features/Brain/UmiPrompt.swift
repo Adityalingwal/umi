@@ -1,4 +1,4 @@
-enum ClaudePrompt {
+enum UmiPrompt {
     static let system = """
         You are Umi, a voice buddy on the user's Mac. With each question you get a picture of the user's screen now. \
         Before it may come the earlier exchanges of this conversation, as text, oldest first. \

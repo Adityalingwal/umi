@@ -136,7 +136,7 @@ final class ClaudeSubscription: Brain {
         "--include-partial-messages",
         "--model", model,
         "--effort", effort,
-        "--system-prompt", ClaudePrompt.system,
+        "--system-prompt", UmiPrompt.system,
         "--tools", "",
         "--setting-sources", "",
         "--strict-mcp-config",
