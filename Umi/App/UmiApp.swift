@@ -18,13 +18,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyListener: KeyListener?
     private var brain: ChosenBrain?
     private var turns: Task<Void, Never>?
+    #if DEBUG
+    private var menuUpdates: Task<Void, Never>?
+    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !Self.isTestHost(ProcessInfo.processInfo.environment) else { return }
         let listening = Listening.atLaunch(defaults: .standard)
         let accessibility = AccessibilityPermission(defaults: .standard)
         let keyListener = KeyListener(accessibility: accessibility)
-        let brain = Self.makeBrain(environment: ProcessInfo.processInfo.environment)
+        let parts = BrainParts(environment: ProcessInfo.processInfo.environment, defaults: .standard)
+        let brain = parts.makeChosenBrain(defaults: .standard)
         brain.prepare()
         self.brain = brain
         statusMenu = StatusMenu(
@@ -34,13 +38,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             accessibility: accessibility,
             keyListener: keyListener,
             listening: listening,
-            brain: brain,
+            brainRow: BrainRow(brain: brain, check: parts.makeCheck()),
             relauncher: AppRelauncher()
         )
         listening.appDidLaunch()
         keyListener.start()
         self.keyListener = keyListener
         #if DEBUG
+        menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
             let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
             let holds = picks?.applied(to: holdFile.holds) ?? holdFile.holds
@@ -56,18 +61,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private static func makeBrain(environment: [String: String]) -> ChosenBrain {
-        ChosenBrain(
-            claude: ClaudeSubscription(executable: ClaudeExecutable(fileManager: .default), environment: environment),
-            codex: CodexSubscription(
-                executable: CodexExecutable(fileManager: .default),
-                folders: CodexFolders(bundleID: Bundle.main.bundleIdentifier ?? "Umi", environment: environment),
-                environment: environment
-            ),
-            defaults: .standard
-        )
-    }
-
     // The shared scheme's Test action sets this variable in the app that hosts the tests.
     private static func isTestHost(_ environment: [String: String]) -> Bool {
         environment["UMI_TEST_HOST"] == "1"
@@ -80,6 +73,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         turns?.cancel()
+        #if DEBUG
+        menuUpdates?.cancel()
+        #endif
         keyListener?.stop()
         brain?.stop()
     }
