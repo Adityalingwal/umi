@@ -42,7 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         #if DEBUG
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
-            startTurns(audioSource: holdFile, holds: holdFile.holds, escapes: keyListener.escapes, brain: brain)
+            let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
+            let holds = picks?.applied(to: holdFile.holds) ?? holdFile.holds
+            startTurns(audioSource: holdFile, holds: holds, escapes: keyListener.escapes, brain: brain)
             return
         }
         #endif
