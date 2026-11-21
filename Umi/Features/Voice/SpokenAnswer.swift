@@ -49,6 +49,8 @@ final class SpokenAnswer {
     }
     #endif
 
+    var isSpeaking: Bool { mode == .voiced }
+
     private var owesSound: Bool {
         turns.isAudioOwed || queue.hasUnplayedSamples
     }
@@ -79,9 +81,9 @@ final class SpokenAnswer {
         case .over:
             return
         case .unvoiced:
-            turns.addUnspoken(sentence)
+            let events = turns.addUnspoken(sentence, nameStart: nameStart)
             logger.notice("Sentence \(self.turns.sentences.count - 1, privacy: .public) shows unspoken")
-            eventContinuation.yield(.show(sentence))
+            events.forEach { eventContinuation.yield($0) }
         case .voiced:
             let firstTurn = turns.count
             let parts = turns.add(sentence, nameStart: nameStart)
@@ -240,9 +242,9 @@ final class SpokenAnswer {
 
     private func showUnshown() {
         let unshown = turns.takeUnshown()
-        guard !unshown.isEmpty else { return }
+        guard unshown.count > 0 else { return }
         logger.notice("\(unshown.count, privacy: .public) sentences show together, unspoken")
-        eventContinuation.yield(.show(unshown.joined(separator: " ")))
+        unshown.events.forEach { eventContinuation.yield($0) }
     }
 
     private func end() {

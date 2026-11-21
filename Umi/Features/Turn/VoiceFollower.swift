@@ -23,12 +23,14 @@ struct VoiceFollower {
                 pointing?.nameStarted()
             case .nameLineEnded:
                 pointing?.nameLineEnded()
+            case .nameShown:
+                pointing?.nameShown()
             case .voiceFailed:
-                pointing?.voiceEnded()
+                pointing?.voiceFailed()
             case .finished:
                 hideCursor()
                 subtitles.finish()
-                pointing?.voiceEnded()
+                pointing?.answerEnded(subtitlesLingerFor: Subtitles.lingerAfterEnd)
                 logger.notice("Answer finished")
             }
         }

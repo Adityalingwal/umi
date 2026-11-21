@@ -17,8 +17,7 @@ final class Pointer {
         onDepart: @escaping () -> Void
     ) -> Pointing {
         let pointing = Pointing(
-            panel: panel,
-            overlay: overlay,
+            stage: PointerStage(panel: panel, overlay: overlay, displayFrame: displayFrame),
             displayFrame: displayFrame,
             workspace: workspace,
             cursorRest: cursorRest,

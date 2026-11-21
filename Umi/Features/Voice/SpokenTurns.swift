@@ -29,9 +29,11 @@ struct SpokenTurns {
         return parts.map(\.text)
     }
 
-    mutating func addUnspoken(_ sentence: String) {
+    mutating func addUnspoken(_ sentence: String, nameStart: String.Index?) -> [SpokenEvent] {
         sentences.append(sentence)
         sentencesShown = sentences.count
+        let namesTarget = Self.parts(of: sentence, nameStart: nameStart).contains(where: \.isName)
+        return namesTarget ? [.show(sentence), .nameShown] : [.show(sentence)]
     }
 
     mutating func voiceStartedTurn() {
@@ -79,9 +81,13 @@ struct SpokenTurns {
         return sentence
     }
 
-    mutating func takeUnshown() -> ArraySlice<String> {
-        defer { sentencesShown = sentences.count }
-        return sentences[sentencesShown...]
+    mutating func takeUnshown() -> (count: Int, events: [SpokenEvent]) {
+        let unshown = sentences[sentencesShown...]
+        sentencesShown = sentences.count
+        guard !unshown.isEmpty else { return (0, []) }
+        let shown = SpokenEvent.show(unshown.joined(separator: " "))
+        let namesTarget = nameTurn.map { unshown.indices.contains(turnSentences[$0]) } ?? false
+        return (unshown.count, namesTarget ? [shown, .nameShown] : [shown])
     }
 
     private func cutSentence(unfinishedTurn: Int?) -> Int? {

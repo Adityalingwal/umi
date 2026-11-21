@@ -11,33 +11,40 @@ final class Pointing {
         case over
     }
 
-    private static let clearAfterLine = Duration.seconds(1)
-    private static let fadeOut = Duration.milliseconds(200)
+    private enum Cue {
+        case nameAwaited
+        case nameSpoken
+        case nameShown
 
-    private let panel: PointerPanel
-    private let overlay: PointerOverlay
+        var isMarkDue: Bool {
+            self == .nameSpoken || self == .nameShown
+        }
+    }
+
+    private static let clearAfterLine = Duration.seconds(1)
+
+    private let stage: PointerStage
     private let displayFrame: CGRect
     private let appSwitches: AppSwitchWatch
+    private let scrolls = ScrollWatch()
     private let cursorRest: () -> CGPoint
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
     private var phase = Phase.waiting
-    private var isNameStarted = false
+    private var cue = Cue.nameAwaited
+    private var subtitleMark = SubtitleMarkTime()
     private var departing: Task<Void, Never>?
     private var landing: Task<Void, Never>?
     private var clearing: Task<Void, Never>?
-    private var hiding: Task<Void, Never>?
 
     init(
-        panel: PointerPanel,
-        overlay: PointerOverlay,
+        stage: PointerStage,
         displayFrame: CGRect,
         workspace: NSWorkspace,
         cursorRest: @escaping () -> CGPoint,
         onDepart: @escaping () -> Void
     ) {
-        self.panel = panel
-        self.overlay = overlay
+        self.stage = stage
         self.displayFrame = displayFrame
         appSwitches = AppSwitchWatch(workspace: workspace)
         self.cursorRest = cursorRest
@@ -54,6 +61,9 @@ final class Pointing {
     func start(capturedApp: pid_t?) {
         appSwitches.start(capturedApp: capturedApp) { [weak self] in
             self?.end(because: "another app became active")
+        }
+        scrolls.start { [weak self] in
+            self?.end(because: "a scroll moved the screen")
         }
     }
 
@@ -74,14 +84,14 @@ final class Pointing {
         phase = .aimed(target)
         logger.notice("The location is in hand; the name opens the answer: \(opensAnswer, privacy: .public)")
         if opensAnswer {
-            depart(taking: Travel.usualDuration(from: viewPoint(cursorRest()), to: viewPoint(target)))
+            depart(taking: stage.usualTravelTime(from: cursorRest(), to: target))
         }
         return true
     }
 
     func nameComing(after delay: Duration) {
         guard case .aimed(let target) = phase, departing == nil else { return }
-        let travelTime = Travel.usualDuration(from: viewPoint(cursorRest()), to: viewPoint(target))
+        let travelTime = stage.usualTravelTime(from: cursorRest(), to: target)
         let wait = delay - travelTime
         logger.notice(
             """
@@ -101,8 +111,9 @@ final class Pointing {
     }
 
     func nameStarted() {
+        guard cue == .nameAwaited else { return }
         logger.notice("The name started playing")
-        isNameStarted = true
+        cue = .nameSpoken
         switch phase {
         case .aimed:
             logger.notice("The name started before the cursor left, so it leaves now")
@@ -126,16 +137,55 @@ final class Pointing {
         }
     }
 
-    func voiceEnded() {
+    func voiceFailed() {
         switch phase {
         case .marked:
             if clearing == nil {
                 clearLater()
             }
         case .waiting, .aimed, .travelling, .landed:
-            end(because: "the voice ended before the name")
+            departing?.cancel()
+            departing = nil
+            if cue == .nameSpoken {
+                cue = .nameShown
+            }
+            logger.notice("The voice failed before the mark, so the mark goes with the name's subtitle")
         case .over:
             return
+        }
+    }
+
+    func nameShown() {
+        if case .over = phase { return }
+        guard cue == .nameAwaited else {
+            logger.notice("The name's subtitle showed again, so nothing moves")
+            return
+        }
+        cue = .nameShown
+        logger.notice("The name's subtitle is shown")
+        switch phase {
+        case .aimed(let target):
+            depart(taking: stage.usualTravelTime(from: cursorRest(), to: target))
+        case .landed:
+            showMark()
+        case .waiting, .travelling, .marked, .over:
+            return
+        }
+    }
+
+    func answerEnded(subtitlesLingerFor linger: Duration) {
+        switch (phase, cue) {
+        case (.over, _):
+            return
+        case (.travelling, .nameShown), (.marked, .nameShown):
+            subtitleMark.subtitlesGo(at: ContinuousClock.now + linger)
+            clearWithSubtitles()
+        case (.marked, _):
+            if clearing == nil {
+                clearLater()
+            }
+        default:
+            end(because: "the answer ended before the name")
         }
     }
 
@@ -146,15 +196,7 @@ final class Pointing {
     private func depart(taking duration: Duration) {
         guard case .aimed(let target) = phase else { return }
         departing = nil
-        let bounds = CGRect(origin: .zero, size: displayFrame.size)
-        let rest = viewPoint(cursorRest())
-        let start = CGPoint(
-            x: min(max(rest.x, bounds.minX), bounds.maxX),
-            y: min(max(rest.y, bounds.minY), bounds.maxY)
-        )
-        let travel = Travel(from: start, to: viewPoint(target), within: bounds, duration: duration, startingAt: .now)
-        panel.show(on: displayFrame)
-        overlay.start(travel)
+        stage.travel(from: cursorRest(), to: target, taking: duration)
         onDepart()
         phase = .travelling
         logger.notice("The cursor left; it lands in \(Self.milliseconds(duration), privacy: .public) ms")
@@ -167,25 +209,41 @@ final class Pointing {
 
     private func land() {
         guard case .travelling = phase else { return }
-        overlay.land()
+        stage.land()
         phase = .landed
         logger.notice("The cursor landed")
-        if isNameStarted {
+        if cue.isMarkDue {
             showMark()
         }
     }
 
     private func showMark() {
-        overlay.mark()
+        stage.mark()
         phase = .marked
         logger.notice("The mark is on")
+        if cue == .nameShown {
+            subtitleMark.marked(at: .now)
+            clearWithSubtitles()
+        }
     }
 
     private func clearLater() {
         clearing = Task { [weak self] in
             try? await Task.sleep(for: Self.clearAfterLine)
             guard !Task.isCancelled else { return }
-            self?.end(because: "two seconds passed after its line", fading: true)
+            self?.end(because: "one second passed after its line", fading: true)
+        }
+    }
+
+    private func clearWithSubtitles() {
+        guard case .marked = phase, let clearAt = subtitleMark.clearAt else { return }
+        let wait = Self.milliseconds(ContinuousClock.now.duration(to: clearAt))
+        logger.notice("The mark clears in \(wait, privacy: .public) ms, with the subtitles or 4 s after it showed")
+        clearing?.cancel()
+        clearing = Task { [weak self] in
+            try? await Task.sleep(until: clearAt)
+            guard !Task.isCancelled else { return }
+            self?.end(because: "the answer's subtitles faded", fading: true)
         }
     }
 
@@ -197,26 +255,11 @@ final class Pointing {
         landing?.cancel()
         clearing?.cancel()
         appSwitches.stop()
-        if wasShowing, !fading {
-            panel.hide()
-        }
-        overlay.clear()
-        if wasShowing, fading {
-            hideAfterFade()
+        scrolls.stop()
+        if wasShowing {
+            stage.clear(fading: fading)
         }
         logger.notice("Pointing ended: \(reason, privacy: .public); it was showing: \(wasShowing, privacy: .public)")
-    }
-
-    private func hideAfterFade() {
-        hiding = Task { [panel, overlay] in
-            try? await Task.sleep(for: Self.fadeOut)
-            guard overlay.travel == nil else { return }
-            panel.hide()
-        }
-    }
-
-    private func viewPoint(_ screenPoint: CGPoint) -> CGPoint {
-        CGPoint(x: screenPoint.x - displayFrame.minX, y: displayFrame.maxY - screenPoint.y)
     }
 
     private static func milliseconds(_ duration: Duration) -> Int {
