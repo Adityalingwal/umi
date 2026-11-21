@@ -51,11 +51,16 @@ enum UmiLine {
 
     private static func brain(_ error: BrainError) -> String {
         switch error {
-        case .claudeNotInstalled: "Claude Code isn't installed. Install it, then sign in with claude auth login."
-        case .notSignedIn: "Claude Code isn't signed in. Run claude auth login in Terminal."
-        case .limitReached: "Your Claude usage limit is reached. Try again after it resets."
+        case .notInstalled(.claude): "Claude Code isn't installed. Install it, then sign in with claude auth login."
+        case .notInstalled(.codex): "Codex isn't installed. Install it, then sign in with codex login."
+        case .notSignedIn(.claude): "Claude Code isn't signed in. Run claude auth login in Terminal."
+        case .notSignedIn(.codex): "Codex isn't signed in with ChatGPT. Run codex login in Terminal."
+        case .limitReached(.claude): "Your Claude usage limit is reached. Try again after it resets."
+        case .limitReached(.codex): "Your Codex usage limit is reached. Try again after it resets."
         case .noInternet: noInternet
-        case .claudeDidNotStart, .claudeFailed, .answerEndedEarly: "Claude couldn't answer this time. Please try again."
+        case .codexCannotUseModel: "Your Codex account can't use GPT-6.2-Sol, so Codex can't answer."
+        case .didNotStart(let brain), .failed(let brain), .answerEndedEarly(let brain):
+            "\(brain.title) couldn't answer this time. Please try again."
         }
     }
 }
