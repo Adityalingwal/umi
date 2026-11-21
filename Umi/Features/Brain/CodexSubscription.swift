@@ -23,9 +23,13 @@ final class CodexSubscription: Brain {
     }
 
     static func childEnvironment(from environment: [String: String], home: URL) -> [String: String] {
-        var child = environment.filter { !removedVariables.contains($0.key) }
+        var child = environmentWithoutKeys(environment)
         child["CODEX_HOME"] = home.path
         return child
+    }
+
+    static func environmentWithoutKeys(_ environment: [String: String]) -> [String: String] {
+        environment.filter { !removedVariables.contains($0.key) }
     }
 
     func prepare() {
