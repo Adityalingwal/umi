@@ -13,13 +13,14 @@ final class Turn {
     private let cursor: UmiCursor
     private let cursorPanel: CursorPanel
     private let pointer: Pointer
+    private let board: Board
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var hearing: HoldHearing?
     private var picture: Task<ScreenPicture, any Error>?
     private var answering: Task<Void, Never>?
     private var speaking: SpokenAnswer?
     private var pointing: Pointing?
-    private lazy var follower = VoiceFollower(subtitles: subtitles) { [weak self] in
+    private lazy var follower = VoiceFollower(subtitles: subtitles, board: board) { [weak self] in
         self?.hideCursor()
     }
 
@@ -34,7 +35,8 @@ final class Turn {
         subtitlePanel: SubtitlePanel,
         cursor: UmiCursor,
         cursorPanel: CursorPanel,
-        pointer: Pointer
+        pointer: Pointer,
+        board: Board
     ) {
         self.audioSource = MeteredAudioSource(source: audioSource, cursor: cursor)
         self.speech = speech
@@ -47,6 +49,7 @@ final class Turn {
         self.cursor = cursor
         self.cursorPanel = cursorPanel
         self.pointer = pointer
+        self.board = board
     }
 
     func handle(_ event: HoldEvent) {
@@ -63,7 +66,7 @@ final class Turn {
     }
 
     func escape() {
-        guard speaking != nil || subtitles.line != nil || pointing?.isShowing == true else { return }
+        guard speaking != nil || subtitles.line != nil || pointing?.isShowing == true || board.isDrawing else { return }
         cancel()
         subtitles.clear()
         logger.notice("Esc: the question stopped and the subtitles cleared")
@@ -162,13 +165,13 @@ final class Turn {
     }
 
     private func stop(because error: any Error) {
-        logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+        logger.error("The question stopped: \(StopReason.text(for: error), privacy: .public)")
         show(UmiLine.failure(error))
         subtitles.finish()
     }
 
     private func stop(because error: any Error, voice: SpokenAnswer) {
-        logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+        logger.error("The question stopped: \(StopReason.text(for: error), privacy: .public)")
         let line = UmiLine.failure(error)
         if UmiLine.isSpoken(error) {
             voice.speak(line)
@@ -207,7 +210,7 @@ final class Turn {
         pointing: Pointing?,
         on picture: ScreenPicture
     ) async {
-        var reader = AnswerReader(voice: voice, pointing: pointing, picture: picture)
+        var reader = AnswerReader(voice: voice, pointing: pointing, picture: picture, board: board)
         defer { conversation.add(Exchange(question: question, answer: reader.arrivedText)) }
         do {
             try await reader.read(answer)
@@ -257,16 +260,7 @@ final class Turn {
         speaking = nil
         pointing?.stop()
         pointing = nil
+        board.stop()
         hideCursor()
-    }
-
-    private static func reason(for error: any Error) -> String {
-        switch error {
-        case let error as SpeechError: "speech: \(error)"
-        case let error as AudioSourceError: "audio: \(error)"
-        case let error as ScreenError: "screen: \(error)"
-        case let error as BrainError: "brain: \(error)"
-        default: "unexpected"
-        }
     }
 }

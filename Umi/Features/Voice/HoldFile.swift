@@ -8,13 +8,15 @@ final class HoldFile: AudioSource {
     let holds: AsyncStream<HoldEvent>
 
     private let fileURLs: [URL]
+    private let pause: Duration
     private let holdContinuation: AsyncStream<HoldEvent>.Continuation
     private var playedCount = 0
 
     var schedule: ListeningSchedule { .fromLaunch }
 
-    private init(fileURLs: [URL]) {
+    private init(fileURLs: [URL], pause: Duration = pauseBetweenHolds) {
         self.fileURLs = fileURLs
+        self.pause = pause
         (holds, holdContinuation) = AsyncStream.makeStream(of: HoldEvent.self)
         if fileURLs.isEmpty {
             holdContinuation.finish()
@@ -32,7 +34,9 @@ final class HoldFile: AudioSource {
                 .error("Several hold files need -UmiScreenImage, so no hold plays")
             return HoldFile(fileURLs: [])
         }
-        return HoldFile(fileURLs: paths.map { URL(filePath: $0) })
+        let pause = defaults.double(forKey: "UmiHoldPause")
+        let fileURLs = paths.map { URL(filePath: $0) }
+        return HoldFile(fileURLs: fileURLs, pause: pause > 0 ? .seconds(pause) : pauseBetweenHolds)
     }
 
     func chunks() -> AsyncThrowingStream<AudioChunk, any Error> {
@@ -74,7 +78,7 @@ final class HoldFile: AudioSource {
             holdContinuation.finish()
             return
         }
-        try? await Task.sleep(for: Self.pauseBetweenHolds)
+        try? await Task.sleep(for: pause)
         holdContinuation.yield(.began)
     }
 }

@@ -21,6 +21,9 @@ final class FluxSpeech {
     private var sending: Task<Void, Never>?
     private var keepingAlive: Task<Void, Never>?
     private var isClosed = false
+    #if DEBUG
+    var failAfterTurns: Int?
+    #endif
 
     private static var endpoint: URL? {
         var components = URLComponents(string: "wss://api.deepgram.com/v2/speak")
@@ -100,6 +103,13 @@ final class FluxSpeech {
         case "SpeechStarted":
             return .turnStarted
         case "SpeechMetadata":
+            #if DEBUG
+            failAfterTurns = failAfterTurns.map { $0 - 1 }
+            if failAfterTurns == 0 {
+                logger.notice("The voice fails on purpose (-UmiCutVoiceAfter)")
+                throw SpeechError.serviceFailed
+            }
+            #endif
             return .turnEnded(
                 billableCharacters: event?.billableCharacterCount ?? 0,
                 audioMilliseconds: event?.audioDurationMilliseconds ?? 0
