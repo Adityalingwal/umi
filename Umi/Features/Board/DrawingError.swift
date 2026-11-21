@@ -3,4 +3,5 @@ nonisolated enum DrawingError: Error {
     case badMark
     case tooLarge
     case empty
+    case nothingToEdit
 }

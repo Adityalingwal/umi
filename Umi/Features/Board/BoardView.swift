@@ -15,6 +15,8 @@ struct BoardView: View {
             .accessibilityLabel(content.summary)
             if content.isWaiting {
                 DrawingStatus()
+                    .padding(.bottom, content.isEmpty ? 0 : 18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: content.isEmpty ? .center : .bottom)
                     .transition(.opacity)
             }
         }

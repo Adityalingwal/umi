@@ -6,9 +6,14 @@ struct DrawingReader {
 
     private var pending = ""
     private var isEnded = false
-    private var hasTitle = false
+    private var start: Start?
     private var parts = 0
     private var hasMarks = false
+
+    private enum Start {
+        case newDrawing
+        case edit
+    }
 
     mutating func add(_ piece: String) {
         pending += piece
@@ -24,7 +29,7 @@ struct DrawingReader {
                 return line
             }
         }
-        if isEnded, !hasMarks {
+        if isEnded, start == .edit ? parts == 0 : !hasMarks {
             throw DrawingError.empty
         }
         return nil
@@ -47,11 +52,11 @@ struct DrawingReader {
         guard !trimmed.isEmpty else { return nil }
         let line = try DrawingLine.decode(trimmed)
         switch line {
-        case .title:
-            guard !hasTitle else { throw DrawingError.unreadableLine }
-            hasTitle = true
-        case .part(_, let marks):
-            guard hasTitle else { throw DrawingError.unreadableLine }
+        case .newDrawing, .edit:
+            guard start == nil else { throw DrawingError.unreadableLine }
+            start = if case .edit = line { .edit } else { .newDrawing }
+        case .part(_, let marks, _):
+            guard start != nil else { throw DrawingError.unreadableLine }
             parts += 1
             guard parts <= Self.mostParts else { throw DrawingError.tooLarge }
             hasMarks = hasMarks || !marks.isEmpty

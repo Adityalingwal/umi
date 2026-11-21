@@ -27,6 +27,10 @@ final class BoardWindow {
         window.contentView = NSHostingView(rootView: BoardView().environment(content))
     }
 
+    var isShown: Bool {
+        window.isVisible && !window.isMiniaturized
+    }
+
     func setTitle(_ title: String) {
         window.title = title
     }

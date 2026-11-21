@@ -4,6 +4,7 @@ import Observation
 struct ShownMark: Identifiable {
     let mark: PlacedMark
     let appearsAt: Date
+    var disappearsAt: Date?
 
     var id: String { mark.id }
 }
@@ -16,7 +17,11 @@ final class BoardContent {
     private(set) var isWaiting = false
 
     var summary: String {
-        marks.compactMap(\.mark.label).joined(separator: ", ")
+        marks.filter { $0.disappearsAt == nil }.compactMap(\.mark.label).joined(separator: ", ")
+    }
+
+    var isEmpty: Bool {
+        !marks.contains { $0.disappearsAt == nil }
     }
 
     func startDrawing() {
@@ -24,11 +29,23 @@ final class BoardContent {
         isWaiting = true
     }
 
-    func reveal(_ newMarks: [PlacedMark]) {
-        guard !newMarks.isEmpty else { return }
+    func startEditing(_ drawing: Drawing) {
+        show(drawing)
+        isWaiting = true
+    }
+
+    func reveal(_ rows: [DrawingRow]) {
         let now = Date.now
-        marks += newMarks.enumerated().map { index, mark in
-            ShownMark(mark: mark, appearsAt: now.addingTimeInterval(Double(index) * Self.markStagger))
+        var index = 0
+        for row in rows {
+            for position in marks.indices
+            where marks[position].disappearsAt == nil && row.removedIDs.contains(marks[position].id) {
+                marks[position].disappearsAt = now
+            }
+            for mark in row.added {
+                marks.append(ShownMark(mark: mark, appearsAt: now.addingTimeInterval(Double(index) * Self.markStagger)))
+                index += 1
+            }
         }
         isWaiting = false
     }
