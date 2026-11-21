@@ -11,7 +11,7 @@ final class Pointing {
         case over
     }
 
-    private static let clearAfterLine = Duration.seconds(2)
+    private static let clearAfterLine = Duration.seconds(1)
     private static let fadeOut = Duration.milliseconds(200)
 
     private let panel: PointerPanel
