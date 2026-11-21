@@ -64,19 +64,22 @@ final class Board {
     }
 
     func answerEnded() {
+        end(because: "the answer ended before it was complete")
+    }
+
+    func stop() {
+        end(because: "it was stopped")
+    }
+
+    private func end(because reason: String) {
         guard let draft else { return }
         guard draft.isComplete else {
-            abandon(because: "the answer ended before it was complete")
+            abandon(because: reason)
             return
         }
         lastComplete = draft.drawing
         self.draft = nil
         logger.notice("Board drawing complete with \(draft.drawing.marks.count, privacy: .public) marks")
-    }
-
-    func stop() {
-        guard draft != nil else { return }
-        abandon(because: "it was stopped")
     }
 
     private func abandon(because reason: String) {
