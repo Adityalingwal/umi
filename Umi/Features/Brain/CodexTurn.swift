@@ -77,7 +77,7 @@ struct CodexTurn {
     private func interrupt(_ turnID: String) {
         do {
             try thread.connection.fire("turn/interrupt", ["threadId": thread.id, "turnId": turnID])
-            logger.notice("Interrupted Codex's turn")
+            logger.notice("Asked Codex to interrupt its turn")
         } catch {
             logger.error("Codex's turn could not be interrupted: \(error.localizedDescription)")
         }

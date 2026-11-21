@@ -84,7 +84,7 @@ final class CodexConnection {
         write(try CodexLine.notification(method: method))
     }
 
-    // The reply is not awaited; it arrives with an id nobody waits for and is dropped.
+    // The reply is not awaited; only a refusal is logged.
     func fire(_ method: String, _ params: [String: Any]) throws {
         write(try CodexLine.request(id: nextRequestID(), method: method, params: params))
     }
@@ -149,12 +149,12 @@ final class CodexConnection {
     }
 
     private func reply(to id: Int, with message: [String: Any], line: Data) {
-        guard let continuation = replies.removeValue(forKey: id) else { return }
+        let continuation = replies.removeValue(forKey: id)
         if let error = message["error"] as? [String: Any] {
             let code = error["code"] as? Int ?? 0
             logger.error("Codex refused a request, code \(code, privacy: .public)")
-            continuation.resume(throwing: BrainError.failed(.codex))
-        } else {
+            continuation?.resume(throwing: BrainError.failed(.codex))
+        } else if let continuation {
             continuation.resume(returning: line)
         }
     }
