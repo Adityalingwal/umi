@@ -162,13 +162,13 @@ final class Turn {
     }
 
     private func stop(because error: any Error) {
-        logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+        logger.error("The question stopped: \(StopReason.text(for: error), privacy: .public)")
         show(UmiLine.failure(error))
         subtitles.finish()
     }
 
     private func stop(because error: any Error, voice: SpokenAnswer) {
-        logger.error("The question stopped: \(Self.reason(for: error), privacy: .public)")
+        logger.error("The question stopped: \(StopReason.text(for: error), privacy: .public)")
         let line = UmiLine.failure(error)
         if UmiLine.isSpoken(error) {
             voice.speak(line)
@@ -258,15 +258,5 @@ final class Turn {
         pointing?.stop()
         pointing = nil
         hideCursor()
-    }
-
-    private static func reason(for error: any Error) -> String {
-        switch error {
-        case let error as SpeechError: "speech: \(error)"
-        case let error as AudioSourceError: "audio: \(error)"
-        case let error as ScreenError: "screen: \(error)"
-        case let error as BrainError: "brain: \(error)"
-        default: "unexpected"
-        }
     }
 }
