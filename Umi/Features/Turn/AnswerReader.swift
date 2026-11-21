@@ -7,6 +7,16 @@ struct AnswerReader {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var tags = PointTagParser()
     private var splitter = SentenceSplitter()
+    private var readText = ""
+
+    var arrivedText: String {
+        var rest = tags
+        return rest.finish().reduce(into: readText) { text, part in
+            if case .text(let piece) = part {
+                text += piece
+            }
+        }
+    }
 
     init(voice: SpokenAnswer, pointing: Pointing?, picture: ScreenPicture) {
         self.voice = voice
@@ -37,6 +47,7 @@ struct AnswerReader {
     private mutating func read(_ part: PointTagParser.Part) {
         switch part {
         case .text(let text):
+            readText += text
             for sentence in splitter.add(text) {
                 speak(sentence)
             }

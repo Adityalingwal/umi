@@ -79,7 +79,7 @@ Launch only the `Umi Dev` build from your own checkout.
 The Debug build takes these launch arguments:
 
 - `-UmiAudioFile <path>` plays the file into the menu's level bar instead of the microphone.
-- `-UmiHoldFile <path>` plays the file as one question: the hold starts when the app launches and ends when the file ends.
+- `-UmiHoldFile <path>` plays the file as one question: the hold starts when the app launches and ends when the file ends. To ask several questions in one launch, give a list, `-UmiHoldFile '("<first>", "<second>")'`: the files play in order, and each next hold starts 25 s after the previous one ended, so a short answer finishes first. A list needs `-UmiScreenImage` too, so that no scheduled hold sends a picture of the real screen; without it no hold plays and the log says why.
 - `-UmiScreenImage <path>` sends that image to Claude instead of a picture of the screen, so a proof never carries the real screen.
 - `-UmiFailFlux YES` opens no Flux socket, so every hold takes the fallback: the whole recording goes to Deepgram Nova-3 after release. Nothing about the network changes.
 - `-UmiSpeechFile <path>` also writes what Umi spoke to that WAV file: exactly the sound that played during that launch, every spoken line in order, each ending where a cut stopped it.

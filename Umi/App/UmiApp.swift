@@ -72,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         brain.prepare()
         self.brain = brain
+        let conversation = Conversation()
         let subtitles = Subtitles()
         let subtitlePanel = SubtitlePanel(subtitles: subtitles)
         let cursor = UmiCursor()
@@ -87,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 speaker: await Speaker.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),
                 screen: screen,
                 brain: brain,
+                conversation: conversation,
                 subtitles: subtitles,
                 subtitlePanel: subtitlePanel,
                 cursor: cursor,
