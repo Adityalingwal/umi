@@ -80,7 +80,12 @@ final class CodexSubscription: Brain {
     }
 
     // A warm Codex keeps the login it started with, so a changed login file means starting it again.
+    // It also keeps running after Codex is uninstalled, so a missing executable stops it.
     private func currentThread() async throws -> CodexThread {
+        guard executable.locate(environment: environment) != nil else {
+            stop()
+            throw BrainError.notInstalled(.codex)
+        }
         let thread = try await readyThread()
         let login = CodexLoginStamp(of: folders.userLogin)
         guard login != thread.login else { return thread }

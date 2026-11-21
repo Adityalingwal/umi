@@ -107,8 +107,13 @@ final class ClaudeSubscription: Brain {
         throw BrainError.answerEndedEarly(.claude)
     }
 
+    // A spare keeps running after Claude Code is uninstalled, so a missing executable stops it.
     private func takeProcess() throws -> ClaudeProcess {
         defer { spare = nil }
+        guard executable.locate(environment: environment) != nil else {
+            spare?.stop()
+            throw BrainError.notInstalled(.claude)
+        }
         if let spare, spare.isRunning {
             return spare
         }
