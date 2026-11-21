@@ -8,7 +8,7 @@ final class BrainRow: NSObject {
     private let check: BrainCheck
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Brain")
     private var availability: [BrainKind: BrainAvailability] = [:]
-    private var refresh: Task<Void, Never>?
+    private var refreshes: [BrainKind: Task<Void, Never>] = [:]
 
     init(brain: ChosenBrain, check: BrainCheck) {
         self.brain = brain
@@ -35,16 +35,16 @@ final class BrainRow: NSObject {
     }
 
     private func refreshAvailability() {
-        refresh?.cancel()
-        refresh = Task { [weak self] in
-            guard let self else { return }
-            async let claude = check.availability(of: .claude)
-            async let codex = check.availability(of: .codex)
-            let found = await [BrainKind.claude: claude, .codex: codex].compactMapValues { $0 }
-            guard !Task.isCancelled else { return }
-            availability.merge(found) { _, new in new }
-            show()
-            logShownOptions()
+        for kind in BrainKind.allCases {
+            refreshes[kind]?.cancel()
+            refreshes[kind] = Task { [weak self] in
+                guard let self else { return }
+                let found = await check.availability(of: kind)
+                guard let found, !Task.isCancelled else { return }
+                availability[kind] = found
+                show()
+                logShownOptions()
+            }
         }
     }
 

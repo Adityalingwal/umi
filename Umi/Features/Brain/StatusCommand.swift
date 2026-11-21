@@ -18,21 +18,6 @@ nonisolated struct StatusCommand: Sendable {
 
     @concurrent
     func run() async throws -> Output {
-        try await withThrowingTaskGroup(of: Output?.self) { group in
-            group.addTask { try await runToEnd() }
-            group.addTask {
-                try await Task.sleep(for: Self.timeLimit)
-                return nil
-            }
-            defer { group.cancelAll() }
-            guard let first = try await group.next(), let output = first else {
-                throw Failure.tookTooLong
-            }
-            return output
-        }
-    }
-
-    private func runToEnd() async throws -> Output {
         let process = Process()
         let output = Pipe()
         let error = Pipe()
@@ -43,25 +28,45 @@ nonisolated struct StatusCommand: Sendable {
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = output
         process.standardError = error
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-                process.terminationHandler = { _ in continuation.resume() }
-                do {
-                    try process.run()
-                } catch {
-                    process.terminationHandler = nil
-                    continuation.resume(throwing: error)
-                }
-            }
+        let (ended, endedContinuation) = AsyncStream.makeStream(of: Void.self)
+        process.terminationHandler = { _ in endedContinuation.finish() }
+        try process.run()
+        let hasEnded = await withTaskCancellationHandler {
+            await Self.waitForEnd(ended)
         } onCancel: {
-            if process.isRunning {
-                process.terminate()
-            }
+            Self.end(process)
         }
-        try Task.checkCancellation()
+        guard hasEnded else {
+            Self.end(process)
+            try Task.checkCancellation()
+            throw Failure.tookTooLong
+        }
         return Output(
             standardOutput: output.fileHandleForReading.readDataToEndOfFile(),
             standardError: error.fileHandleForReading.readDataToEndOfFile()
         )
+    }
+
+    private static func waitForEnd(_ ended: AsyncStream<Void>) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                for await _ in ended {}
+                return !Task.isCancelled
+            }
+            group.addTask {
+                try? await Task.sleep(for: timeLimit)
+                return false
+            }
+            let hasEnded = await group.next() ?? false
+            group.cancelAll()
+            return hasEnded
+        }
+    }
+
+    // A status command has nothing to save, so SIGKILL ends it at once instead of waiting on SIGTERM.
+    private static func end(_ process: Process) {
+        if process.isRunning {
+            kill(process.processIdentifier, SIGKILL)
+        }
     }
 }
