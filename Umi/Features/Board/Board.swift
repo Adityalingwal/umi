@@ -101,11 +101,14 @@ final class Board {
         end(because: "the answer ended before it was complete")
     }
 
+    func answerRead() {
+        guard draft?.isEdit != true, unfinished != nil else { return }
+        unfinished = nil
+        logger.notice("Board forgets the stopped drawing: this answer did not edit it")
+    }
+
     func stop() {
-        guard let draft else {
-            unfinished = nil
-            return
-        }
+        guard let draft else { return }
         if !draft.isComplete, draft.revealedRows > 0 || !draft.isEdit {
             let stopped = draft.shownDrawing
             unfinished = stopped

@@ -83,7 +83,7 @@ enum UmiPrompt {
         like a diagram of a related flow without saying which, draw nothing: \
         give a spoken answer that asks once whether to add it to the current diagram or make a new one. \
         When you asked that in the previous exchange, do what the user answered, and do not ask again.
-        When the board says this question stopped a diagram while it was being drawn \
+        When the board says the user stopped a diagram while it was being drawn \
         and the question corrects that diagram, like "no, the filters are on the right", edit it: \
         keep what is right, change what the user corrected, and finish the parts it was still missing. \
         When the question is about something else, answer it as usual.

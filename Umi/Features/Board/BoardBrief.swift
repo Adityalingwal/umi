@@ -31,7 +31,7 @@ enum BoardBrief {
                 : "The last complete diagram, \"\(last.title)\", is kept; the board is closed."
         } ?? "There is no complete diagram, so the board closed."
         return [
-            "The board: this question stopped a diagram while it was being drawn, \"\(drawing.title)\". "
+            "The board: the user stopped a diagram while it was being drawn, \"\(drawing.title)\". "
                 + "An edit changes this diagram. Its marks drawn so far, one per line:",
             try marks(of: drawing),
             complete
