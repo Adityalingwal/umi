@@ -68,7 +68,7 @@ struct AnswerReader {
             if first == "{" {
                 form = .drawing
                 logger.notice("The answer is a drawing")
-                board.open()
+                board.expectDrawing()
                 try readDrawing(text)
             } else {
                 form = .spoken
@@ -109,10 +109,12 @@ struct AnswerReader {
     private mutating func useReadyLines() throws {
         while let line = try drawing.nextLine() {
             switch line {
-            case .title(let title):
-                board.name(title)
-            case let .part(say, marks):
-                try board.add(marks)
+            case .newDrawing(let title):
+                board.open(title)
+            case .edit(let title):
+                try board.edit(title)
+            case let .part(say, marks, removedIDs):
+                try board.add(marks, removing: removedIDs)
                 voice.speak(say)
                 drawingSpokenText += drawingSpokenText.isEmpty ? say : " " + say
             }

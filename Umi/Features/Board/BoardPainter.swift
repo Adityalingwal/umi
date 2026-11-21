@@ -22,7 +22,8 @@ struct BoardPainter {
     let size: CGSize
 
     static func frameDates(for marks: [ShownMark], after now: Date) -> [Date] {
-        guard let last = marks.map(\.appearsAt).max(), last.addingTimeInterval(drawDuration) > now else { return [] }
+        let changes = marks.flatMap { [$0.appearsAt, $0.disappearsAt].compactMap(\.self) }
+        guard let last = changes.max(), last.addingTimeInterval(drawDuration) > now else { return [] }
         let end = last.addingTimeInterval(drawDuration + 1 / framesPerSecond)
         return Array(stride(from: now, through: end, by: 1 / framesPerSecond))
     }
@@ -51,7 +52,13 @@ struct BoardPainter {
     }
 
     private static func progress(of shown: ShownMark, at date: Date) -> Double {
-        let linear = min(1, max(0, date.timeIntervalSince(shown.appearsAt) / drawDuration))
+        let drawn = eased(since: shown.appearsAt, at: date)
+        guard let disappearsAt = shown.disappearsAt else { return drawn }
+        return drawn * (1 - eased(since: disappearsAt, at: date))
+    }
+
+    private static func eased(since start: Date, at date: Date) -> Double {
+        let linear = min(1, max(0, date.timeIntervalSince(start) / drawDuration))
         return 1 - pow(1 - linear, 3)
     }
 

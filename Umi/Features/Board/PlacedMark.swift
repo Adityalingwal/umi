@@ -31,4 +31,21 @@ struct PlacedMark: Identifiable {
     let id: String
     let shape: PlacedShape
     let label: String?
+    let source: BoardMark
+
+    var asPlaced: BoardMark {
+        let frame = shape.solidFrame
+        return BoardMark(
+            id: id,
+            kind: source.kind,
+            originX: frame.map { $0.minX.rounded() },
+            originY: frame.map { $0.minY.rounded() },
+            width: frame.map { $0.width.rounded() },
+            height: frame.map { $0.height.rounded() },
+            label: label,
+            startID: source.startID,
+            endID: source.endID,
+            subjectID: source.subjectID
+        )
+    }
 }
