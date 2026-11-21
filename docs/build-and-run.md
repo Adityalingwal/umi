@@ -46,6 +46,7 @@ ln -s <main checkout>/.env .env
 ```
 
 8. Install Claude Code (`claude`, version 2.1.328 or newer) and sign it in once with `claude auth login`. Umi answers through it on the user's own Claude subscription.
+9. To answer with Codex instead, install Codex (`codex`, version 0.170.0) and sign it in with ChatGPT once with `codex login`, keeping the login in the file store (`~/.codex/auth.json`). Then pick Codex in the menu's Brain row. Umi runs Codex from its own Codex home in Application Support, which holds only a link to that login file.
 
 ## Build
 
@@ -80,7 +81,7 @@ The Debug build takes these launch arguments:
 
 - `-UmiAudioFile <path>` plays the file into the menu's level bar instead of the microphone.
 - `-UmiHoldFile <path>` plays the file as one question: the hold starts when the app launches and ends when the file ends. To ask several questions in one launch, give a list, `-UmiHoldFile '("<first>", "<second>")'`: the files play in order, and each next hold starts 25 s after the previous one ended, so a short answer finishes first. A list needs `-UmiScreenImage` too, so that no scheduled hold sends a picture of the real screen; without it no hold plays and the log says why.
-- `-UmiScreenImage <path>` sends that image to Claude instead of a picture of the screen, so a proof never carries the real screen.
+- `-UmiScreenImage <path>` sends that image to the brain instead of a picture of the screen, so a proof never carries the real screen.
 - `-UmiFailFlux YES` opens no Flux socket, so every hold takes the fallback: the whole recording goes to Deepgram Nova-3 after release. Nothing about the network changes.
 - `-UmiSpeechFile <path>` also writes what Umi spoke to that WAV file: exactly the sound that played during that launch, every spoken line in order, each ending where a cut stopped it.
 

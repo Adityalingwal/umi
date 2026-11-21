@@ -30,6 +30,11 @@ final class ClaudeSubscription: Brain {
         }
     }
 
+    func prepareIfNeeded() {
+        guard spare?.isRunning != true else { return }
+        prepare()
+    }
+
     func stop() {
         spare?.stop()
         spare = nil
