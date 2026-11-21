@@ -46,7 +46,7 @@ nonisolated struct ScreenCapture: Sendable {
         let image = try await capture(displayID: displayID)
         logger.notice("Screen captured, \(image.width, privacy: .public)x\(image.height, privacy: .public)")
         try Task.checkCancellation()
-        return ScreenPicture(jpegData: try JPEGEncoder.encode(image))
+        return ScreenPicture(jpegData: try JPEGEncoder.encode(image), width: image.width, height: image.height)
     }
 
     func refusal() async -> ScreenError {
@@ -80,7 +80,7 @@ nonisolated struct ScreenCapture: Sendable {
         }
         logger.notice("Using the replacement screen image")
         try Task.checkCancellation()
-        return ScreenPicture(jpegData: try JPEGEncoder.encode(image))
+        return ScreenPicture(jpegData: try JPEGEncoder.encode(image), width: image.width, height: image.height)
     }
     #endif
 }

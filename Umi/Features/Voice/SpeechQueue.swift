@@ -3,7 +3,8 @@ import Synchronization
 
 nonisolated final class SpeechQueue: Sendable {
     enum Event: Sendable {
-        case sentenceStarted(Int, playedAt: ContinuousClock.Instant)
+        case turnStarted(Int, playedAt: ContinuousClock.Instant)
+        case turnEnded(Int)
         case playedOut
     }
 
@@ -28,12 +29,16 @@ nonisolated final class SpeechQueue: Sendable {
         state.withLock { $0.hasUnplayedSamples }
     }
 
-    func append(linear16 audio: Data, startingSentence sentence: Int?) {
-        state.withLock { $0.append(linear16: audio, startingSentence: sentence) }
+    func append(linear16 audio: Data, startingTurn turn: Int?) {
+        state.withLock { $0.append(linear16: audio, startingTurn: turn) }
     }
 
-    func sentenceAudioEnded() {
-        state.withLock { $0.sentenceAudioEnded() }
+    func millisecondsBeforeTurn(_ turn: Int) -> Int? {
+        state.withLock { $0.samplesBeforeTurn(turn) }.map { $0 * 1_000 / Int(Self.sampleRate) }
+    }
+
+    func turnAudioEnded(_ turn: Int) {
+        state.withLock { $0.turnAudioEnded(turn) }
     }
 
     func audioEnded() {
@@ -45,13 +50,13 @@ nonisolated final class SpeechQueue: Sendable {
         eventContinuation.finish()
     }
 
-    func cutReturningUnfinishedSentence() -> Int? {
-        let sentence = state.withLock { state in
+    func cutReturningUnfinishedTurn() -> Int? {
+        let turn = state.withLock { state in
             defer { state.cut() }
-            return state.unfinishedSentence
+            return state.unfinishedTurn
         }
         eventContinuation.finish()
-        return sentence
+        return turn
     }
 
     #if DEBUG
@@ -92,10 +97,12 @@ private nonisolated struct QueueState {
     #endif
 
     private var samples: [Float] = []
-    private var sentenceStarts: [(sample: Int, sentence: Int)] = []
-    private var nextSentenceStart = 0
+    private var turnStarts: [(sample: Int, turn: Int)] = []
+    private var nextTurnStart = 0
+    private var turnEnds: [(sample: Int, turn: Int)] = []
+    private var nextTurnEnd = 0
     private var oddByte: UInt8?
-    private var wholeSentencesEnd = 0
+    private var wholeTurnsEnd = 0
     private var isPlaying = false
     private var isPlayedOut = false
     private var isCut = false
@@ -104,16 +111,23 @@ private nonisolated struct QueueState {
         !isCut && played < samples.count
     }
 
-    var unfinishedSentence: Int? {
-        guard !isCut, nextSentenceStart > 0 else { return nil }
-        let end = nextSentenceStart < sentenceStarts.count ? sentenceStarts[nextSentenceStart].sample : samples.count
-        return played < end ? sentenceStarts[nextSentenceStart - 1].sentence : nil
+    var unfinishedTurn: Int? {
+        guard !isCut, nextTurnStart > 0 else { return nil }
+        let end = nextTurnStart < turnStarts.count ? turnStarts[nextTurnStart].sample : samples.count
+        return played < end ? turnStarts[nextTurnStart - 1].turn : nil
     }
 
-    mutating func append(linear16 audio: Data, startingSentence sentence: Int?) {
+    func samplesBeforeTurn(_ turn: Int) -> Int? {
+        guard !isCut, let start = turnStarts.last(where: { $0.turn == turn })?.sample, start >= played else {
+            return nil
+        }
+        return start - played
+    }
+
+    mutating func append(linear16 audio: Data, startingTurn turn: Int?) {
         guard !isCut else { return }
-        if let sentence {
-            sentenceStarts.append((samples.count, sentence))
+        if let turn {
+            turnStarts.append((samples.count, turn))
         }
         var bytes = [UInt8](audio)
         if let oddByte {
@@ -126,8 +140,9 @@ private nonisolated struct QueueState {
         }
     }
 
-    mutating func sentenceAudioEnded() {
-        wholeSentencesEnd = samples.count
+    mutating func turnAudioEnded(_ turn: Int) {
+        wholeTurnsEnd = samples.count
+        turnEnds.append((samples.count, turn))
     }
 
     mutating func cut() {
@@ -143,18 +158,20 @@ private nonisolated struct QueueState {
         var events: [SpeechQueue.Event] = []
         startIfReady()
         for frame in 0..<frameCount {
+            postTurnEnds(into: &events)
             guard isPlaying, !isCut, played < samples.count else {
                 output[frame] = 0
                 continue
             }
-            if nextSentenceStart < sentenceStarts.count, sentenceStarts[nextSentenceStart].sample == played {
-                let offset = Duration.seconds(Double(frame) / SpeechQueue.sampleRate)
-                events.append(.sentenceStarted(sentenceStarts[nextSentenceStart].sentence, playedAt: now + offset))
-                nextSentenceStart += 1
+            if nextTurnStart < turnStarts.count, turnStarts[nextTurnStart].sample == played {
+                let playedAt = Self.time(ofFrame: frame, after: now)
+                events.append(.turnStarted(turnStarts[nextTurnStart].turn, playedAt: playedAt))
+                nextTurnStart += 1
             }
             output[frame] = samples[played]
             played += 1
         }
+        postTurnEnds(into: &events)
         #if DEBUG
         if isRecording, isPlaying, !isCut, !isPlayedOut {
             record.append(contentsOf: UnsafeBufferPointer(start: output, count: frameCount))
@@ -170,9 +187,24 @@ private nonisolated struct QueueState {
         return events
     }
 
+    private var hasTurnEndDue: Bool {
+        !isCut && nextTurnEnd < turnEnds.count && turnEnds[nextTurnEnd].sample <= played
+    }
+
+    private mutating func postTurnEnds(into events: inout [SpeechQueue.Event]) {
+        while hasTurnEndDue {
+            events.append(.turnEnded(turnEnds[nextTurnEnd].turn))
+            nextTurnEnd += 1
+        }
+    }
+
+    private static func time(ofFrame frame: Int, after start: ContinuousClock.Instant) -> ContinuousClock.Instant {
+        start + Duration.seconds(Double(frame) / SpeechQueue.sampleRate)
+    }
+
     private mutating func startIfReady() {
         guard !isPlaying, !isCut, played < samples.count else { return }
-        isPlaying = samples.count - played >= SpeechQueue.samplesBeforePlaying || wholeSentencesEnd > played
+        isPlaying = samples.count - played >= SpeechQueue.samplesBeforePlaying || wholeTurnsEnd > played
             || isAudioComplete
     }
 }

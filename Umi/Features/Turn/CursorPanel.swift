@@ -29,6 +29,10 @@ final class CursorPanel {
         panel.contentView = hostingView
     }
 
+    var center: CGPoint {
+        CGPoint(x: panel.frame.midX, y: panel.frame.midY)
+    }
+
     func startFollowingPointer() {
         moveToPointer()
         panel.orderFrontRegardless()

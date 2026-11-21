@@ -5,8 +5,8 @@ import Synchronization
 nonisolated enum FluxSpeechMessage: Sendable {
     case connected
     case audio(Data)
-    case sentenceStarted
-    case sentenceEnded(billableCharacters: Int, audioMilliseconds: Int)
+    case turnStarted
+    case turnEnded(billableCharacters: Int, audioMilliseconds: Int)
 }
 
 final class FluxSpeech {
@@ -98,9 +98,9 @@ final class FluxSpeech {
             keepAlive(socket)
             return .connected
         case "SpeechStarted":
-            return .sentenceStarted
+            return .turnStarted
         case "SpeechMetadata":
-            return .sentenceEnded(
+            return .turnEnded(
                 billableCharacters: event?.billableCharacterCount ?? 0,
                 audioMilliseconds: event?.audioDurationMilliseconds ?? 0
             )

@@ -76,6 +76,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let subtitlePanel = SubtitlePanel(subtitles: subtitles)
         let cursor = UmiCursor()
         let cursorPanel = CursorPanel(cursor: cursor)
+        let pointerOverlay = PointerOverlay()
+        let pointer = Pointer(overlay: pointerOverlay, panel: PointerPanel(overlay: pointerOverlay), workspace: .shared)
         let screen = ScreenCapture.atLaunch(defaults: .standard, bundle: .main)
         let bundleURL = Bundle.main.bundleURL
         turns = Task {
@@ -88,7 +90,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 subtitles: subtitles,
                 subtitlePanel: subtitlePanel,
                 cursor: cursor,
-                cursorPanel: cursorPanel
+                cursorPanel: cursorPanel,
+                pointer: pointer
             )
             await withDiscardingTaskGroup { group in
                 group.addTask {

@@ -11,6 +11,10 @@ nonisolated enum ClaudeMessage {
                     "data": question.screenJPEG.base64EncodedString()
                 ]
             ],
+            [
+                "type": "text",
+                "text": "The screen picture is \(question.screenWidth) by \(question.screenHeight) pixels."
+            ],
             ["type": "text", "text": question.text]
         ]
         let message: [String: Any] = ["type": "user", "message": ["role": "user", "content": content]]
