@@ -79,7 +79,7 @@ struct CodexTurn {
             try thread.connection.fire("turn/interrupt", ["threadId": thread.id, "turnId": turnID])
             logger.notice("Interrupted Codex's turn")
         } catch {
-            logger.error("Codex's turn could not be interrupted: \(error.localizedDescription, privacy: .public)")
+            logger.error("Codex's turn could not be interrupted: \(error.localizedDescription)")
         }
     }
 

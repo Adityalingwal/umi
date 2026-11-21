@@ -111,7 +111,7 @@ final class CodexConnection {
             do {
                 try await Self.write(line, to: handle)
             } catch {
-                self?.logger.error("Writing to Codex failed: \(error.localizedDescription, privacy: .public)")
+                self?.logger.error("Writing to Codex failed: \(error.localizedDescription)")
                 self?.stop()
             }
         }
@@ -144,7 +144,7 @@ final class CodexConnection {
         do {
             write(try CodexLine.refusal(id: id))
         } catch {
-            logger.error("The refusal could not be written: \(error.localizedDescription, privacy: .public)")
+            logger.error("The refusal could not be written: \(error.localizedDescription)")
         }
     }
 

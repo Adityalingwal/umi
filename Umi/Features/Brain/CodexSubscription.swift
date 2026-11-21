@@ -34,7 +34,8 @@ final class CodexSubscription: Brain {
             do {
                 return try await startThread()
             } catch {
-                logger.error("Codex could not be started ahead: \(String(describing: error), privacy: .public)")
+                let reason = (error as? BrainError).map { String(describing: $0) } ?? "unexpected"
+                logger.error("Codex could not be started ahead: \(reason, privacy: .public)")
                 throw error
             }
         }
@@ -62,8 +63,13 @@ final class CodexSubscription: Brain {
                     into: continuation
                 )
                 continuation.finish()
-            } catch {
+            } catch is CancellationError {
+                continuation.finish(throwing: CancellationError())
+            } catch let error as BrainError {
                 continuation.finish(throwing: error)
+            } catch {
+                logger.error("Codex failed unexpectedly: \(error.localizedDescription)")
+                continuation.finish(throwing: BrainError.failed(.codex))
             }
         }
         continuation.onTermination = { _ in
@@ -151,7 +157,7 @@ final class CodexSubscription: Brain {
         } catch let error as BrainError {
             throw error
         } catch {
-            logger.error("The Codex catalog could not be built: \(error.localizedDescription, privacy: .public)")
+            logger.error("The Codex catalog could not be built: \(error.localizedDescription)")
             throw BrainError.codexCannotUseModel
         }
         logger.notice("Built the one-model Codex catalog")
@@ -167,7 +173,7 @@ final class CodexSubscription: Brain {
         do {
             try connection.start()
         } catch {
-            logger.error("Codex did not start: \(error.localizedDescription, privacy: .public)")
+            logger.error("Codex did not start: \(error.localizedDescription)")
             throw BrainError.didNotStart(.codex)
         }
         return connection
