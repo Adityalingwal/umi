@@ -45,9 +45,9 @@ nonisolated struct PointTagParser {
                 if !Self.mayBecomeTag(buffer) {
                     emitOpeningBracket(into: &parts)
                 } else if let end {
-                    dropUnclosedTag(before: end, into: &parts)
+                    dropUnclosedTag(before: end, isCutOff: false, into: &parts)
                 } else if isFinal || buffer.count > Self.longestTag {
-                    dropUnclosedTag(before: buffer.endIndex, into: &parts)
+                    dropUnclosedTag(before: buffer.endIndex, isCutOff: isFinal, into: &parts)
                 } else {
                     return parts
                 }
@@ -66,7 +66,7 @@ nonisolated struct PointTagParser {
         return parts
     }
 
-    private mutating func dropUnclosedTag(before end: String.Index, into parts: inout [Part]) {
+    private mutating func dropUnclosedTag(before end: String.Index, isCutOff: Bool, into parts: inout [Part]) {
         let tag = buffer[..<end]
         let attributesEnd = tag.lastIndex { "=\"'".contains($0) }.map(tag.index(after:))
             ?? tag.firstIndex(where: \.isWhitespace)
@@ -74,7 +74,14 @@ nonisolated struct PointTagParser {
         let rest = String(tag[attributesEnd...].drop { $0.isWhitespace || $0.isNumber || "+-.,".contains($0) })
         buffer = String(buffer[end...])
         parts.append(.dropped(.unfinishedTag))
-        emit(rest, into: &parts)
+        if !isCutOff || Self.hasWholeLocation(String(tag[..<attributesEnd])) {
+            emit(rest, into: &parts)
+        }
+    }
+
+    // A tag cut off by the answer's end may stop inside its attributes, and those letters are not a name.
+    private static func hasWholeLocation(_ attributes: String) -> Bool {
+        !attributes.lowercased().hasPrefix(openTag) || location(in: attributes) != nil
     }
 
     private mutating func emitOpeningBracket(into parts: inout [Part]) {
