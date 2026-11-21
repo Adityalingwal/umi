@@ -5,20 +5,24 @@ final class BoardWindow {
     private static let size = NSSize(width: 760, height: 500)
     private static let smallest = NSSize(width: 420, height: 290)
 
-    private let window: NSWindow
+    private let window: NSPanel
     private var isPlaced = false
 
     init(content: BoardContent) {
-        window = NSWindow(
+        window = NSPanel(
             contentRect: NSRect(origin: .zero, size: Self.size),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .nonactivatingPanel],
             backing: .buffered,
             defer: true
         )
         window.isReleasedWhenClosed = false
+        window.isFloatingPanel = true
+        window.level = .floating
+        window.hidesOnDeactivate = false
+        window.becomesKeyOnlyIfNeeded = true
         window.appearance = NSAppearance(named: .aqua)
         window.contentMinSize = Self.smallest
-        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.tabbingMode = .disallowed
         window.contentView = NSHostingView(rootView: BoardView().environment(content))
     }
