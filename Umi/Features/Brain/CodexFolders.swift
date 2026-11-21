@@ -11,7 +11,7 @@ nonisolated struct CodexFolders: Sendable {
 
     init(bundleID: String, environment: [String: String]) {
         home = URL.applicationSupportDirectory.appending(path: bundleID).appending(path: "Codex")
-        work = URL.temporaryDirectory.appending(path: "\(bundleID).codex")
+        work = URL.temporaryDirectory.appending(path: "umi-codex")
         let userHome = environment["CODEX_HOME"].flatMap { $0.isEmpty ? nil : URL(filePath: $0) }
             ?? URL.homeDirectory.appending(path: ".codex")
         userLogin = userHome.appending(path: "auth.json")
