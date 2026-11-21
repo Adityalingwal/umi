@@ -68,6 +68,7 @@ struct AnswerReader {
             if first == "{" {
                 form = .drawing
                 logger.notice("The answer is a drawing")
+                board.expectDrawing()
                 try readDrawing(text)
             } else {
                 form = .spoken

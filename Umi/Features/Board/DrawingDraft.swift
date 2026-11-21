@@ -2,6 +2,7 @@ struct DrawingDraft {
     private static let mostMarks = 80
 
     var title: String
+    let isEdit: Bool
     private(set) var rows: [DrawingRow] = []
     private(set) var revealedRows = 0
     private(set) var isRead = false
@@ -11,6 +12,7 @@ struct DrawingDraft {
 
     init(title: String, base: Drawing? = nil) {
         self.title = title
+        isEdit = base != nil
         shownMarks = base?.marks ?? []
         layout = BoardLayout(marks: base?.marks ?? [])
     }
