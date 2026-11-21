@@ -231,7 +231,7 @@ final class Pointing {
         clearing = Task { [weak self] in
             try? await Task.sleep(for: Self.clearAfterLine)
             guard !Task.isCancelled else { return }
-            self?.end(because: "two seconds passed after its line", fading: true)
+            self?.end(because: "one second passed after its line", fading: true)
         }
     }
 
