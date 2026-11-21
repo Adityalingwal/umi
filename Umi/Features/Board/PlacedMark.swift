@@ -22,6 +22,13 @@ enum PlacedShape {
         case .connector: nil
         }
     }
+
+    var occupiedFrame: CGRect? {
+        if case let .connector(_, _, labelFrame) = self {
+            return labelFrame
+        }
+        return solidFrame
+    }
 }
 
 struct PlacedMark: Identifiable {

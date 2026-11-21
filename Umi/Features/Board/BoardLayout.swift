@@ -68,17 +68,34 @@ struct BoardLayout {
     private func freeLabelFrame(for label: String, along segment: BoardSegment) -> CGRect {
         let text = BoardLabel.size(of: label, style: .connector, maxWidth: 150)
         let size = CGSize(width: text.width + 10, height: text.height + 4)
-        let frames = Self.labelSpots.map { spot in
-            CGRect(
-                x: segment.start.x + (segment.end.x - segment.start.x) * spot - size.width / 2,
-                y: segment.start.y + (segment.end.y - segment.start.y) * spot - size.height / 2,
-                width: size.width, height: size.height
-            )
-        }
+        let frames = Self.labelSpots(for: size, along: segment)
         return frames.first { !collides($0, isRegion: false) } ?? frames[0]
     }
 
     private static let labelSpots = [0.5] + stride(from: 0.05, through: 0.4, by: 0.05).flatMap { [0.5 - $0, 0.5 + $0] }
+
+    // A label laid on a line must leave the line's ends and its arrow head visible; otherwise it goes beside it.
+    private static func labelSpots(for size: CGSize, along segment: BoardSegment) -> [CGRect] {
+        let deltaX = segment.end.x - segment.start.x
+        let deltaY = segment.end.y - segment.start.y
+        let length = max(hypot(deltaX, deltaY), 1)
+        let along = (abs(deltaX) * size.width + abs(deltaY) * size.height) / length
+        let across = (abs(deltaY) * size.width + abs(deltaX) * size.height) / length
+        let onLine = labelSpots.filter { spot in
+            spot * length - along / 2 >= 6 && spot * length + along / 2 <= length - 16
+        }
+        let centers: [CGPoint] = onLine.isEmpty
+            ? [1.0, -1.0].map { side in
+                CGPoint(
+                    x: segment.start.x + deltaX / 2 - side * deltaY / length * (across / 2 + 6),
+                    y: segment.start.y + deltaY / 2 + side * deltaX / length * (across / 2 + 6)
+                )
+            }
+            : onLine.map { CGPoint(x: segment.start.x + deltaX * $0, y: segment.start.y + deltaY * $0) }
+        return centers.map { center in
+            CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
+        }
+    }
 
     private static func origin(of mark: BoardMark) -> CGPoint? {
         guard let originX = mark.originX, let originY = mark.originY, originX.isFinite, originY.isFinite else {
@@ -103,7 +120,7 @@ struct BoardLayout {
     private func collides(_ frame: CGRect, isRegion: Bool) -> Bool {
         let padded = frame.insetBy(dx: -Self.gap / 2, dy: -Self.gap / 2)
         return marks.contains { mark in
-            guard let other = mark.shape.solidFrame,
+            guard let other = mark.shape.occupiedFrame,
                   padded.intersects(other.insetBy(dx: -Self.gap / 2, dy: -Self.gap / 2)) else { return false }
             let otherIsRegion = if case .region = mark.shape { true } else { false }
             if otherIsRegion, other.contains(frame) {
