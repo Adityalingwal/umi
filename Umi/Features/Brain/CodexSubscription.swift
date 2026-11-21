@@ -12,7 +12,8 @@ final class CodexSubscription: Brain {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Brain")
     private var hasCatalog = false
     private var connection: CodexConnection?
-    private var starting: Task<CodexConnection, any Error>?
+    private var connectionLogin: CodexLoginStamp?
+    private var starting: Task<(CodexConnection, CodexLoginStamp), any Error>?
     private var ahead: Task<CodexThread, any Error>?
 
     init(executable: CodexExecutable, folders: CodexFolders, environment: [String: String]) {
@@ -55,7 +56,7 @@ final class CodexSubscription: Brain {
         let answering = Task { [weak self] in
             guard let self else { return }
             do {
-                let thread = try await readyThread()
+                let thread = try await currentThread()
                 defer { prepare() }
                 try await CodexTurn(thread: thread, logger: logger).relay(
                     answerTo: question,
@@ -78,6 +79,21 @@ final class CodexSubscription: Brain {
         return stream
     }
 
+    // A warm Codex keeps the login it started with, so a changed login file means starting it again.
+    private func currentThread() async throws -> CodexThread {
+        let thread = try await readyThread()
+        let login = CodexLoginStamp(of: folders.userLogin)
+        guard login != thread.login else { return thread }
+        thread.connection.release(thread: thread.id)
+        guard login != nil else { throw BrainError.notSignedIn(.codex) }
+        logger.notice("The Codex login file changed, so Codex starts again")
+        thread.connection.stop()
+        if connection === thread.connection {
+            connection = nil
+        }
+        return try await startThread()
+    }
+
     private func readyThread() async throws -> CodexThread {
         if let waiting = ahead {
             ahead = nil
@@ -90,7 +106,7 @@ final class CodexSubscription: Brain {
     }
 
     private func startThread() async throws -> CodexThread {
-        let connection = try await runningConnection()
+        let (connection, login) = try await runningConnection()
         try await folders.prepare()
         let result = try await connection.request("thread/start", [
             "ephemeral": true,
@@ -103,12 +119,13 @@ final class CodexSubscription: Brain {
         guard let threadID = (result["thread"] as? [String: Any])?["id"] as? String else {
             throw BrainError.failed(.codex)
         }
-        return CodexThread(connection: connection, id: threadID, model: result["model"] as? String ?? Self.model)
+        let model = result["model"] as? String ?? Self.model
+        return CodexThread(connection: connection, id: threadID, model: model, login: login)
     }
 
-    private func runningConnection() async throws -> CodexConnection {
-        if let connection, connection.isRunning {
-            return connection
+    private func runningConnection() async throws -> (CodexConnection, CodexLoginStamp) {
+        if let connection, let connectionLogin, connection.isRunning {
+            return (connection, connectionLogin)
         }
         if let starting {
             return try await starting.value
@@ -116,16 +133,20 @@ final class CodexSubscription: Brain {
         let start = Task { try await self.startConnection() }
         starting = start
         defer { starting = nil }
-        let connection = try await start.value
+        let (connection, login) = try await start.value
         self.connection = connection
-        return connection
+        connectionLogin = login
+        return (connection, login)
     }
 
-    private func startConnection() async throws -> CodexConnection {
+    private func startConnection() async throws -> (CodexConnection, CodexLoginStamp) {
         guard let executableURL = executable.locate(environment: environment) else {
             throw BrainError.notInstalled(.codex)
         }
         try await folders.prepare()
+        guard let login = CodexLoginStamp(of: folders.userLogin) else {
+            throw BrainError.notSignedIn(.codex)
+        }
         if !hasCatalog {
             try await buildCatalog(executableURL: executableURL)
             hasCatalog = true
@@ -143,7 +164,7 @@ final class CodexSubscription: Brain {
             throw error
         }
         logger.notice("Codex is ready with only \(Self.model, privacy: .public) and no tools")
-        return connection
+        return (connection, login)
     }
 
     private func buildCatalog(executableURL: URL) async throws {
