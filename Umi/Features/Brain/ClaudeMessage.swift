@@ -2,7 +2,7 @@ import Foundation
 
 nonisolated enum ClaudeMessage {
     static func line(for question: BrainQuestion) throws -> Data {
-        let content: [[String: Any]] = [
+        let content = history(question.earlierExchanges) + [
             [
                 "type": "image",
                 "source": [
@@ -21,5 +21,12 @@ nonisolated enum ClaudeMessage {
         var line = try JSONSerialization.data(withJSONObject: message)
         line.append(UInt8(ascii: "\n"))
         return line
+    }
+
+    private static func history(_ exchanges: [Exchange]) -> [[String: Any]] {
+        guard !exchanges.isEmpty else { return [] }
+        let turns = exchanges.map { "User: \($0.question)\nUmi: \($0.answer)" }
+        let text = (["Earlier in this conversation, oldest first:"] + turns).joined(separator: "\n\n")
+        return [["type": "text", "text": text]]
     }
 }

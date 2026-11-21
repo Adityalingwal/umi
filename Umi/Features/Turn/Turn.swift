@@ -7,6 +7,7 @@ final class Turn {
     private let speaker: Speaker
     private let screen: ScreenCapture
     private let brain: any Brain
+    private let conversation: Conversation
     private let subtitles: Subtitles
     private let subtitlePanel: SubtitlePanel
     private let cursor: UmiCursor
@@ -28,6 +29,7 @@ final class Turn {
         speaker: Speaker,
         screen: ScreenCapture,
         brain: any Brain,
+        conversation: Conversation,
         subtitles: Subtitles,
         subtitlePanel: SubtitlePanel,
         cursor: UmiCursor,
@@ -39,6 +41,7 @@ final class Turn {
         self.speaker = speaker
         self.screen = screen
         self.brain = brain
+        self.conversation = conversation
         self.subtitles = subtitles
         self.subtitlePanel = subtitlePanel
         self.cursor = cursor
@@ -187,22 +190,25 @@ final class Turn {
             text: text,
             screenJPEG: screen.jpegData,
             screenWidth: screen.width,
-            screenHeight: screen.height
+            screenHeight: screen.height,
+            earlierExchanges: conversation.exchanges
         )
         let answer = brain.answer(question)
         await withDiscardingTaskGroup { group in
-            group.addTask { await self.send(answer, to: voice, pointing: pointing, on: screen) }
+            group.addTask { await self.send(answer, for: text, to: voice, pointing: pointing, on: screen) }
             group.addTask { await self.follower.follow(voice, pointing: pointing) }
         }
     }
 
     private func send(
         _ answer: AsyncThrowingStream<String, any Error>,
+        for question: String,
         to voice: SpokenAnswer,
         pointing: Pointing?,
         on picture: ScreenPicture
     ) async {
         var reader = AnswerReader(voice: voice, pointing: pointing, picture: picture)
+        defer { conversation.add(Exchange(question: question, answer: reader.arrivedText)) }
         do {
             try await reader.read(answer)
         } catch is CancellationError {

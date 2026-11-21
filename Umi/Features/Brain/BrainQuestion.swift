@@ -5,4 +5,5 @@ nonisolated struct BrainQuestion: Sendable {
     let screenJPEG: Data
     let screenWidth: Int
     let screenHeight: Int
+    let earlierExchanges: [Exchange]
 }
