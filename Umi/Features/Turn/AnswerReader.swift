@@ -17,11 +17,12 @@ struct AnswerReader {
     private var tags = PointTagParser()
     private var splitter = SentenceSplitter()
     private var drawing = DrawingReader()
+    private var drawingSpokenText = ""
     private var readText = ""
 
     var arrivedText: String {
         if case .drawing = form {
-            return drawing.spokenText
+            return drawingSpokenText
         }
         var rest = tags
         return rest.finish().reduce(into: readText) { text, part in
@@ -93,27 +94,28 @@ struct AnswerReader {
             }
             voice.endText()
         case .drawing:
-            for line in try drawing.finish() {
-                try use(line)
-            }
+            drawing.end()
+            try useReadyLines()
             board.endReading()
             voice.endText()
         }
     }
 
     private mutating func readDrawing(_ text: String) throws {
-        for line in try drawing.add(text) {
-            try use(line)
-        }
+        drawing.add(text)
+        try useReadyLines()
     }
 
-    private func use(_ line: DrawingLine) throws {
-        switch line {
-        case .title(let title):
-            board.name(title)
-        case let .part(say, marks):
-            try board.add(marks)
-            voice.speak(say)
+    private mutating func useReadyLines() throws {
+        while let line = try drawing.nextLine() {
+            switch line {
+            case .title(let title):
+                board.name(title)
+            case let .part(say, marks):
+                try board.add(marks)
+                voice.speak(say)
+                drawingSpokenText += drawingSpokenText.isEmpty ? say : " " + say
+            }
         }
     }
 
