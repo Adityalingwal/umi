@@ -21,7 +21,7 @@ final class Pointing {
         }
     }
 
-    private static let clearAfterLine = Duration.seconds(2)
+    private static let clearAfterLine = Duration.seconds(1)
 
     private let stage: PointerStage
     private let displayFrame: CGRect
