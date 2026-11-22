@@ -194,7 +194,8 @@ final class Turn {
             screenJPEG: screen.jpegData,
             screenWidth: screen.width,
             screenHeight: screen.height,
-            earlierExchanges: conversation.exchanges
+            earlierExchanges: conversation.exchanges,
+            boardBrief: board.brief
         )
         let answer = brain.answer(question)
         await withDiscardingTaskGroup { group in

@@ -1,8 +1,10 @@
 import Foundation
 
 nonisolated enum DrawingLine {
-    case title(String)
-    case part(say: String, marks: [BoardMark])
+    case newDrawing(String)
+    case edit(String)
+    case reopen
+    case part(say: String, marks: [BoardMark], removedIDs: [String])
 
     private static let longestTitle = 60
     private static let longestSay = 300
@@ -14,19 +16,27 @@ nonisolated enum DrawingLine {
         } catch {
             throw DrawingError.unreadableLine
         }
-        if let say = wire.say?.trimmingCharacters(in: .whitespacesAndNewlines), wire.drawing == nil {
+        let headers = [wire.drawing, wire.edit, wire.reopen].compactMap(\.self)
+        if let say = wire.say?.trimmingCharacters(in: .whitespacesAndNewlines), headers.isEmpty {
             guard !say.isEmpty, say.count <= longestSay else { throw DrawingError.unreadableLine }
-            return .part(say: say, marks: wire.add ?? [])
+            return .part(say: say, marks: wire.add ?? [], removedIDs: wire.remove ?? [])
         }
-        if let title = wire.drawing?.trimmingCharacters(in: .whitespacesAndNewlines), wire.say == nil, !title.isEmpty {
-            return .title(String(title.prefix(longestTitle)))
+        guard wire.say == nil, headers.count == 1,
+              let title = headers.first?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty
+        else { throw DrawingError.unreadableLine }
+        let shortTitle = String(title.prefix(longestTitle))
+        if wire.reopen != nil {
+            return .reopen
         }
-        throw DrawingError.unreadableLine
+        return wire.edit == nil ? .newDrawing(shortTitle) : .edit(shortTitle)
     }
 }
 
 private nonisolated struct Wire: Decodable {
     let drawing: String?
+    let edit: String?
+    let reopen: String?
     let say: String?
     let add: [BoardMark]?
+    let remove: [String]?
 }

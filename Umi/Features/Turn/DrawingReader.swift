@@ -6,9 +6,15 @@ struct DrawingReader {
 
     private var pending = ""
     private var isEnded = false
-    private var hasTitle = false
+    private var start: Start?
     private var parts = 0
     private var hasMarks = false
+
+    private enum Start {
+        case newDrawing
+        case edit
+        case reopen
+    }
 
     mutating func add(_ piece: String) {
         pending += piece
@@ -24,10 +30,17 @@ struct DrawingReader {
                 return line
             }
         }
-        if isEnded, !hasMarks {
+        if isEnded, isEmpty {
             throw DrawingError.empty
         }
         return nil
+    }
+
+    private var isEmpty: Bool {
+        switch start {
+        case .newDrawing, nil: !hasMarks
+        case .edit, .reopen: parts == 0
+        }
     }
 
     private mutating func takeText() throws -> String? {
@@ -47,15 +60,26 @@ struct DrawingReader {
         guard !trimmed.isEmpty else { return nil }
         let line = try DrawingLine.decode(trimmed)
         switch line {
-        case .title:
-            guard !hasTitle else { throw DrawingError.unreadableLine }
-            hasTitle = true
-        case .part(_, let marks):
-            guard hasTitle else { throw DrawingError.unreadableLine }
+        case .newDrawing:
+            try begin(.newDrawing)
+        case .edit:
+            try begin(.edit)
+        case .reopen:
+            try begin(.reopen)
+        case .part(_, let marks, let removedIDs):
+            guard start != nil else { throw DrawingError.unreadableLine }
+            if start == .reopen, parts > 0 || !marks.isEmpty || !removedIDs.isEmpty {
+                throw DrawingError.unreadableLine
+            }
             parts += 1
             guard parts <= Self.mostParts else { throw DrawingError.tooLarge }
             hasMarks = hasMarks || !marks.isEmpty
         }
         return line
+    }
+
+    private mutating func begin(_ kind: Start) throws {
+        guard start == nil else { throw DrawingError.unreadableLine }
+        start = kind
     }
 }

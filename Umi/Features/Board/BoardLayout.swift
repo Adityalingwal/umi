@@ -13,6 +13,29 @@ struct BoardLayout {
     private var frames: [String: CGRect] = [:]
     private var ids: Set<String> = []
 
+    init(marks: [PlacedMark] = []) {
+        self.marks = marks
+        ids = Set(marks.map(\.id))
+        for mark in marks {
+            frames[mark.id] = mark.shape.solidFrame
+        }
+    }
+
+    mutating func remove(_ removedIDs: [String]) -> Set<String> {
+        var gone = ids.intersection(removedIDs)
+        var joined = marks.filter { !gone.contains($0.id) && $0.source.joinedIDs.contains(where: gone.contains) }
+        while !joined.isEmpty {
+            gone.formUnion(joined.map(\.id))
+            joined = marks.filter { !gone.contains($0.id) && $0.source.joinedIDs.contains(where: gone.contains) }
+        }
+        marks.removeAll { gone.contains($0.id) }
+        ids.subtract(gone)
+        for id in gone {
+            frames[id] = nil
+        }
+        return gone
+    }
+
     mutating func place(_ newMarks: [BoardMark]) throws -> [PlacedMark] {
         var placed: [PlacedMark] = []
         for mark in newMarks {
@@ -20,7 +43,8 @@ struct BoardLayout {
                 throw DrawingError.badMark
             }
             let shape = try shape(for: mark)
-            let placedMark = PlacedMark(id: mark.id, shape: shape, label: BoardLabel.trimmed(mark.label))
+            let label = BoardLabel.trimmed(mark.label)
+            let placedMark = PlacedMark(id: mark.id, shape: shape, label: label, source: mark)
             if let frame = shape.solidFrame {
                 frames[mark.id] = frame
             }

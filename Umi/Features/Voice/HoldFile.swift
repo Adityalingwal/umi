@@ -8,15 +8,15 @@ final class HoldFile: AudioSource {
     let holds: AsyncStream<HoldEvent>
 
     private let fileURLs: [URL]
-    private let pause: Duration
+    private let pauses: [Duration]
     private let holdContinuation: AsyncStream<HoldEvent>.Continuation
     private var playedCount = 0
 
     var schedule: ListeningSchedule { .fromLaunch }
 
-    private init(fileURLs: [URL], pause: Duration = pauseBetweenHolds) {
+    private init(fileURLs: [URL], pauses: [Duration] = [pauseBetweenHolds]) {
         self.fileURLs = fileURLs
-        self.pause = pause
+        self.pauses = pauses.isEmpty ? [Self.pauseBetweenHolds] : pauses
         (holds, holdContinuation) = AsyncStream.makeStream(of: HoldEvent.self)
         if fileURLs.isEmpty {
             holdContinuation.finish()
@@ -34,9 +34,16 @@ final class HoldFile: AudioSource {
                 .error("Several hold files need -UmiScreenImage, so no hold plays")
             return HoldFile(fileURLs: [])
         }
-        let pause = defaults.double(forKey: "UmiHoldPause")
         let fileURLs = paths.map { URL(filePath: $0) }
-        return HoldFile(fileURLs: fileURLs, pause: pause > 0 ? .seconds(pause) : pauseBetweenHolds)
+        return HoldFile(fileURLs: fileURLs, pauses: pauses(in: defaults))
+    }
+
+    private static func pauses(in defaults: UserDefaults) -> [Duration] {
+        let key = "UmiHoldPause"
+        let texts = defaults.stringArray(forKey: key) ?? defaults.string(forKey: key).map { [$0] } ?? []
+        return texts.map { text in
+            Double(text).flatMap { $0 > 0 ? Duration.seconds($0) : nil } ?? pauseBetweenHolds
+        }
     }
 
     func chunks() -> AsyncThrowingStream<AudioChunk, any Error> {
@@ -78,7 +85,7 @@ final class HoldFile: AudioSource {
             holdContinuation.finish()
             return
         }
-        try? await Task.sleep(for: pause)
+        try? await Task.sleep(for: pauses[min(playedCount - 1, pauses.count - 1)])
         holdContinuation.yield(.began)
     }
 }

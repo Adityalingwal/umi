@@ -5,8 +5,9 @@ nonisolated struct ClaudeMessage: Sendable {
     let pictureCount: Int
 
     init(for question: BrainQuestion) throws {
-        let history = question.earlierExchangesText.map { [["type": "text", "text": $0]] } ?? []
-        let content: [[String: Any]] = history + [
+        let context: [[String: Any]] = [question.earlierExchangesText, question.boardBrief].compactMap(\.self)
+            .map { ["type": "text", "text": $0] }
+        let content: [[String: Any]] = context + [
             [
                 "type": "image",
                 "source": [

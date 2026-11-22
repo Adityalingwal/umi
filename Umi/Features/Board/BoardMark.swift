@@ -1,5 +1,5 @@
-nonisolated struct BoardMark: Decodable, Sendable {
-    nonisolated enum Kind: String, Decodable, Sendable {
+nonisolated struct BoardMark: Codable, Sendable {
+    nonisolated enum Kind: String, Codable, Sendable {
         case box
         case region
         case text
@@ -18,6 +18,10 @@ nonisolated struct BoardMark: Decodable, Sendable {
     let startID: String?
     let endID: String?
     let subjectID: String?
+
+    var joinedIDs: [String] {
+        [startID, endID, subjectID].compactMap(\.self)
+    }
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, label
