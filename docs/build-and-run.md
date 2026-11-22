@@ -86,6 +86,8 @@ The Debug build takes these launch arguments:
 - `-UmiBrainExecutables <folder>` looks for `claude` and `codex` only in that folder, for both the Brain row's check and the answers. A missing file makes that brain look not installed; a small script in its place can print a made-up status (for example `Not logged in` on stderr for `codex login status`, or `{"loggedIn": false}` for `claude auth status`) or `exec` the real tool. Launch with `open --env CODEX_HOME=<folder>` to point Umi at another Codex home. Never sign out of the real Codex or Claude to make a state.
 - `-UmiMenuUpdateEvery <seconds>` updates the menu every few seconds as if it had just opened, so the Brain row's check runs without clicking the menu. Each update logs every Brain option (chosen, enabled, hint).
 - `-UmiFailFlux YES` opens no Flux socket, so every hold takes the fallback: the whole recording goes to Deepgram Nova-3 after release. Nothing about the network changes.
+- `-UmiHoldPause <seconds>` works with a `-UmiHoldFile` list: each next hold starts that many seconds after the previous one ended, in place of 25 s. A short pause asks the next question while an answer (or a drawing) is still going; a long one lets a long drawing answer finish first.
+- `-UmiCutVoiceAfter <count>` makes the voice fail on purpose once it has sent the audio of that many sentences, the same way a Deepgram voice error does, so the rest of the answer shows in the subtitles unspoken.
 - `-UmiSpeechFile <path>` also writes what Umi spoke to that WAV file: exactly the sound that played during that launch, every spoken line in order, each ending where a cut stopped it.
 
 ```sh

@@ -1,0 +1,34 @@
+import CoreGraphics
+
+struct BoardSegment {
+    let start: CGPoint
+    let end: CGPoint
+}
+
+enum PlacedShape {
+    case box(CGRect)
+    case region(CGRect)
+    case text(CGRect)
+    case note(CGRect, leader: BoardSegment?)
+    case connector(BoardSegment, hasHead: Bool, labelFrame: CGRect?)
+
+    var solidFrame: CGRect? {
+        switch self {
+        case .box(let frame), .region(let frame), .text(let frame), .note(let frame, _): frame
+        case .connector: nil
+        }
+    }
+
+    var occupiedFrame: CGRect? {
+        if case let .connector(_, _, labelFrame) = self {
+            return labelFrame
+        }
+        return solidFrame
+    }
+}
+
+struct PlacedMark: Identifiable {
+    let id: String
+    let shape: PlacedShape
+    let label: String?
+}

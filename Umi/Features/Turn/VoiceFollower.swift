@@ -2,11 +2,13 @@ import OSLog
 
 struct VoiceFollower {
     private let subtitles: Subtitles
+    private let board: Board
     private let hideCursor: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
 
-    init(subtitles: Subtitles, hideCursor: @escaping () -> Void) {
+    init(subtitles: Subtitles, board: Board, hideCursor: @escaping () -> Void) {
         self.subtitles = subtitles
+        self.board = board
         self.hideCursor = hideCursor
     }
 
@@ -17,6 +19,8 @@ struct VoiceFollower {
             case .show(let text):
                 hideCursor()
                 subtitles.show(text)
+            case .sentencesShown(let count):
+                board.reveal(sentences: count)
             case .nameComing(let delay):
                 pointing?.nameComing(after: delay)
             case .nameStarted:
@@ -30,6 +34,7 @@ struct VoiceFollower {
             case .finished:
                 hideCursor()
                 subtitles.finish()
+                board.answerEnded()
                 pointing?.answerEnded(subtitlesLingerFor: Subtitles.lingerAfterEnd)
                 logger.notice("Answer finished")
             }
