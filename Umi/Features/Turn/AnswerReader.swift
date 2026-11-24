@@ -41,8 +41,13 @@ struct AnswerReader {
 
     mutating func read(_ answer: AsyncThrowingStream<String, any Error>) async throws {
         do {
+            var isFirstPiece = true
             for try await piece in answer {
                 try Task.checkCancellation()
+                if isFirstPiece {
+                    isFirstPiece = false
+                    logger.notice("The brain's first text arrived")
+                }
                 try add(piece)
             }
             try Task.checkCancellation()
