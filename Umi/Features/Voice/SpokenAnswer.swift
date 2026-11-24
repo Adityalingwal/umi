@@ -79,22 +79,16 @@ final class SpokenAnswer {
         watchForSilence()
     }
 
-    func speak(_ sentence: String, nameStart: String.Index? = nil) {
+    func speak(_ sentence: String) {
         guard mode == .voiced else { return }
-        let firstTurn = turns.count
-        let parts = turns.add(sentence, nameStart: nameStart)
+        let turn = turns.add(sentence)
         do {
-            try parts.forEach(socket.speak)
+            try socket.speak(sentence)
         } catch {
             fail(error)
             return
         }
-        logger.notice(
-            """
-            Sentence \(self.turns.sentences.count - 1, privacy: .public) sent to the voice as \
-            \(parts.count, privacy: .public) turns from turn \(firstTurn, privacy: .public)
-            """
-        )
+        logger.notice("Sentence \(turn, privacy: .public) sent to the voice as one turn")
     }
 
     func endText() {
@@ -124,10 +118,6 @@ final class SpokenAnswer {
             let openedTurn = turns.audioArrived()
             queue.append(linear16: audio, startingTurn: openedTurn)
             try player.start()
-            if let openedTurn, turns.isName(openedTurn), let wait = queue.millisecondsBeforeTurn(openedTurn) {
-                logger.notice("The name's audio arrived; it plays in \(wait, privacy: .public) ms")
-                eventContinuation.yield(.nameComing(after: .milliseconds(wait)))
-            }
         case let .turnEnded(billableCharacters, audioMilliseconds):
             let turn = turns.voiceEndedTurn()
             logger.notice(
@@ -136,7 +126,7 @@ final class SpokenAnswer {
                 \(audioMilliseconds, privacy: .public) ms, \(billableCharacters, privacy: .public) billable characters
                 """
             )
-            queue.turnAudioEnded(turn)
+            queue.turnAudioEnded()
             endAudioIfComplete()
         }
     }
@@ -148,10 +138,6 @@ final class SpokenAnswer {
             let lag = Self.milliseconds(since: firstSample)
             logger.notice("Turn \(turn, privacy: .public) started playing, seen \(lag, privacy: .public) ms later")
             turns.startPlaying(turn).forEach { eventContinuation.yield($0) }
-        case .turnEnded(let turn):
-            guard turns.endsNameLine(turn) else { return }
-            logger.notice("The line that names the target finished playing")
-            eventContinuation.yield(.nameLineEnded)
         case .playedOut:
             logger.notice("The voice finished playing")
             finish()

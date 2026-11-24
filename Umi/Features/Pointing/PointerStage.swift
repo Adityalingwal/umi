@@ -34,10 +34,6 @@ final class PointerStage {
         overlay.land()
     }
 
-    func mark() {
-        overlay.mark()
-    }
-
     func clear(fading: Bool) {
         if !fading {
             panel.hide()

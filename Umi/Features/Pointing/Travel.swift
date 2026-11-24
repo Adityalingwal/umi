@@ -3,7 +3,6 @@ import Foundation
 
 struct Travel {
     static let ringDiameter = 34.0
-    static let shortestDuration = Duration.milliseconds(250)
 
     private static let gapOutsideRing = 6.0
     private static let arrowLength = 22.0
