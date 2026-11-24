@@ -81,7 +81,7 @@ final class SpokenAnswer {
 
     func speak(_ sentence: String) {
         guard mode == .voiced else { return }
-        let turn = turns.add(sentence)
+        let turn = turns.add()
         do {
             try socket.speak(sentence)
         } catch {
@@ -94,7 +94,7 @@ final class SpokenAnswer {
     func endText() {
         guard mode == .voiced, !isTextEnded else { return }
         isTextEnded = true
-        logger.notice("The answer's text ended after \(self.turns.sentences.count, privacy: .public) sentences")
+        logger.notice("The answer's text ended after \(self.turns.count, privacy: .public) sentences")
         endAudioIfComplete()
     }
 

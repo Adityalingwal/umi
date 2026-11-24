@@ -8,8 +8,6 @@ final class Turn {
     private let screen: ScreenCapture
     private let brain: any Brain
     private let conversation: Conversation
-    private let subtitles: Subtitles
-    private let subtitlePanel: SubtitlePanel
     private let cursorStage: CursorStage
     private let pointer: Pointer
     private let board: Board
@@ -19,7 +17,7 @@ final class Turn {
     private var answering: Task<Void, Never>?
     private var speaking: SpokenAnswer?
     private var pointing: Pointing?
-    private lazy var follower = VoiceFollower(subtitles: subtitles, board: board) { [cursorStage] in
+    private lazy var follower = VoiceFollower(board: board) { [cursorStage] in
         cursorStage.hide()
     }
 
@@ -30,8 +28,6 @@ final class Turn {
         screen: ScreenCapture,
         brain: any Brain,
         conversation: Conversation,
-        subtitles: Subtitles,
-        subtitlePanel: SubtitlePanel,
         cursor: UmiCursor,
         cursorPanel: CursorPanel,
         pointer: Pointer,
@@ -43,8 +39,6 @@ final class Turn {
         self.screen = screen
         self.brain = brain
         self.conversation = conversation
-        self.subtitles = subtitles
-        self.subtitlePanel = subtitlePanel
         cursorStage = CursorStage(cursor: cursor, panel: cursorPanel)
         self.pointer = pointer
         self.board = board
@@ -58,27 +52,22 @@ final class Turn {
             end()
         case .cancelled:
             cancel()
-            subtitles.clear()
             logger.notice("Hold cancelled by another key")
         }
     }
 
     func escape() {
-        guard speaking != nil || subtitles.line != nil || pointing?.isShowing == true || board.isDrawing
-            || cursorStage.isFailed else { return }
+        guard speaking != nil || pointing?.isShowing == true || board.isDrawing || cursorStage.isFailed else { return }
         cancel()
-        subtitles.clear()
-        logger.notice("Esc: the question stopped and the subtitles cleared")
+        logger.notice("Esc: the question stopped")
     }
 
     private func begin() {
         cancel()
-        subtitles.clear()
         guard let underPointer = PointerScreen.current() else {
             logger.error("No screen is under the pointer")
             return
         }
-        subtitlePanel.show(on: underPointer.screen)
         let hearing: HoldHearing
         let speaking: SpokenAnswer
         do {
@@ -191,7 +180,6 @@ final class Turn {
 
     private func failAnswer() {
         cancel()
-        subtitles.clear()
         cursorStage.fail()
     }
 

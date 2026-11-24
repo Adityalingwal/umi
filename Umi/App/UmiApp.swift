@@ -87,8 +87,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain: ChosenBrain
     ) {
         let conversation = Conversation()
-        let subtitles = Subtitles()
-        let subtitlePanel = SubtitlePanel(subtitles: subtitles)
         let cursor = UmiCursor()
         let cursorPanel = CursorPanel(cursor: cursor)
         let pointerOverlay = PointerOverlay()
@@ -105,8 +103,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 screen: screen,
                 brain: brain,
                 conversation: conversation,
-                subtitles: subtitles,
-                subtitlePanel: subtitlePanel,
                 cursor: cursor,
                 cursorPanel: cursorPanel,
                 pointer: pointer,

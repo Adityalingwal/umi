@@ -95,7 +95,7 @@ final class Board {
             )
         }
         if let failsAt = draft.failsAtSentence, count > failsAt {
-            abandon(because: "its failure line showed")
+            abandon(because: "its failure line started playing")
         }
     }
 

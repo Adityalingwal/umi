@@ -1,19 +1,19 @@
 import Foundation
 
 struct SpokenTurns {
-    private(set) var sentences: [String] = []
-    private var sentencesShown = 0
+    private(set) var count = 0
+    private var piecesStarted = 0
     private var turnsStarted = 0
     private var turnsWithAudio = 0
     private var turnsEnded = 0
 
     var isAudioOwed: Bool {
-        turnsEnded < sentences.count
+        turnsEnded < count
     }
 
-    mutating func add(_ sentence: String) -> Int {
-        sentences.append(sentence)
-        return sentences.count - 1
+    mutating func add() -> Int {
+        count += 1
+        return count - 1
     }
 
     mutating func voiceStartedTurn() {
@@ -32,8 +32,9 @@ struct SpokenTurns {
     }
 
     mutating func startPlaying(_ turn: Int) -> [SpokenEvent] {
-        guard sentences.indices.contains(turn), turn >= sentencesShown else { return [] }
-        sentencesShown = turn + 1
-        return [.show(sentences[turn]), .sentencesShown(sentencesShown)]
+        guard turn < count, turn >= piecesStarted else { return [] }
+        let isFirst = piecesStarted == 0
+        piecesStarted = turn + 1
+        return (isFirst ? [.firstSound] : []) + [.piecesStarted(piecesStarted)]
     }
 }
