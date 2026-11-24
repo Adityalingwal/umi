@@ -64,11 +64,14 @@ final class FluxSpeech {
         return stream
     }
 
-    func speak(_ sentence: String) throws {
-        guard let json = String(bytes: try JSONEncoder().encode(FluxSpeak(text: sentence)), encoding: .utf8) else {
+    func send(_ text: String) throws {
+        guard let json = String(bytes: try JSONEncoder().encode(FluxSpeak(text: text)), encoding: .utf8) else {
             throw SpeechError.serviceFailed
         }
         outgoing.continuation.yield(.string(json))
+    }
+
+    func flush() {
         outgoing.continuation.yield(.string(Self.flush))
     }
 

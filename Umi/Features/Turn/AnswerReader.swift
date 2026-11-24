@@ -15,7 +15,6 @@ struct AnswerReader {
     private var form = Form.undecided
     private var undecidedText = ""
     private var tags = PointTagParser()
-    private var splitter = SentenceSplitter()
     private var drawing = DrawingReader()
     private var drawingSpokenText = ""
     private var readText = ""
@@ -95,9 +94,6 @@ struct AnswerReader {
             for part in tags.finish() {
                 read(part)
             }
-            if let sentence = splitter.flush() {
-                voice.speak(sentence)
-            }
             voice.endText()
         case .drawing:
             drawing.end()
@@ -139,9 +135,7 @@ struct AnswerReader {
         switch part {
         case .text(let text):
             readText += text
-            for sentence in splitter.add(text) {
-                voice.speak(sentence)
-            }
+            voice.stream(text)
         case .nameStart(let location):
             pointing?.aim(at: location, pictureWidth: picture.width, pictureHeight: picture.height)
         case .dropped(let problem):
