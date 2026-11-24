@@ -13,7 +13,7 @@ enum UmiPrompt {
         """
 
     private static let spokenWords = """
-        Spoken words. Everything you say is spoken aloud and shown as subtitles, \
+        Spoken words. Everything you say is spoken aloud, \
         so it is only plain words that can be said: no Markdown, lists, code or links. \
         Talk the way people talk: short by default, about one to three sentences, \
         and longer only when the task needs it or the user asks for detail. \

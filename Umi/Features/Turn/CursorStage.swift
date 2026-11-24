@@ -47,8 +47,10 @@ final class CursorStage {
     func hide() {
         failMarkHiding?.cancel()
         failMarkHiding = nil
-        if isFailed {
-            logger.notice("The fail mark is off")
+        switch cursor.state {
+        case .thinking: logger.notice("The thinking cursor is off")
+        case .failed: logger.notice("The fail mark is off")
+        case .hidden, .listening: break
         }
         cursor.hide()
         panel.stopFollowingPointer()
