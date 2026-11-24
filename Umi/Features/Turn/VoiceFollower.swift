@@ -27,15 +27,11 @@ struct VoiceFollower {
                 pointing?.nameStarted()
             case .nameLineEnded:
                 pointing?.nameLineEnded()
-            case .nameShown:
-                pointing?.nameShown()
-            case .voiceFailed:
-                pointing?.voiceFailed()
             case .finished:
                 hideCursor()
                 subtitles.finish()
                 board.answerEnded()
-                pointing?.answerEnded(subtitlesLingerFor: Subtitles.lingerAfterEnd)
+                pointing?.answerEnded()
                 logger.notice("Answer finished")
             }
         }

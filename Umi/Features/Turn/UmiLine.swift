@@ -2,33 +2,16 @@ enum UmiLine {
     static let couldNotHear = "Couldn't hear you, say it again"
     static let couldNotDraw = "Sorry, I couldn't make that drawing."
 
-    private static let noInternet = "No internet. Check your connection and try again."
     private static let somethingWentWrong = "Something went wrong. Please try again."
 
-    // The voice needs the same internet and the same Deepgram service, so these lines are only shown.
-    static func isSpoken(_ error: any Error) -> Bool {
+    // The voice needs the same internet and the same Deepgram service, so these failures have no line.
+    static func failure(_ error: any Error) -> String? {
         switch error {
-        case is SpeechError, BrainError.noInternet: false
-        default: true
-        }
-    }
-
-    static func failure(_ error: any Error) -> String {
-        switch error {
-        case let error as SpeechError: speech(error)
+        case is SpeechError: nil
         case let error as AudioSourceError: audio(error)
         case let error as ScreenError: screen(error)
         case let error as BrainError: brain(error)
         default: somethingWentWrong
-        }
-    }
-
-    private static func speech(_ error: SpeechError) -> String {
-        switch error {
-        case .keyMissing: "The Deepgram key is missing. Add it to .env and rebuild Umi."
-        case .keyRefused: "Deepgram didn't accept the key. Check the key in .env and rebuild Umi."
-        case .noInternet: noInternet
-        case .serviceFailed, .connectionFailed, .noFinalText: "Deepgram isn't answering right now. Please try again."
         }
     }
 
@@ -50,7 +33,7 @@ enum UmiLine {
         }
     }
 
-    private static func brain(_ error: BrainError) -> String {
+    private static func brain(_ error: BrainError) -> String? {
         switch error {
         case .notInstalled(.claude): "Claude Code isn't installed. Install it, then sign in with claude auth login."
         case .notInstalled(.codex): "Codex isn't installed. Install it, then sign in with codex login."
@@ -58,7 +41,7 @@ enum UmiLine {
         case .notSignedIn(.codex): "Codex isn't signed in with ChatGPT. Run codex login in Terminal."
         case .limitReached(.claude): "Your Claude usage limit is reached. Try again after it resets."
         case .limitReached(.codex): "Your Codex usage limit is reached. Try again after it resets."
-        case .noInternet: noInternet
+        case .noInternet: nil
         case .codexCannotUseModel: "Your Codex account can't use GPT-6.2-Sol, so Codex can't answer."
         case .didNotStart(let brain), .failed(let brain), .answerEndedEarly(let brain):
             "\(brain.title) couldn't answer this time. Please try again."

@@ -8,7 +8,6 @@ struct SpokenTurns {
     private var turnsStarted = 0
     private var turnsWithAudio = 0
     private var turnsEnded = 0
-    private var turnsPlaying = 0
 
     var count: Int {
         turnSentences.count
@@ -27,14 +26,6 @@ struct SpokenTurns {
         }
         turnSentences.append(contentsOf: Array(repeating: index, count: parts.count))
         return parts.map(\.text)
-    }
-
-    mutating func addUnspoken(_ sentence: String, nameStart: String.Index?) -> [SpokenEvent] {
-        sentences.append(sentence)
-        sentencesShown = sentences.count
-        let shown: [SpokenEvent] = [.show(sentence), .sentencesShown(sentencesShown)]
-        let namesTarget = Self.parts(of: sentence, nameStart: nameStart).contains(where: \.isName)
-        return namesTarget ? shown + [.nameShown] : shown
     }
 
     mutating func voiceStartedTurn() {
@@ -63,7 +54,6 @@ struct SpokenTurns {
 
     mutating func startPlaying(_ turn: Int) -> [SpokenEvent] {
         guard turnSentences.indices.contains(turn) else { return [] }
-        turnsPlaying = max(turnsPlaying, turn + 1)
         var events: [SpokenEvent] = []
         let sentence = turnSentences[turn]
         if turn == 0 || turnSentences[turn - 1] != sentence {
@@ -74,30 +64,6 @@ struct SpokenTurns {
             events.append(.nameStarted)
         }
         return events
-    }
-
-    mutating func cut(unfinishedTurn: Int?) -> Int? {
-        guard let sentence = cutSentence(unfinishedTurn: unfinishedTurn), sentence < sentencesShown else { return nil }
-        sentencesShown = sentence
-        return sentence
-    }
-
-    mutating func takeUnshown() -> (count: Int, events: [SpokenEvent]) {
-        let unshown = sentences[sentencesShown...]
-        sentencesShown = sentences.count
-        guard !unshown.isEmpty else { return (0, []) }
-        let shown: [SpokenEvent] = [.show(unshown.joined(separator: " ")), .sentencesShown(sentencesShown)]
-        let namesTarget = nameTurn.map { unshown.indices.contains(turnSentences[$0]) } ?? false
-        return (unshown.count, namesTarget ? shown + [.nameShown] : shown)
-    }
-
-    private func cutSentence(unfinishedTurn: Int?) -> Int? {
-        if let unfinishedTurn {
-            return turnSentences.indices.contains(unfinishedTurn) ? turnSentences[unfinishedTurn] : nil
-        }
-        let playing = sentencesShown - 1
-        guard playing >= 0, let last = turnSentences.lastIndex(of: playing) else { return nil }
-        return turnsEnded <= last || turnsPlaying <= last ? playing : nil
     }
 
     private static func isSpoken(_ character: Character) -> Bool {

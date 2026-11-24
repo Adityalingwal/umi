@@ -10,8 +10,7 @@ final class Turn {
     private let conversation: Conversation
     private let subtitles: Subtitles
     private let subtitlePanel: SubtitlePanel
-    private let cursor: UmiCursor
-    private let cursorPanel: CursorPanel
+    private let cursorStage: CursorStage
     private let pointer: Pointer
     private let board: Board
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
@@ -20,8 +19,8 @@ final class Turn {
     private var answering: Task<Void, Never>?
     private var speaking: SpokenAnswer?
     private var pointing: Pointing?
-    private lazy var follower = VoiceFollower(subtitles: subtitles, board: board) { [weak self] in
-        self?.hideCursor()
+    private lazy var follower = VoiceFollower(subtitles: subtitles, board: board) { [cursorStage] in
+        cursorStage.hide()
     }
 
     init(
@@ -46,8 +45,7 @@ final class Turn {
         self.conversation = conversation
         self.subtitles = subtitles
         self.subtitlePanel = subtitlePanel
-        self.cursor = cursor
-        self.cursorPanel = cursorPanel
+        cursorStage = CursorStage(cursor: cursor, panel: cursorPanel)
         self.pointer = pointer
         self.board = board
     }
@@ -66,7 +64,8 @@ final class Turn {
     }
 
     func escape() {
-        guard speaking != nil || subtitles.line != nil || pointing?.isShowing == true || board.isDrawing else { return }
+        guard speaking != nil || subtitles.line != nil || pointing?.isShowing == true || board.isDrawing
+            || cursorStage.isFailed else { return }
         cancel()
         subtitles.clear()
         logger.notice("Esc: the question stopped and the subtitles cleared")
@@ -86,34 +85,33 @@ final class Turn {
             hearing = try speech.hearing(from: audioSource)
             speaking = try speaker.answer()
         } catch {
-            stop(because: error)
+            fail(because: error)
             return
         }
         self.speaking = speaking
         guard screen.isAllowed else {
-            speaking.start()
+            start(speaking)
             stopWithoutScreen(voice: speaking)
             return
         }
         pointing = pointer.pointing(
             on: underPointer.screen.frame,
-            cursorRest: { [cursorPanel] in cursorPanel.center },
-            onDepart: { [weak self] in self?.hideCursor() }
+            cursorRest: { [cursorStage] in cursorStage.center },
+            onDepart: { [cursorStage] in cursorStage.hide() }
         )
-        cursorPanel.startFollowingPointer()
-        cursor.listen()
+        cursorStage.listen()
         picture = Task { [screen] in
             try await screen.picture(ofDisplay: underPointer.displayID)
         }
         hearing.start()
-        speaking.start()
+        start(speaking)
         self.hearing = hearing
         logger.notice("Hold began")
     }
 
     private func end() {
         guard answering == nil, let hearing, let picture, let speaking else { return }
-        cursor.think()
+        cursorStage.think()
         logger.notice("Hold ended")
         let pointing = pointing
         answering = Task { [weak self] in
@@ -136,8 +134,8 @@ final class Turn {
                 logger.notice("Heard \(text.count, privacy: .public) characters")
                 try await ask(text, picture: picture, voice: voice, pointing: pointing)
             case .silence:
-                hideCursor()
-                pointing?.answerEnded(subtitlesLingerFor: .zero)
+                cursorStage.hide()
+                pointing?.answerEnded()
                 logger.notice("Silence: the question ended quietly, the brain not asked")
             case .soundWithoutWords:
                 logger.notice("Sound without words: the brain not asked")
@@ -164,21 +162,37 @@ final class Turn {
         }
     }
 
-    private func stop(because error: any Error) {
-        logger.error("The question stopped: \(StopReason.text(for: error), privacy: .public)")
-        show(UmiLine.failure(error))
-        subtitles.finish()
+    private func start(_ voice: SpokenAnswer) {
+        voice.start { [weak self] voice in
+            self?.voiceFailed(voice)
+        }
+    }
+
+    private func voiceFailed(_ voice: SpokenAnswer) {
+        guard speaking === voice else { return }
+        logger.error("The question failed: the voice could not speak")
+        failAnswer()
     }
 
     private func stop(because error: any Error, voice: SpokenAnswer) {
-        logger.error("The question stopped: \(StopReason.text(for: error), privacy: .public)")
-        let line = UmiLine.failure(error)
-        if UmiLine.isSpoken(error) {
-            voice.speak(line)
-            voice.endText()
-        } else {
-            voice.stop(showing: line)
+        guard let line = UmiLine.failure(error) else {
+            fail(because: error)
+            return
         }
+        logger.error("The question stopped: \(StopReason.text(for: error), privacy: .public)")
+        voice.speak(line)
+        voice.endText()
+    }
+
+    private func fail(because error: any Error) {
+        logger.error("The question failed with no line to speak: \(StopReason.text(for: error), privacy: .public)")
+        failAnswer()
+    }
+
+    private func failAnswer() {
+        cancel()
+        subtitles.clear()
+        cursorStage.fail()
     }
 
     private func ask(
@@ -223,11 +237,6 @@ final class Turn {
         }
     }
 
-    private func show(_ sentence: String) {
-        hideCursor()
-        subtitles.show(sentence)
-    }
-
     private func release(_ hearing: HoldHearing, _ picture: Task<ScreenPicture, any Error>, _ voice: SpokenAnswer) {
         release(voice)
         if self.hearing === hearing {
@@ -245,11 +254,6 @@ final class Turn {
         }
     }
 
-    private func hideCursor() {
-        cursor.hide()
-        cursorPanel.stopFollowingPointer()
-    }
-
     private func cancel() {
         answering?.cancel()
         answering = nil
@@ -262,6 +266,6 @@ final class Turn {
         pointing?.stop()
         pointing = nil
         board.stop()
-        hideCursor()
+        cursorStage.hide()
     }
 }

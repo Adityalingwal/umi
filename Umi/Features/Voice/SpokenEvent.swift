@@ -4,7 +4,5 @@ enum SpokenEvent {
     case nameComing(after: Duration)
     case nameStarted
     case nameLineEnded
-    case nameShown
-    case voiceFailed
     case finished
 }

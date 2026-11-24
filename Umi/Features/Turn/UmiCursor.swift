@@ -22,6 +22,10 @@ final class UmiCursor {
         state = .thinking
     }
 
+    func fail() {
+        state = .failed
+    }
+
     func hide() {
         state = .hidden
     }

@@ -29,10 +29,22 @@ private struct CursorBadge: View {
             case .thinking:
                 CursorSpinner()
                     .transition(.opacity)
+            case .failed:
+                CursorFailMark()
+                    .transition(.opacity)
             }
         }
         .frame(width: 40, height: 22)
-        .background(.black.opacity(0.75), in: .capsule)
+        .background(state == .failed ? Color.red.opacity(0.85) : Color.black.opacity(0.75), in: .capsule)
+    }
+}
+
+private struct CursorFailMark: View {
+    var body: some View {
+        Image(systemName: "xmark")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(.white)
+            .accessibilityLabel("Failed")
     }
 }
 

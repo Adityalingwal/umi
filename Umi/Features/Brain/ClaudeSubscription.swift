@@ -58,6 +58,9 @@ final class ClaudeSubscription: Brain {
                 }
                 try await relay(answerTo: question, from: process, into: continuation)
                 continuation.finish()
+            } catch is CancellationError {
+                logger.notice("Claude was stopped before its answer ended")
+                continuation.finish(throwing: CancellationError())
             } catch {
                 continuation.finish(throwing: error)
             }

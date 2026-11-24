@@ -50,15 +50,6 @@ nonisolated final class SpeechQueue: Sendable {
         eventContinuation.finish()
     }
 
-    func cutReturningUnfinishedTurn() -> Int? {
-        let turn = state.withLock { state in
-            defer { state.cut() }
-            return state.unfinishedTurn
-        }
-        eventContinuation.finish()
-        return turn
-    }
-
     #if DEBUG
     func recordPlayedSamples() {
         state.withLock { $0.isRecording = true }
@@ -109,12 +100,6 @@ private nonisolated struct QueueState {
 
     var hasUnplayedSamples: Bool {
         !isCut && played < samples.count
-    }
-
-    var unfinishedTurn: Int? {
-        guard !isCut, nextTurnStart > 0 else { return nil }
-        let end = nextTurnStart < turnStarts.count ? turnStarts[nextTurnStart].sample : samples.count
-        return played < end ? turnStarts[nextTurnStart - 1].turn : nil
     }
 
     func samplesBeforeTurn(_ turn: Int) -> Int? {
