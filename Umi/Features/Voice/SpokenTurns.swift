@@ -2,6 +2,7 @@ import Foundation
 
 struct SpokenTurns {
     private(set) var count = 0
+    private(set) var openTurn: Int?
     private var piecesStarted = 0
     private var turnsStarted = 0
     private var turnsWithAudio = 0
@@ -14,6 +15,17 @@ struct SpokenTurns {
     mutating func add() -> Int {
         count += 1
         return count - 1
+    }
+
+    mutating func open() -> Int {
+        let turn = add()
+        openTurn = turn
+        return turn
+    }
+
+    mutating func close() -> Int? {
+        defer { openTurn = nil }
+        return openTurn
     }
 
     mutating func voiceStartedTurn() {

@@ -25,7 +25,7 @@ struct Speaker {
         guard let key else { throw SpeechError.keyMissing }
         let socket = FluxSpeech(key: key, session: session)
         #if DEBUG
-        socket.failAfterTurns = cutVoiceAfter
+        socket.failAfterMilliseconds = cutVoiceAfter
         return SpokenAnswer(socket: socket, speechFile: speechFile)
         #else
         return SpokenAnswer(socket: socket)

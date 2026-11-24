@@ -7,7 +7,8 @@ final class SpokenAnswer {
         case over
     }
 
-    // Aditya's pick from #14's measurements, where the first sound came at most 1.22 s after its sentence's Flush.
+    // Aditya's pick from #14's measurements, where the first sound came at most 1.22 s after a Flush; the wait counts
+    // from a piece's Flush.
     private static let waitingLimit = Duration.seconds(3)
     private static let watchInterval = Duration.milliseconds(100)
 
@@ -22,6 +23,7 @@ final class SpokenAnswer {
     private var turns = SpokenTurns()
     private var isTextEnded = false
     private var isAudioComplete = false
+    private var openTurnCharacters = 0
     private var waitingSince: ContinuousClock.Instant?
     private var listening: Task<Void, Never>?
     private var playing: Task<Void, Never>?
@@ -53,8 +55,10 @@ final class SpokenAnswer {
         queue.playedSamples * 1_000 / Int(SpeechQueue.sampleRate)
     }
 
-    private var owesSound: Bool {
-        turns.isAudioOwed || queue.hasUnplayedSamples
+    // While an answer's piece is open, a pause of the brain looks like a silent voice.
+    private var isSilenceJudged: Bool {
+        guard turns.openTurn == nil else { return false }
+        return turns.isAudioOwed || queue.hasUnplayedSamples
     }
 
     func start(onFailure: @escaping (SpokenAnswer) -> Void) {
@@ -79,22 +83,31 @@ final class SpokenAnswer {
         watchForSilence()
     }
 
-    func speak(_ sentence: String) {
+    func stream(_ text: String) {
         guard mode == .voiced else { return }
-        let turn = turns.add()
-        do {
-            try socket.speak(sentence)
-        } catch {
-            fail(error)
-            return
+        if turns.openTurn == nil {
+            guard text.contains(where: { !$0.isWhitespace }) else { return }
+            let turn = turns.open()
+            logger.notice("Piece \(turn, privacy: .public) opened for the answer's text")
         }
-        logger.notice("Sentence \(turn, privacy: .public) sent to the voice as one turn")
+        guard send(text) else { return }
+        openTurnCharacters += text.unicodeScalars.count
+    }
+
+    func speak(_ line: String) {
+        guard mode == .voiced else { return }
+        closeOpenTurn()
+        guard send(line) else { return }
+        socket.flush()
+        let turn = turns.add()
+        logger.notice("Piece \(turn, privacy: .public) sent to the voice as one whole line")
     }
 
     func endText() {
         guard mode == .voiced, !isTextEnded else { return }
+        closeOpenTurn()
         isTextEnded = true
-        logger.notice("The answer's text ended after \(self.turns.count, privacy: .public) sentences")
+        logger.notice("The answer's text ended after \(self.turns.count, privacy: .public) voice pieces")
         endAudioIfComplete()
     }
 
@@ -105,13 +118,32 @@ final class SpokenAnswer {
         eventContinuation.finish()
     }
 
+    private func send(_ text: String) -> Bool {
+        do {
+            try socket.send(text)
+            return true
+        } catch {
+            fail(error)
+            return false
+        }
+    }
+
+    private func closeOpenTurn() {
+        guard let turn = turns.close() else { return }
+        socket.flush()
+        waitingSince = .now
+        let characters = openTurnCharacters
+        logger.notice("Piece \(turn, privacy: .public) closed after \(characters, privacy: .public) characters")
+        openTurnCharacters = 0
+    }
+
     private func handle(_ message: FluxSpeechMessage) throws {
         guard mode == .voiced else { return }
         switch message {
         case .connected:
             guard waitingSince != nil else { return }
             waitingSince = .now
-            logger.notice("The voice connected after its first sentence was ready; the wait for sound starts now")
+            logger.notice("The voice connected after the first text was sent to it; the wait for sound starts now")
         case .turnStarted:
             turns.voiceStartedTurn()
         case .audio(let audio):
@@ -151,7 +183,7 @@ final class SpokenAnswer {
                 try? await Task.sleep(for: Self.watchInterval)
                 guard let self, mode == .voiced else { return }
                 let played = queue.playedSamples
-                if !owesSound {
+                if !isSilenceJudged {
                     waitingSince = nil
                 } else if let since = waitingSince, played == lastPlayed {
                     if since.duration(to: .now) >= Self.waitingLimit {
