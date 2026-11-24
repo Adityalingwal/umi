@@ -102,7 +102,7 @@ final class Board {
     func fail() {
         guard draft != nil else { return }
         draft?.fail()
-        logger.notice("Board drawing failed; it goes when the failure line shows")
+        logger.notice("Board drawing failed; it goes when the failure line starts playing")
     }
 
     func answerEnded() {
