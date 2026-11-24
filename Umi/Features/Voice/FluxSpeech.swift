@@ -22,7 +22,8 @@ final class FluxSpeech {
     private var keepingAlive: Task<Void, Never>?
     private var isClosed = false
     #if DEBUG
-    var failAfterTurns: Int?
+    var failAfterMilliseconds: Int?
+    private var receivedAudioBytes = 0
     #endif
 
     private static var endpoint: URL? {
@@ -89,6 +90,9 @@ final class FluxSpeech {
         from socket: URLSessionWebSocketTask
     ) throws -> FluxSpeechMessage? {
         if case .data(let audio) = message {
+            #if DEBUG
+            try failIfCutDue(after: audio)
+            #endif
             return .audio(audio)
         }
         guard case .string(let text) = message else { return nil }
@@ -106,13 +110,6 @@ final class FluxSpeech {
         case "SpeechStarted":
             return .turnStarted
         case "SpeechMetadata":
-            #if DEBUG
-            failAfterTurns = failAfterTurns.map { $0 - 1 }
-            if failAfterTurns == 0 {
-                logger.notice("The voice fails on purpose (-UmiCutVoiceAfter)")
-                throw SpeechError.serviceFailed
-            }
-            #endif
             return .turnEnded(
                 billableCharacters: event?.billableCharacterCount ?? 0,
                 audioMilliseconds: event?.audioDurationMilliseconds ?? 0
@@ -127,6 +124,16 @@ final class FluxSpeech {
             return nil
         }
     }
+
+    #if DEBUG
+    private func failIfCutDue(after audio: Data) throws {
+        receivedAudioBytes += audio.count
+        let received = receivedAudioBytes * 1_000 / (MemoryLayout<Int16>.size * Int(SpeechQueue.sampleRate))
+        guard let limit = failAfterMilliseconds, received >= limit else { return }
+        logger.notice("The voice fails on purpose after \(received, privacy: .public) ms of audio (-UmiCutVoiceAfter)")
+        throw SpeechError.serviceFailed
+    }
+    #endif
 
     private func startSending(to socket: URLSessionWebSocketTask) {
         guard sending == nil, !isClosed else { return }
