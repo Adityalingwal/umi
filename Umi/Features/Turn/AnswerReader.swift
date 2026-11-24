@@ -142,7 +142,7 @@ struct AnswerReader {
                 at: location,
                 pictureWidth: picture.width,
                 pictureHeight: picture.height,
-                opensAnswer: splitter.isAtStart && voice.isSpeaking
+                opensAnswer: splitter.isAtStart
             )
             if isAimed == true {
                 splitter.markName()

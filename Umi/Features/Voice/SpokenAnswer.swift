@@ -49,8 +49,6 @@ final class SpokenAnswer {
     }
     #endif
 
-    var isSpeaking: Bool { mode == .voiced }
-
     private var playedMilliseconds: Int {
         queue.playedSamples * 1_000 / Int(SpeechQueue.sampleRate)
     }
