@@ -14,11 +14,6 @@ final class Pointing {
     private enum Cue {
         case nameAwaited
         case nameSpoken
-        case nameShown
-
-        var isMarkDue: Bool {
-            self == .nameSpoken || self == .nameShown
-        }
     }
 
     private static let clearAfterLine = Duration.seconds(1)
@@ -32,7 +27,6 @@ final class Pointing {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
     private var phase = Phase.waiting
     private var cue = Cue.nameAwaited
-    private var subtitleMark = SubtitleMarkTime()
     private var departing: Task<Void, Never>?
     private var landing: Task<Void, Never>?
     private var clearing: Task<Void, Never>?
@@ -137,54 +131,15 @@ final class Pointing {
         }
     }
 
-    func voiceFailed() {
+    func answerEnded() {
         switch phase {
+        case .over:
+            return
         case .marked:
             if clearing == nil {
                 clearLater()
             }
         case .waiting, .aimed, .travelling, .landed:
-            departing?.cancel()
-            departing = nil
-            if cue == .nameSpoken {
-                cue = .nameShown
-            }
-            logger.notice("The voice failed before the mark, so the mark goes with the name's subtitle")
-        case .over:
-            return
-        }
-    }
-
-    func nameShown() {
-        if case .over = phase { return }
-        guard cue == .nameAwaited else {
-            logger.notice("The name's subtitle showed again, so nothing moves")
-            return
-        }
-        cue = .nameShown
-        logger.notice("The name's subtitle is shown")
-        switch phase {
-        case .aimed(let target):
-            depart(taking: stage.usualTravelTime(from: cursorRest(), to: target))
-        case .landed:
-            showMark()
-        case .waiting, .travelling, .marked, .over:
-            return
-        }
-    }
-
-    func answerEnded(subtitlesLingerFor linger: Duration) {
-        switch (phase, cue) {
-        case (.over, _):
-            return
-        case (.travelling, .nameShown), (.marked, .nameShown):
-            subtitleMark.subtitlesGo(at: ContinuousClock.now + linger)
-            clearWithSubtitles()
-        case (.marked, _):
-            if clearing == nil {
-                clearLater()
-            }
-        default:
             end(because: "the answer ended before the name")
         }
     }
@@ -212,7 +167,7 @@ final class Pointing {
         stage.land()
         phase = .landed
         logger.notice("The cursor landed")
-        if cue.isMarkDue {
+        if cue == .nameSpoken {
             showMark()
         }
     }
@@ -221,10 +176,6 @@ final class Pointing {
         stage.mark()
         phase = .marked
         logger.notice("The mark is on")
-        if cue == .nameShown {
-            subtitleMark.marked(at: .now)
-            clearWithSubtitles()
-        }
     }
 
     private func clearLater() {
@@ -232,18 +183,6 @@ final class Pointing {
             try? await Task.sleep(for: Self.clearAfterLine)
             guard !Task.isCancelled else { return }
             self?.end(because: "one second passed after its line", fading: true)
-        }
-    }
-
-    private func clearWithSubtitles() {
-        guard case .marked = phase, let clearAt = subtitleMark.clearAt else { return }
-        let wait = Self.milliseconds(ContinuousClock.now.duration(to: clearAt))
-        logger.notice("The mark clears in \(wait, privacy: .public) ms, with the subtitles or 4 s after it showed")
-        clearing?.cancel()
-        clearing = Task { [weak self] in
-            try? await Task.sleep(until: clearAt)
-            guard !Task.isCancelled else { return }
-            self?.end(because: "the answer's subtitles faded", fading: true)
         }
     }
 

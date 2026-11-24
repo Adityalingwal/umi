@@ -4,7 +4,6 @@ import OSLog
 final class SpokenAnswer {
     private enum Mode {
         case voiced
-        case unvoiced
         case over
     }
 
@@ -27,6 +26,7 @@ final class SpokenAnswer {
     private var listening: Task<Void, Never>?
     private var playing: Task<Void, Never>?
     private var watching: Task<Void, Never>?
+    private var onFailure: ((SpokenAnswer) -> Void)?
     #if DEBUG
     private var speechFile: SpeechFile?
     #endif
@@ -51,11 +51,16 @@ final class SpokenAnswer {
 
     var isSpeaking: Bool { mode == .voiced }
 
+    private var playedMilliseconds: Int {
+        queue.playedSamples * 1_000 / Int(SpeechQueue.sampleRate)
+    }
+
     private var owesSound: Bool {
         turns.isAudioOwed || queue.hasUnplayedSamples
     }
 
-    func start() {
+    func start(onFailure: @escaping (SpokenAnswer) -> Void) {
+        self.onFailure = onFailure
         let messages = socket.messages()
         listening = Task { [weak self] in
             do {
@@ -77,58 +82,34 @@ final class SpokenAnswer {
     }
 
     func speak(_ sentence: String, nameStart: String.Index? = nil) {
-        switch mode {
-        case .over:
+        guard mode == .voiced else { return }
+        let firstTurn = turns.count
+        let parts = turns.add(sentence, nameStart: nameStart)
+        do {
+            try parts.forEach(socket.speak)
+        } catch {
+            fail(error)
             return
-        case .unvoiced:
-            let events = turns.addUnspoken(sentence, nameStart: nameStart)
-            logger.notice("Sentence \(self.turns.sentences.count - 1, privacy: .public) shows unspoken")
-            events.forEach { eventContinuation.yield($0) }
-        case .voiced:
-            let firstTurn = turns.count
-            let parts = turns.add(sentence, nameStart: nameStart)
-            do {
-                try parts.forEach(socket.speak)
-            } catch {
-                fail(error)
-                return
-            }
-            logger.notice(
-                """
-                Sentence \(self.turns.sentences.count - 1, privacy: .public) sent to the voice as \
-                \(parts.count, privacy: .public) turns from turn \(firstTurn, privacy: .public)
-                """
-            )
         }
+        logger.notice(
+            """
+            Sentence \(self.turns.sentences.count - 1, privacy: .public) sent to the voice as \
+            \(parts.count, privacy: .public) turns from turn \(firstTurn, privacy: .public)
+            """
+        )
     }
 
     func endText() {
-        guard mode != .over, !isTextEnded else { return }
+        guard mode == .voiced, !isTextEnded else { return }
         isTextEnded = true
         logger.notice("The answer's text ended after \(self.turns.sentences.count, privacy: .public) sentences")
-        if mode == .unvoiced {
-            finish()
-        } else {
-            endAudioIfComplete()
-        }
+        endAudioIfComplete()
     }
 
     func stop() {
-        guard mode != .over else { return }
-        if mode == .voiced {
-            let playedMilliseconds = queue.playedSamples * 1_000 / Int(SpeechQueue.sampleRate)
-            logger.notice("The voice was cut after \(playedMilliseconds, privacy: .public) ms of sound")
-        }
+        guard mode == .voiced else { return }
+        logger.notice("The voice was cut after \(self.playedMilliseconds, privacy: .public) ms of sound")
         end()
-        eventContinuation.finish()
-    }
-
-    func stop(showing line: String) {
-        guard mode != .over else { return }
-        logger.notice("The voice stopped so a line shows unspoken")
-        end()
-        eventContinuation.yield(.show(line))
-        eventContinuation.yield(.finished)
         eventContinuation.finish()
     }
 
@@ -219,32 +200,21 @@ final class SpokenAnswer {
 
     private func fail(_ error: any Error) {
         guard mode == .voiced else { return }
-        logger.error("The voice failed (\(Self.reason(for: error), privacy: .public)); the rest shows unspoken")
-        let unfinishedTurn = queue.cutReturningUnfinishedTurn()
-        silence()
-        mode = .unvoiced
-        eventContinuation.yield(.voiceFailed)
-        if let cut = turns.cut(unfinishedTurn: unfinishedTurn) {
-            logger.notice("Sentence \(cut, privacy: .public) was cut while it played, so it shows again")
-        }
-        showUnshown()
-        if isTextEnded {
-            finish()
-        }
+        logger.error(
+            """
+            The voice failed (\(Self.reason(for: error), privacy: .public)) after \
+            \(self.playedMilliseconds, privacy: .public) ms of sound; it takes no more text
+            """
+        )
+        end()
+        eventContinuation.finish()
+        onFailure?(self)
     }
 
     private func finish() {
-        showUnshown()
         end()
         eventContinuation.yield(.finished)
         eventContinuation.finish()
-    }
-
-    private func showUnshown() {
-        let unshown = turns.takeUnshown()
-        guard unshown.count > 0 else { return }
-        logger.notice("\(unshown.count, privacy: .public) sentences show together, unspoken")
-        unshown.events.forEach { eventContinuation.yield($0) }
     }
 
     private func end() {
