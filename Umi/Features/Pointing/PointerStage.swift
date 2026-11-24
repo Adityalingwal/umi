@@ -1,12 +1,9 @@
 import AppKit
 
 final class PointerStage {
-    private static let fadeOut = Duration.milliseconds(200)
-
     private let panel: PointerPanel
     private let overlay: PointerOverlay
     private let displayFrame: CGRect
-    private var hiding: Task<Void, Never>?
 
     init(panel: PointerPanel, overlay: PointerOverlay, displayFrame: CGRect) {
         self.panel = panel
@@ -34,22 +31,9 @@ final class PointerStage {
         overlay.land()
     }
 
-    func clear(fading: Bool) {
-        if !fading {
-            panel.hide()
-        }
+    func clear() {
+        panel.hide()
         overlay.clear()
-        if fading {
-            hideAfterFade()
-        }
-    }
-
-    private func hideAfterFade() {
-        hiding = Task { [panel, overlay] in
-            try? await Task.sleep(for: Self.fadeOut)
-            guard overlay.travel == nil else { return }
-            panel.hide()
-        }
     }
 
     private func viewPoint(_ screenPoint: CGPoint) -> CGPoint {
