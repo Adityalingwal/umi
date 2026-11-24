@@ -107,7 +107,6 @@ final class Pointing {
     private func land() {
         guard case .travelling(let isAnswerOver) = phase else { return }
         stage.land()
-        stage.mark()
         phase = .marked
         logger.notice("The cursor landed and the mark is on")
         if isAnswerOver {
