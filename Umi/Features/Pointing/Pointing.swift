@@ -78,9 +78,7 @@ final class Pointing {
             phase = .travelling(isAnswerOver: true)
             logger.notice("The answer ended before the cursor landed")
         case .marked:
-            if clearing == nil {
-                clearLater()
-            }
+            clearLater()
         case .waiting:
             end(because: "the answer ended without a location")
         }
