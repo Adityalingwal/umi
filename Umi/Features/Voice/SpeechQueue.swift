@@ -4,7 +4,6 @@ import Synchronization
 nonisolated final class SpeechQueue: Sendable {
     enum Event: Sendable {
         case turnStarted(Int, playedAt: ContinuousClock.Instant)
-        case turnEnded(Int)
         case playedOut
     }
 
@@ -33,12 +32,8 @@ nonisolated final class SpeechQueue: Sendable {
         state.withLock { $0.append(linear16: audio, startingTurn: turn) }
     }
 
-    func millisecondsBeforeTurn(_ turn: Int) -> Int? {
-        state.withLock { $0.samplesBeforeTurn(turn) }.map { $0 * 1_000 / Int(Self.sampleRate) }
-    }
-
-    func turnAudioEnded(_ turn: Int) {
-        state.withLock { $0.turnAudioEnded(turn) }
+    func turnAudioEnded() {
+        state.withLock { $0.turnAudioEnded() }
     }
 
     func audioEnded() {
@@ -90,8 +85,6 @@ private nonisolated struct QueueState {
     private var samples: [Float] = []
     private var turnStarts: [(sample: Int, turn: Int)] = []
     private var nextTurnStart = 0
-    private var turnEnds: [(sample: Int, turn: Int)] = []
-    private var nextTurnEnd = 0
     private var oddByte: UInt8?
     private var wholeTurnsEnd = 0
     private var isPlaying = false
@@ -100,13 +93,6 @@ private nonisolated struct QueueState {
 
     var hasUnplayedSamples: Bool {
         !isCut && played < samples.count
-    }
-
-    func samplesBeforeTurn(_ turn: Int) -> Int? {
-        guard !isCut, let start = turnStarts.last(where: { $0.turn == turn })?.sample, start >= played else {
-            return nil
-        }
-        return start - played
     }
 
     mutating func append(linear16 audio: Data, startingTurn turn: Int?) {
@@ -125,9 +111,8 @@ private nonisolated struct QueueState {
         }
     }
 
-    mutating func turnAudioEnded(_ turn: Int) {
+    mutating func turnAudioEnded() {
         wholeTurnsEnd = samples.count
-        turnEnds.append((samples.count, turn))
     }
 
     mutating func cut() {
@@ -143,7 +128,6 @@ private nonisolated struct QueueState {
         var events: [SpeechQueue.Event] = []
         startIfReady()
         for frame in 0..<frameCount {
-            postTurnEnds(into: &events)
             guard isPlaying, !isCut, played < samples.count else {
                 output[frame] = 0
                 continue
@@ -156,7 +140,6 @@ private nonisolated struct QueueState {
             output[frame] = samples[played]
             played += 1
         }
-        postTurnEnds(into: &events)
         #if DEBUG
         if isRecording, isPlaying, !isCut, !isPlayedOut {
             record.append(contentsOf: UnsafeBufferPointer(start: output, count: frameCount))
@@ -170,17 +153,6 @@ private nonisolated struct QueueState {
             isPlaying = false
         }
         return events
-    }
-
-    private var hasTurnEndDue: Bool {
-        !isCut && nextTurnEnd < turnEnds.count && turnEnds[nextTurnEnd].sample <= played
-    }
-
-    private mutating func postTurnEnds(into events: inout [SpeechQueue.Event]) {
-        while hasTurnEndDue {
-            events.append(.turnEnded(turnEnds[nextTurnEnd].turn))
-            nextTurnEnd += 1
-        }
     }
 
     private static func time(ofFrame frame: Int, after start: ContinuousClock.Instant) -> ContinuousClock.Instant {

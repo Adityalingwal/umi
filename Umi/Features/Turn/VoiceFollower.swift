@@ -21,12 +21,6 @@ struct VoiceFollower {
                 subtitles.show(text)
             case .sentencesShown(let count):
                 board.reveal(sentences: count)
-            case .nameComing(let delay):
-                pointing?.nameComing(after: delay)
-            case .nameStarted:
-                pointing?.nameStarted()
-            case .nameLineEnded:
-                pointing?.nameLineEnded()
             case .finished:
                 hideCursor()
                 subtitles.finish()

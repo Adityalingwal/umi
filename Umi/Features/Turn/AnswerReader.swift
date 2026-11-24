@@ -91,7 +91,7 @@ struct AnswerReader {
                 read(part)
             }
             if let sentence = splitter.flush() {
-                speak(sentence)
+                voice.speak(sentence)
             }
             voice.endText()
         case .drawing:
@@ -135,24 +135,12 @@ struct AnswerReader {
         case .text(let text):
             readText += text
             for sentence in splitter.add(text) {
-                speak(sentence)
+                voice.speak(sentence)
             }
         case .nameStart(let location):
-            let isAimed = pointing?.aim(
-                at: location,
-                pictureWidth: picture.width,
-                pictureHeight: picture.height,
-                opensAnswer: splitter.isAtStart
-            )
-            if isAimed == true {
-                splitter.markName()
-            }
+            pointing?.aim(at: location, pictureWidth: picture.width, pictureHeight: picture.height)
         case .dropped(let problem):
             logger.notice("Location data was dropped: \(String(describing: problem), privacy: .public)")
         }
-    }
-
-    private func speak(_ sentence: SentenceSplitter.Sentence) {
-        voice.speak(sentence.text, nameStart: sentence.nameStart)
     }
 }
