@@ -7,7 +7,8 @@ final class SpokenAnswer {
         case over
     }
 
-    // Aditya's pick from #14's measurements, where the first sound came at most 1.22 s after its sentence's Flush.
+    // Aditya's pick from #14's measurements, where the first sound came at most 1.22 s after a Flush; the wait counts
+    // from a piece's Flush.
     private static let waitingLimit = Duration.seconds(3)
     private static let watchInterval = Duration.milliseconds(100)
 
@@ -54,9 +55,9 @@ final class SpokenAnswer {
         queue.playedSamples * 1_000 / Int(SpeechQueue.sampleRate)
     }
 
-    // While an answer's text is still arriving after its first sound, a pause of the brain looks like a silent voice.
+    // While an answer's piece is open, a pause of the brain looks like a silent voice.
     private var isSilenceJudged: Bool {
-        guard turns.openTurn == nil || !turns.hasStartedPlaying else { return false }
+        guard turns.openTurn == nil else { return false }
         return turns.isAudioOwed || queue.hasUnplayedSamples
     }
 
@@ -130,6 +131,7 @@ final class SpokenAnswer {
     private func closeOpenTurn() {
         guard let turn = turns.close() else { return }
         socket.flush()
+        waitingSince = .now
         let characters = openTurnCharacters
         logger.notice("Piece \(turn, privacy: .public) closed after \(characters, privacy: .public) characters")
         openTurnCharacters = 0

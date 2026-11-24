@@ -12,10 +12,6 @@ struct SpokenTurns {
         turnsEnded < count
     }
 
-    var hasStartedPlaying: Bool {
-        piecesStarted > 0
-    }
-
     mutating func add() -> Int {
         count += 1
         return count - 1
