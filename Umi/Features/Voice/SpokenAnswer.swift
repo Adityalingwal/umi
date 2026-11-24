@@ -91,7 +91,7 @@ final class SpokenAnswer {
             logger.notice("Piece \(turn, privacy: .public) opened for the answer's text")
         }
         guard send(text) else { return }
-        openTurnCharacters += text.count
+        openTurnCharacters += text.unicodeScalars.count
     }
 
     func speak(_ line: String) {
