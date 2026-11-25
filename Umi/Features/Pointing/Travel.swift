@@ -130,7 +130,11 @@ struct Travel {
         let turns = [direction, direction.turnedQuarter, direction.turnedQuarter.turnedQuarter.turnedQuarter,
                      direction.turnedQuarter.turnedQuarter]
         let candidates = turns.map { place.edge(toward: $0, gap: gapOutsideMark) }
-        return candidates.first(where: safeArea.contains) ?? candidates[0]
+        let fallback = candidates[0]
+        return candidates.first(where: safeArea.contains) ?? CGPoint(
+            x: min(max(fallback.x, safeArea.minX), safeArea.maxX),
+            y: min(max(fallback.y, safeArea.minY), safeArea.maxY)
+        )
     }
 }
 

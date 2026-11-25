@@ -1,7 +1,10 @@
 nonisolated struct MarkTag {
-    private static let names = ["point"]
+    enum Name: String, CaseIterable {
+        case point
+        case box
+    }
 
-    let name: String
+    let name: Name
     let location: MarkLocation
     let label: PointLabel?
 
@@ -29,40 +32,46 @@ nonisolated struct MarkTag {
 
     static func mayBecomeTag(_ text: String) -> Bool {
         let lowered = text.lowercased()
-        return names.contains { "<\($0)".hasPrefix(lowered) || "</\($0)".hasPrefix(lowered) } || isTag(lowered)
+        return Name.allCases.contains { "<\($0.rawValue)".hasPrefix(lowered) || "</\($0.rawValue)".hasPrefix(lowered) }
+            || isTag(lowered)
     }
 
     static func startsOpening(_ text: some StringProtocol) -> Bool {
         let lowered = text.lowercased()
-        return names.contains { lowered.hasPrefix("<\($0)") }
+        return Name.allCases.contains { lowered.hasPrefix("<\($0.rawValue)") }
     }
 
     static func isClosing(_ tag: String) -> Bool {
         tag.hasPrefix("</")
     }
 
-    static func closes(_ tag: String, named name: String) -> Bool {
+    static func closes(_ tag: String, named name: Name) -> Bool {
         let lowered = tag.lowercased()
-        guard lowered.hasPrefix("</\(name)") else { return false }
-        return lowered.dropFirst(name.count + 2).drop(while: \.isWhitespace) == ">"
+        let closing = "</\(name.rawValue)"
+        guard lowered.hasPrefix(closing) else { return false }
+        return lowered.dropFirst(closing.count).drop(while: \.isWhitespace) == ">"
     }
 
-    private static func name(after opening: String, in text: some StringProtocol) -> String? {
+    private static func name(after opening: String, in text: some StringProtocol) -> Name? {
         let lowered = text.lowercased()
-        return names.first { name in
-            guard lowered.hasPrefix(opening + name), let next = lowered.dropFirst(opening.count + name.count).first
-            else { return false }
+        return Name.allCases.first { name in
+            let start = opening + name.rawValue
+            guard lowered.hasPrefix(start), let next = lowered.dropFirst(start.count).first else { return false }
             return next.isWhitespace || next == "/" || next == ">"
         }
     }
 
-    private static func location(named name: String, in tag: String) -> MarkLocation? {
+    private static func location(named name: Name, in tag: String) -> MarkLocation? {
         switch name {
-        case "point":
+        case .point:
             guard let values = numbers(["x", "y"], in: tag) else { return nil }
             return .point(PointLocation(pixelX: values[0], pixelY: values[1]))
-        default:
-            return nil
+        case .box:
+            guard let values = numbers(["x1", "y1", "x2", "y2"], in: tag) else { return nil }
+            return .box(BoxLocation(
+                corner: PointLocation(pixelX: values[0], pixelY: values[1]),
+                oppositeCorner: PointLocation(pixelX: values[2], pixelY: values[3])
+            ))
         }
     }
 

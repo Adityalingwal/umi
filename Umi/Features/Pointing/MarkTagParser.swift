@@ -15,7 +15,7 @@ nonisolated struct MarkTagParser {
 
     private var buffer = ""
     private var waitingMark: MarkTag?
-    private var openName: String?
+    private var openName: MarkTag.Name?
 
     mutating func add(_ piece: String) -> [Part] {
         buffer += piece

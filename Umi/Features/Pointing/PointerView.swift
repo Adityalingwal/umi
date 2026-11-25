@@ -4,18 +4,20 @@ struct PointerView: View {
     @Environment(PointerOverlay.self) private var overlay
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            ForEach(overlay.marks) { mark in
-                MarkView(place: mark.place)
-                    .transition(.opacity.combined(with: .scale(scale: 0.6)))
+        GeometryReader { geometry in
+            ZStack(alignment: .topLeading) {
+                ForEach(overlay.marks) { mark in
+                    MarkView(place: mark.place, within: CGRect(origin: .zero, size: geometry.size))
+                        .transition(.opacity.combined(with: .scale(scale: 0.6)))
+                }
+                MarkLabels(marks: overlay.marks)
+                if let travel = overlay.travel {
+                    TravellingArrow(travel: travel, isLanded: overlay.isLanded)
+                        .transition(.opacity)
+                }
             }
-            MarkLabels(marks: overlay.marks)
-            if let travel = overlay.travel {
-                TravellingArrow(travel: travel, isLanded: overlay.isLanded)
-                    .transition(.opacity)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .animation(.easeOut(duration: 0.15), value: overlay.marks.count)
         .animation(.easeOut(duration: 0.15), value: overlay.travel == nil)
     }
