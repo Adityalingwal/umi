@@ -15,10 +15,10 @@ final class PointerStage {
         CGRect(origin: .zero, size: displayFrame.size)
     }
 
-    func fly(to target: CGPoint, label: PointLabel?, startingFrom rest: CGPoint) -> Duration {
+    func fly(to target: CGPoint, label: PointLabel?, startingFrom rest: CGPoint, taking fixed: Duration?) -> Duration {
         let start = overlay.travel?.arrowTip ?? viewPointOnDisplay(rest)
         let end = viewPoint(target)
-        let duration = Travel.usualDuration(from: start, to: end)
+        let duration = fixed ?? Travel.usualDuration(from: start, to: end)
         let travel = Travel(
             from: start,
             turningFrom: overlay.travel?.angle(at: 1),
@@ -33,12 +33,12 @@ final class PointerStage {
     }
 
     func goHome(to rest: CGPoint) -> Duration {
-        guard let last = overlay.travel else { return .zero }
         let home = viewPointOnDisplay(rest)
-        let duration = Travel.usualDuration(from: last.arrowTip, to: home)
+        let start = overlay.travel?.arrowTip ?? home
+        let duration = overlay.travel == nil ? .zero : Travel.usualDuration(from: start, to: home)
         let travel = Travel(
-            from: last.arrowTip,
-            turningFrom: last.angle(at: 1),
+            from: start,
+            turningFrom: overlay.travel?.angle(at: 1),
             homeTo: home,
             duration: duration,
             startingAt: .now
@@ -47,8 +47,19 @@ final class PointerStage {
         return duration
     }
 
-    func landOnMark(waitingAt targets: [CGPoint]) {
-        overlay.land(avoiding: targets.map(viewPoint))
+    func landOnMark(numbered number: Int, waitingAt targets: [CGPoint]) {
+        overlay.landOnMark(numbered: number, avoiding: targets.map(viewPoint))
+    }
+
+    func clearMarks(numbered numbers: [Int]) {
+        overlay.remove(marksNumbered: numbers)
+    }
+
+    func hideArrow() {
+        overlay.hideArrow()
+        if overlay.marks.isEmpty {
+            panel.hide()
+        }
     }
 
     func landHome() {

@@ -7,18 +7,15 @@ final class Pointing {
         case travelling
         case resting
         case onLastMark
+        case arrowHidden
         case goingHome
         case home
         case over
     }
 
-    private struct WaitingMark {
-        let number: Int
-        let target: CGPoint
-        let label: PointLabel?
-    }
-
     private static let restOnMark = Duration.milliseconds(300)
+    // A flight after the arrow hid starts beside the pointer where the click was; its length must not tell how far.
+    private static let flightAfterHiding = Duration.milliseconds(500)
 
     private let stage: PointerStage
     private let displayFrame: CGRect
@@ -30,7 +27,8 @@ final class Pointing {
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
     private var phase = Phase.waiting
-    private var waitingMarks: [WaitingMark] = []
+    private var waitingMarks: [AnswerMark] = []
+    private var marksOnScreen: [AnswerMark] = []
     private var marksInHand = 0
     private var marksShown = 0
     private var hasTextEnded = false
@@ -52,7 +50,7 @@ final class Pointing {
 
     var isShowing: Bool {
         switch phase {
-        case .travelling, .resting, .onLastMark, .goingHome, .home: true
+        case .travelling, .resting, .onLastMark, .arrowHidden, .goingHome, .home: true
         case .waiting, .over: false
         }
     }
@@ -71,7 +69,7 @@ final class Pointing {
         case .over, .goingHome, .home:
             logger.notice("A location came after pointing had ended, so it is ignored")
             return
-        case .waiting, .travelling, .resting, .onLastMark:
+        case .waiting, .travelling, .resting, .onLastMark, .arrowHidden:
             break
         }
         let mapping = ScreenMapping(
@@ -84,12 +82,12 @@ final class Pointing {
             return
         }
         marksInHand += 1
-        waitingMarks.append(WaitingMark(number: marksInHand, target: target, label: label))
+        waitingMarks.append(AnswerMark(number: marksInHand, target: target, label: label))
         logger.notice(
             "Mark \(self.marksInHand, privacy: .public) is in hand; a label: \(label != nil, privacy: .public)"
         )
         switch phase {
-        case .waiting, .onLastMark:
+        case .waiting, .onLastMark, .arrowHidden:
             flyToNextMark()
         case .travelling, .resting:
             logger.notice("The arrow is busy, so mark \(self.marksInHand, privacy: .public) waits its turn")
@@ -100,14 +98,15 @@ final class Pointing {
 
     func answerTextEnded() {
         hasTextEnded = true
-        if case .onLastMark = phase, marksShown > 1 {
+        endIfAnswerIsDone()
+        if [.onLastMark, .arrowHidden].contains(phase), marksShown > 1 {
             goHome()
         }
     }
 
     func answerEnded() {
         switch phase {
-        case .travelling, .resting, .onLastMark, .goingHome, .home, .over:
+        case .travelling, .resting, .onLastMark, .arrowHidden, .goingHome, .home, .over:
             return
         case .waiting:
             end(because: "the answer ended without a location")
@@ -121,7 +120,8 @@ final class Pointing {
     private func flyToNextMark() {
         let mark = waitingMarks.removeFirst()
         let isFirst = marksShown == 0
-        let duration = stage.fly(to: mark.target, label: mark.label, startingFrom: cursorRest())
+        let fixed = phase == .arrowHidden ? Self.flightAfterHiding : nil
+        let duration = stage.fly(to: mark.target, label: mark.label, startingFrom: cursorRest(), taking: fixed)
         if isFirst {
             onDepart()
         }
@@ -132,19 +132,74 @@ final class Pointing {
         nextStep = after(duration) { $0.land(mark) }
     }
 
-    private func land(_ mark: WaitingMark) {
+    private func land(_ mark: AnswerMark) {
         guard case .travelling = phase else { return }
-        stage.landOnMark(waitingAt: waitingMarks.map(\.target))
+        stage.landOnMark(numbered: mark.number, waitingAt: waitingMarks.map(\.target))
+        marksOnScreen.append(mark)
         marksShown += 1
         phase = .resting
         logger.notice("The arrow landed and mark \(mark.number, privacy: .public) is on")
         if !clicks.isWatching {
-            clicks.start { [weak self] in
-                self?.end(because: "the user clicked")
+            clicks.start { [weak self] press in
+                self?.clicked(at: press)
             }
             logger.notice("The click watch started")
         }
         nextStep = after(Self.restOnMark) { $0.leaveMark() }
+    }
+
+    private func clicked(at press: CGPoint) {
+        guard !marksOnScreen.isEmpty else { return }
+        let cleared = marksOnScreen.filter { $0.isUnder(press) }
+        guard !cleared.isEmpty else {
+            logger.notice("A click landed elsewhere")
+            end(because: "the user clicked elsewhere")
+            return
+        }
+        clear(cleared)
+    }
+
+    private func clear(_ cleared: [AnswerMark]) {
+        let numbers = cleared.map(\.number)
+        marksOnScreen.removeAll { numbers.contains($0.number) }
+        stage.clearMarks(numbered: numbers)
+        let gone = cleared.count
+        let left = marksOnScreen.count
+        logger.notice("A click landed on a mark; cleared: \(gone, privacy: .public), left: \(left, privacy: .public)")
+        if numbers.contains(marksShown) {
+            hideArrowBesideClearedMark()
+        }
+        guard marksOnScreen.isEmpty else { return }
+        stopClickWatch()
+        endIfAnswerIsDone()
+    }
+
+    private func hideArrowBesideClearedMark() {
+        switch phase {
+        case .resting, .onLastMark:
+            break
+        case .waiting, .travelling, .arrowHidden, .goingHome, .home, .over:
+            return
+        }
+        nextStep?.cancel()
+        stage.hideArrow()
+        phase = .arrowHidden
+        logger.notice("The mark beside the arrow was cleared, so the arrow hides")
+        if !waitingMarks.isEmpty {
+            flyToNextMark()
+        } else if hasTextEnded, marksShown > 1, !marksOnScreen.isEmpty {
+            goHome()
+        }
+    }
+
+    private func endIfAnswerIsDone() {
+        guard hasTextEnded, marksOnScreen.isEmpty, waitingMarks.isEmpty else { return }
+        switch phase {
+        case .resting, .onLastMark, .arrowHidden, .goingHome, .home:
+            end(because: "the last mark was cleared and the answer's text has ended")
+        case .waiting, .travelling, .over:
+            break
+        }
     }
 
     private func leaveMark() {
@@ -163,6 +218,7 @@ final class Pointing {
         phase = .goingHome
         let time = Self.milliseconds(duration)
         logger.notice("The last mark is visited; the arrow goes home, arriving in \(time, privacy: .public) ms")
+        guard duration > .zero else { return arriveHome() }
         nextStep = after(duration) { $0.arriveHome() }
     }
 
@@ -190,19 +246,23 @@ final class Pointing {
         }
     }
 
+    private func stopClickWatch() {
+        guard clicks.isWatching else { return }
+        clicks.stop()
+        logger.notice("The click watch stopped")
+    }
+
     private func end(because reason: String) {
         if case .over = phase { return }
         let wasShowing = isShowing
         phase = .over
         nextStep?.cancel()
         waitingMarks = []
+        marksOnScreen = []
         appSwitches.stop()
         scrolls.stop()
         pointerMoves.stop()
-        if clicks.isWatching {
-            clicks.stop()
-            logger.notice("The click watch stopped")
-        }
+        stopClickWatch()
         if wasShowing {
             stage.clear()
         }
