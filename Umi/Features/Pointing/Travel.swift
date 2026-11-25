@@ -109,7 +109,7 @@ struct Travel {
     }
 
     // A flight that starts inside its box moves away from the box's centre, so it steers along its path
-    // and turns to face the box over its last quarter.
+    // and turns to face the box over its last quarter, in one direction chosen once.
     private func heading(at progress: Double) -> Double {
         if isGoingHome {
             return headingAlongPath(at: progress)
@@ -118,7 +118,7 @@ struct Travel {
         let arriving = 1 - Self.turningShare
         guard progress > arriving else { return headingAlongPath(at: progress) }
         let share = (progress - arriving) / Self.turningShare
-        return Self.turn(from: headingAlongPath(at: progress), to: headingToTarget(at: progress), share: share)
+        return Self.turn(from: headingAlongPath(at: arriving), to: headingToTarget(at: 1), share: share)
     }
 
     private static func isBox(_ place: MarkPlace, holding point: CGPoint) -> Bool {
