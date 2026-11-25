@@ -220,6 +220,7 @@ final class Pointing {
         phase = .goingHome
         let time = Self.milliseconds(duration)
         logger.notice("The last mark is visited; the arrow goes home, arriving in \(time, privacy: .public) ms")
+        guard duration > .zero else { return arriveHome() }
         nextStep = after(duration) { $0.arriveHome() }
     }
 

@@ -35,7 +35,7 @@ final class PointerStage {
     func goHome(to rest: CGPoint) -> Duration {
         let home = viewPointOnDisplay(rest)
         let start = overlay.travel?.arrowTip ?? home
-        let duration = Travel.usualDuration(from: start, to: home)
+        let duration = overlay.travel == nil ? .zero : Travel.usualDuration(from: start, to: home)
         let travel = Travel(
             from: start,
             turningFrom: overlay.travel?.angle(at: 1),
