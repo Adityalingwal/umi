@@ -5,16 +5,19 @@ nonisolated enum MarkPlace: Sendable {
     static let strokeWidth = 5.0
     // A stroke lies just under its line of text; this is about how far that text reaches above it.
     static let textAboveStroke = 18.0
+    static let dropBoxSide = 36.0
 
     case ring(CGPoint)
     case box(CGRect)
     case stroke(start: CGPoint, end: CGPoint)
+    case drag(start: CGPoint, end: CGPoint)
 
     var kindName: String {
         switch self {
         case .ring: "a ring"
         case .box: "a box"
         case .stroke: "a stroke"
+        case .drag: "a drag"
         }
     }
 
@@ -24,7 +27,7 @@ nonisolated enum MarkPlace: Sendable {
             center
         case .box(let frame):
             CGPoint(x: frame.midX, y: frame.midY)
-        case .stroke(let start, _):
+        case .stroke(let start, _), .drag(let start, _):
             start
         }
     }
@@ -32,25 +35,32 @@ nonisolated enum MarkPlace: Sendable {
     var frame: CGRect {
         switch self {
         case .ring(let center):
-            CGRect(
-                x: center.x - Self.ringDiameter / 2,
-                y: center.y - Self.ringDiameter / 2,
-                width: Self.ringDiameter,
-                height: Self.ringDiameter
-            )
+            CGRect(square: Self.ringDiameter, around: center)
         case .box(let frame):
             frame
         case .stroke(let start, let end):
             CGRect(corner: start, opposite: end).insetBy(dx: -Self.strokeWidth / 2, dy: -Self.strokeWidth / 2)
+        case .drag(let start, let end):
+            CGRect(square: Self.ringDiameter, around: start).union(CGRect(square: Self.dropBoxSide, around: end))
         }
     }
 
-    // The arrow waits before a stroke's start, on the line's own path, so it covers none of the words.
+    var dropBox: CGRect? {
+        guard case .drag(_, let end) = self else { return nil }
+        return CGRect(square: Self.dropBoxSide, around: end)
+    }
+
+    // The arrow waits before a stroke's start, on the line's own path, so it covers none of the words,
+    // and behind a drag's ring, away from the drop place, so it covers none of the drag's arrow.
     var landingDirection: CGVector? {
-        guard case .stroke(let start, let end) = self else { return nil }
-        let away = CGVector(dx: start.x - end.x, dy: start.y - end.y)
-        let length = hypot(away.dx, away.dy)
-        return CGVector(dx: away.dx / length, dy: away.dy / length)
+        switch self {
+        case .ring, .box:
+            return nil
+        case .stroke(let start, let end), .drag(let start, let end):
+            let away = CGVector(dx: start.x - end.x, dy: start.y - end.y)
+            let length = hypot(away.dx, away.dy)
+            return CGVector(dx: away.dx / length, dy: away.dy / length)
+        }
     }
 
     func mapped(_ transform: (CGPoint) -> CGPoint) -> MarkPlace {
@@ -64,12 +74,14 @@ nonisolated enum MarkPlace: Sendable {
             ))
         case .stroke(let start, let end):
             .stroke(start: transform(start), end: transform(end))
+        case .drag(let start, let end):
+            .drag(start: transform(start), end: transform(end))
         }
     }
 
     func edge(toward direction: CGVector, gap: Double) -> CGPoint {
         let reach = switch self {
-        case .ring:
+        case .ring, .drag:
             Self.ringDiameter / 2 + gap
         case .box(let frame):
             min(
@@ -88,6 +100,10 @@ nonisolated enum MarkPlace: Sendable {
 }
 
 nonisolated extension CGRect {
+    init(square side: Double, around center: CGPoint) {
+        self.init(x: center.x - side / 2, y: center.y - side / 2, width: side, height: side)
+    }
+
     init(corner: CGPoint, opposite: CGPoint) {
         self.init(
             x: min(corner.x, opposite.x),

@@ -3,6 +3,7 @@ nonisolated struct MarkTag {
         case point
         case box
         case stroke
+        case arrow
     }
 
     let name: Name
@@ -76,6 +77,12 @@ nonisolated struct MarkTag {
         case .stroke:
             guard let values = numbers(["x1", "y1", "x2", "y2"], in: tag) else { return nil }
             return .stroke(StrokeLocation(
+                start: PointLocation(pixelX: values[0], pixelY: values[1]),
+                end: PointLocation(pixelX: values[2], pixelY: values[3])
+            ))
+        case .arrow:
+            guard let values = numbers(["x1", "y1", "x2", "y2"], in: tag) else { return nil }
+            return .drag(DragLocation(
                 start: PointLocation(pixelX: values[0], pixelY: values[1]),
                 end: PointLocation(pixelX: values[2], pixelY: values[3])
             ))

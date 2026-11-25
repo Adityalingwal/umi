@@ -17,6 +17,9 @@ struct AnswerMark {
             frame.insetBy(dx: -Self.boxReach, dy: -Self.boxReach).contains(press)
         case .stroke(let start, let end):
             isOnStroke(press, from: start, to: end)
+        case .drag(let start, _):
+            hypot(press.x - start.x, press.y - start.y) <= Self.ringReach
+                || place.dropBox?.insetBy(dx: -Self.boxReach, dy: -Self.boxReach).contains(press) == true
         }
     }
 
