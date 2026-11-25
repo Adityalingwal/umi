@@ -50,7 +50,7 @@ final class Pointing {
         }
     }
 
-    func aim(at location: PointLocation, pictureWidth: Int, pictureHeight: Int) {
+    func aim(at location: PointLocation, label: PointLabel?, pictureWidth: Int, pictureHeight: Int) {
         guard case .waiting = phase else {
             logger.notice("A location came after pointing had ended, so it is ignored")
             return
@@ -64,8 +64,8 @@ final class Pointing {
             end(because: "the location is outside the screen picture")
             return
         }
-        logger.notice("The location is in hand, so the cursor leaves now")
-        depart(to: target)
+        logger.notice("The location is in hand, so the cursor leaves now; a label: \(label != nil, privacy: .public)")
+        depart(to: target, label: label)
     }
 
     func answerEnded() {
@@ -81,10 +81,10 @@ final class Pointing {
         end(because: "the question stopped")
     }
 
-    private func depart(to target: CGPoint) {
+    private func depart(to target: CGPoint, label: PointLabel?) {
         let rest = cursorRest()
         let duration = stage.usualTravelTime(from: rest, to: target)
-        stage.travel(from: rest, to: target, taking: duration)
+        stage.travel(from: rest, to: target, taking: duration, label: label)
         onDepart()
         phase = .travelling
         logger.notice("The cursor left; it lands in \(Self.milliseconds(duration), privacy: .public) ms")

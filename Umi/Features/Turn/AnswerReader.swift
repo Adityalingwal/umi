@@ -136,8 +136,8 @@ struct AnswerReader {
         case .text(let text):
             readText += text
             voice.stream(text)
-        case .nameStart(let location):
-            pointing?.aim(at: location, pictureWidth: picture.width, pictureHeight: picture.height)
+        case let .nameStart(location, label):
+            pointing?.aim(at: location, label: label, pictureWidth: picture.width, pictureHeight: picture.height)
         case .dropped(let problem):
             logger.notice("Location data was dropped: \(String(describing: problem), privacy: .public)")
         }
