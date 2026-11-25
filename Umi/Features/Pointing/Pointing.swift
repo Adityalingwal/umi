@@ -133,7 +133,7 @@ final class Pointing {
 
     private func land(_ mark: WaitingMark) {
         guard case .travelling = phase else { return }
-        stage.land()
+        stage.landOnMark(waitingAt: waitingMarks.map(\.target))
         marksShown += 1
         phase = .resting
         logger.notice("The arrow landed and mark \(mark.number, privacy: .public) is on")
@@ -167,7 +167,7 @@ final class Pointing {
 
     private func arriveHome() {
         guard case .goingHome = phase else { return }
-        stage.land()
+        stage.landHome()
         phase = .home
         logger.notice("The arrow is back at its rest by the pointer")
     }

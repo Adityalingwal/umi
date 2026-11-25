@@ -47,7 +47,11 @@ final class PointerStage {
         return duration
     }
 
-    func land() {
+    func landOnMark(waitingAt targets: [CGPoint]) {
+        overlay.land(avoiding: targets.map(viewPoint))
+    }
+
+    func landHome() {
         overlay.land()
     }
 

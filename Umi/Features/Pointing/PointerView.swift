@@ -9,11 +9,8 @@ struct PointerView: View {
                 MarkRing()
                     .position(mark.target)
                     .transition(.opacity.combined(with: .scale(scale: 0.6)))
-                if let label = mark.label {
-                    MarkLabel(label: label, mark: mark)
-                        .transition(.opacity)
-                }
             }
+            MarkLabels(marks: overlay.marks)
             if let travel = overlay.travel {
                 TravellingArrow(travel: travel, isLanded: overlay.isLanded)
                     .transition(.opacity)

@@ -1,3 +1,4 @@
+import CoreGraphics
 import Observation
 
 @Observable
@@ -13,11 +14,17 @@ final class PointerOverlay {
         isLanded = false
     }
 
-    func land() {
+    func land(avoiding waitingRings: [CGPoint] = []) {
         guard let travel else { return }
         isLanded = true
         guard !travel.isGoingHome else { return }
-        marks.append(ScreenMark(id: marks.count, target: travel.target, arrowTip: travel.arrowTip, label: travelLabel))
+        marks.append(ScreenMark(
+            id: marks.count,
+            target: travel.target,
+            arrowTip: travel.arrowTip,
+            label: travelLabel,
+            otherRings: marks.map(\.target) + waitingRings
+        ))
     }
 
     func clear() {
