@@ -31,6 +31,13 @@ struct MarkView: View {
             MarkDrag(start: start, end: end, origin: drawn.origin)
                 .frame(width: drawn.width, height: drawn.height)
                 .position(x: drawn.midX, y: drawn.midY)
+        case .shape(let start, let others):
+            let corners = ([start] + others).map(keptOnScreen)
+            let drawn = CGRect(enclosing: corners)
+                .insetBy(dx: -MarkPlace.strokeWidth / 2, dy: -MarkPlace.strokeWidth / 2)
+            MarkOutline(corners: corners, origin: drawn.origin)
+                .frame(width: drawn.width, height: drawn.height)
+                .position(x: drawn.midX, y: drawn.midY)
         }
     }
 
@@ -150,6 +157,31 @@ private nonisolated struct DragShaft: Shape {
                 y: tip.y + sin(back + side) * Self.headLength
             ))
         }
+        return path
+    }
+}
+
+private struct MarkOutline: View {
+    let corners: [CGPoint]
+    let origin: CGPoint
+
+    var body: some View {
+        let outline = ClosedOutline(corners: corners.map { CGPoint(x: $0.x - origin.x, y: $0.y - origin.y) })
+        ZStack {
+            outline.stroke(.black.opacity(0.55), style: StrokeStyle(lineWidth: MarkPlace.strokeWidth, lineJoin: .round))
+            outline.stroke(.white, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private nonisolated struct ClosedOutline: Shape {
+    let corners: [CGPoint]
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addLines(corners)
+        path.closeSubpath()
         return path
     }
 }

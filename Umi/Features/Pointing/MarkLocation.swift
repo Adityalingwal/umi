@@ -3,4 +3,5 @@ nonisolated enum MarkLocation: Equatable, Sendable {
     case box(BoxLocation)
     case stroke(StrokeLocation)
     case drag(DragLocation)
+    case shape(ShapeLocation)
 }

@@ -11,6 +11,7 @@ nonisolated enum MarkPlace: Sendable {
     case box(CGRect)
     case stroke(start: CGPoint, end: CGPoint)
     case drag(start: CGPoint, end: CGPoint)
+    case shape(start: CGPoint, others: [CGPoint])
 
     var kindName: String {
         switch self {
@@ -18,6 +19,7 @@ nonisolated enum MarkPlace: Sendable {
         case .box: "a box"
         case .stroke: "a stroke"
         case .drag: "a drag"
+        case .shape: "a free shape"
         }
     }
 
@@ -27,7 +29,7 @@ nonisolated enum MarkPlace: Sendable {
             center
         case .box(let frame):
             CGPoint(x: frame.midX, y: frame.midY)
-        case .stroke(let start, _), .drag(let start, _):
+        case .stroke(let start, _), .drag(let start, _), .shape(let start, _):
             start
         }
     }
@@ -42,6 +44,8 @@ nonisolated enum MarkPlace: Sendable {
             CGRect(corner: start, opposite: end).insetBy(dx: -Self.strokeWidth / 2, dy: -Self.strokeWidth / 2)
         case .drag(let start, let end):
             CGRect(square: Self.ringDiameter, around: start).union(CGRect(square: Self.dropBoxSide, around: end))
+        case .shape(let start, let others):
+            CGRect(enclosing: [start] + others)
         }
     }
 
@@ -52,14 +56,15 @@ nonisolated enum MarkPlace: Sendable {
 
     // The arrow waits before a stroke's start, on the line's own path, so it covers none of the words,
     // and behind a drag's ring, away from the drop place, so it covers none of the drag's arrow.
+    // At a free shape it waits outside its first point, away from the shape's middle.
     var landingDirection: CGVector? {
         switch self {
         case .ring, .box:
             return nil
         case .stroke(let start, let end), .drag(let start, let end):
-            let away = CGVector(dx: start.x - end.x, dy: start.y - end.y)
-            let length = hypot(away.dx, away.dy)
-            return CGVector(dx: away.dx / length, dy: away.dy / length)
+            return Self.unit(from: end, to: start)
+        case .shape(let start, _):
+            return Self.unit(from: CGPoint(x: frame.midX, y: frame.midY), to: start)
         }
     }
 
@@ -76,6 +81,8 @@ nonisolated enum MarkPlace: Sendable {
             .stroke(start: transform(start), end: transform(end))
         case .drag(let start, let end):
             .drag(start: transform(start), end: transform(end))
+        case .shape(let start, let others):
+            .shape(start: transform(start), others: others.map(transform))
         }
     }
 
@@ -88,10 +95,17 @@ nonisolated enum MarkPlace: Sendable {
                 Self.reach(frame.width / 2 + gap, along: direction.dx),
                 Self.reach(frame.height / 2 + gap, along: direction.dy)
             )
-        case .stroke:
+        case .stroke, .shape:
             gap
         }
         return CGPoint(x: aimPoint.x + direction.dx * reach, y: aimPoint.y + direction.dy * reach)
+    }
+
+    private static func unit(from origin: CGPoint, to point: CGPoint) -> CGVector? {
+        let away = CGVector(dx: point.x - origin.x, dy: point.y - origin.y)
+        let length = hypot(away.dx, away.dy)
+        guard length > 0.5 else { return nil }
+        return CGVector(dx: away.dx / length, dy: away.dy / length)
     }
 
     private static func reach(_ halfSide: Double, along step: Double) -> Double {
@@ -110,6 +124,15 @@ nonisolated extension CGRect {
             y: min(corner.y, opposite.y),
             width: abs(opposite.x - corner.x),
             height: abs(opposite.y - corner.y)
+        )
+    }
+
+    init(enclosing points: [CGPoint]) {
+        let across = points.map(\.x)
+        let down = points.map(\.y)
+        self.init(
+            corner: CGPoint(x: across.min() ?? 0, y: down.min() ?? 0),
+            opposite: CGPoint(x: across.max() ?? 0, y: down.max() ?? 0)
         )
     }
 }

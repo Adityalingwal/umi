@@ -12,6 +12,8 @@ nonisolated struct MarkTagParser {
     }
 
     private static let longestTag = 200
+    // A free shape's opening tag with twelve points and a long label is about 230 characters.
+    private static let longestShapeTag = 400
 
     private var buffer = ""
     private var waitingMark: MarkTag?
@@ -37,8 +39,9 @@ nonisolated struct MarkTagParser {
             emit(String(buffer[..<open]), into: &parts)
             buffer = String(buffer[open...])
             let text = buffer
+            let longest = Self.longestTag(startingWith: text)
             let brackets = text.indices.dropFirst().lazy.filter { "<>".contains(text[$0]) }
-            let mustDecide = isFinal || text.count > Self.longestTag
+            let mustDecide = isFinal || text.count > longest
             let end = brackets.first { !Self.endsInsideLabel(text[..<$0]) || MarkTag.opens(text[$0...]) }
                 ?? (mustDecide ? brackets.first : nil)
             guard let end, buffer[end] == ">" else {
@@ -46,7 +49,7 @@ nonisolated struct MarkTagParser {
                     emitOpeningBracket(into: &parts)
                 } else if let end {
                     dropUnclosedTag(before: end, isCutOff: false, into: &parts)
-                } else if isFinal || buffer.count > Self.longestTag {
+                } else if isFinal || buffer.count > longest {
                     dropUnclosedTag(before: buffer.endIndex, isCutOff: isFinal, into: &parts)
                 } else {
                     return parts
@@ -79,6 +82,10 @@ nonisolated struct MarkTagParser {
         if keepsRest {
             emit(String(rest), into: &parts)
         }
+    }
+
+    private static func longestTag(startingWith text: String) -> Int {
+        text.lowercased().hasPrefix("<\(MarkTag.Name.shape.rawValue)") ? longestShapeTag : longestTag
     }
 
     // A tag cut off by the answer's end may stop inside its attributes, and those letters are not a name.

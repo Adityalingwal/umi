@@ -108,9 +108,9 @@ struct Travel {
         return Self.turn(from: startAngle, to: heading, share: progress / Self.turningShare)
     }
 
-    // A flight that starts inside its box, or beyond a stroke's or a drag's start from where it lands, passes the
-    // point it aims at, so facing that point all the way would swing it round at the end. It steers along its path
-    // instead and turns to face the point over its last quarter, in one direction chosen once.
+    // A flight that starts inside its box, or beyond a stroke's, a drag's or a free shape's start from where it lands,
+    // passes the point it aims at, so facing that point all the way would swing it round at the end. It steers along
+    // its path instead and turns to face the point over its last quarter, in one direction chosen once.
     private func heading(at progress: Double) -> Double {
         if isGoingHome {
             return headingAlongPath(at: progress)
@@ -128,7 +128,7 @@ struct Travel {
             return false
         case .box(let frame):
             return frame.contains(point)
-        case .stroke, .drag:
+        case .stroke, .drag, .shape:
             guard let landingSide = place.landingDirection else { return false }
             let aim = place.aimPoint
             return (point.x - aim.x) * landingSide.dx + (point.y - aim.y) * landingSide.dy <= 0

@@ -4,7 +4,10 @@ nonisolated struct MarkTag {
         case box
         case stroke
         case arrow
+        case shape
     }
+
+    private static let fewestShapePoints = 3
 
     let name: Name
     let location: MarkLocation
@@ -86,6 +89,20 @@ nonisolated struct MarkTag {
                 start: PointLocation(pixelX: values[0], pixelY: values[1]),
                 end: PointLocation(pixelX: values[2], pixelY: values[3])
             ))
+        case .shape:
+            guard let points = points(in: tag), points.count >= fewestShapePoints else { return nil }
+            return .shape(ShapeLocation(points: points))
+        }
+    }
+
+    private static func points(in tag: String) -> [PointLocation]? {
+        let written = tag.matches(of: /\bpoints\s*=\s*(?:"([^"]*)"|'([^']*)')/.ignoresCase())
+        guard written.count == 1, let list = written[0].output.1 ?? written[0].output.2 else { return nil }
+        let pair = /(-?[0-9]+(?:\.[0-9]+)?)\s*,\s*(-?[0-9]+(?:\.[0-9]+)?)/
+        guard list.replacing(pair, with: " ").allSatisfy(\.isWhitespace) else { return nil }
+        return list.matches(of: pair).compactMap { match in
+            guard let pixelX = Double(match.output.1), let pixelY = Double(match.output.2) else { return nil }
+            return PointLocation(pixelX: pixelX, pixelY: pixelY)
         }
     }
 
