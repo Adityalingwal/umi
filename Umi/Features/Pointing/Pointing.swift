@@ -31,7 +31,6 @@ final class Pointing {
     private var marksOnScreen: [AnswerMark] = []
     private var marksInHand = 0
     private var marksShown = 0
-    private var lastLanded: Int?
     private var hasTextEnded = false
     private var nextStep: Task<Void, Never>?
 
@@ -137,7 +136,6 @@ final class Pointing {
         guard case .travelling = phase else { return }
         stage.landOnMark(numbered: mark.number, waitingAt: waitingMarks.map(\.target))
         marksOnScreen.append(mark)
-        lastLanded = mark.number
         marksShown += 1
         phase = .resting
         logger.notice("The arrow landed and mark \(mark.number, privacy: .public) is on")
@@ -168,7 +166,7 @@ final class Pointing {
         let gone = cleared.count
         let left = marksOnScreen.count
         logger.notice("A click landed on a mark; cleared: \(gone, privacy: .public), left: \(left, privacy: .public)")
-        if let lastLanded, numbers.contains(lastLanded) {
+        if numbers.contains(marksShown) {
             hideArrowBesideClearedMark()
         }
         guard marksOnScreen.isEmpty else { return }
