@@ -221,6 +221,7 @@ final class Turn {
             return
         } catch {
             guard !Task.isCancelled else { return }
+            pointing?.stop()
             stop(because: error, voice: voice)
         }
     }
