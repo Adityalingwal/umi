@@ -170,6 +170,7 @@ final class Pointing {
         guard case .goingHome = phase else { return }
         stage.landHome()
         phase = .home
+        keepHomeBesidePointer()
         pointerMoves.start { [weak self] in
             self?.keepHomeBesidePointer()
         }
