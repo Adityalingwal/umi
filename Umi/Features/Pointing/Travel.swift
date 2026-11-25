@@ -2,18 +2,16 @@ import CoreGraphics
 import Foundation
 
 struct Travel {
-    static let ringDiameter = 34.0
-
-    private static let gapOutsideRing = 6.0
+    private static let gapOutsideMark = 6.0
     private static let arrowLength = 22.0
     private static let bend = 0.15
     private static let turningShare = 0.25
 
-    let target: CGPoint
     let duration: Duration
     let arrowTip: CGPoint
     let isGoingHome: Bool
 
+    private let target: CGPoint
     private let start: CGPoint
     private let bendPoint: CGPoint
     private let startDate: Date
@@ -22,7 +20,7 @@ struct Travel {
     init(
         from start: CGPoint,
         turningFrom startAngle: Double?,
-        toMarkAt target: CGPoint,
+        toMark place: MarkPlace,
         within bounds: CGRect,
         duration: Duration,
         startingAt date: Date
@@ -30,8 +28,8 @@ struct Travel {
         self.init(
             from: start,
             turningFrom: startAngle,
-            to: target,
-            arrowTip: Self.landing(beside: target, comingFrom: start, within: bounds),
+            to: place.center,
+            arrowTip: Self.landing(beside: place, comingFrom: start, within: bounds),
             isGoingHome: false,
             duration: duration,
             startingAt: date
@@ -123,15 +121,15 @@ struct Travel {
         progress < 0.5 ? 4 * pow(progress, 3) : 1 - pow(-2 * progress + 2, 3) / 2
     }
 
-    private static func landing(beside target: CGPoint, comingFrom start: CGPoint, within bounds: CGRect) -> CGPoint {
+    private static func landing(beside place: MarkPlace, comingFrom start: CGPoint, within bounds: CGRect) -> CGPoint {
+        let target = place.center
         let away = CGVector(dx: start.x - target.x, dy: start.y - target.y)
         let length = hypot(away.dx, away.dy)
         let direction = length > 1 ? CGVector(dx: away.dx / length, dy: away.dy / length) : CGVector(dx: 0.7, dy: 0.7)
-        let distance = ringDiameter / 2 + gapOutsideRing
         let safeArea = bounds.insetBy(dx: arrowLength, dy: arrowLength)
         let turns = [direction, direction.turnedQuarter, direction.turnedQuarter.turnedQuarter.turnedQuarter,
                      direction.turnedQuarter.turnedQuarter]
-        let candidates = turns.map { CGPoint(x: target.x + $0.dx * distance, y: target.y + $0.dy * distance) }
+        let candidates = turns.map { place.edge(toward: $0, gap: gapOutsideMark) }
         return candidates.first(where: safeArea.contains) ?? candidates[0]
     }
 }

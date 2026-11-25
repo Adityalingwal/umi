@@ -6,8 +6,7 @@ struct PointerView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             ForEach(overlay.marks) { mark in
-                MarkRing()
-                    .position(mark.target)
+                MarkView(place: mark.place)
                     .transition(.opacity.combined(with: .scale(scale: 0.6)))
             }
             MarkLabels(marks: overlay.marks)
@@ -60,37 +59,5 @@ private nonisolated struct ArrowShape: Shape {
         path.addLine(to: CGPoint(x: tip.x - 20, y: tip.y + 9))
         path.closeSubpath()
         return path
-    }
-}
-
-private struct MarkRing: View {
-    @State private var hasPulsed = false
-
-    var body: some View {
-        ZStack {
-            RingStroke()
-                .scaleEffect(hasPulsed ? 1.8 : 1)
-                .opacity(hasPulsed ? 0 : 0.9)
-            RingStroke()
-        }
-        .frame(width: Travel.ringDiameter, height: Travel.ringDiameter)
-        .accessibilityHidden(true)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.6)) {
-                hasPulsed = true
-            }
-        }
-    }
-}
-
-private struct RingStroke: View {
-    var body: some View {
-        Circle()
-            .strokeBorder(.black.opacity(0.55), lineWidth: 5)
-            .overlay(
-                Circle()
-                    .inset(by: 1)
-                    .strokeBorder(.white, lineWidth: 3)
-            )
     }
 }

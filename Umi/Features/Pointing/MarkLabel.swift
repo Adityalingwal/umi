@@ -4,7 +4,7 @@ struct MarkLabels: View {
     let marks: [ScreenMark]
 
     var body: some View {
-        MarkLabelsLayout(ringRadius: Travel.ringDiameter / 2) {
+        MarkLabelsLayout {
             ForEach(marks) { mark in
                 if let label = mark.label {
                     MarkLabel(text: label.text)
@@ -38,11 +38,9 @@ private nonisolated struct LabelledMark: LayoutValueKey {
 }
 
 private nonisolated struct MarkLabelsLayout: Layout {
-    private static let gapOutsideRing = 8.0
+    private static let gapOutsideMark = 8.0
     private static let screenMargin = 4.0
     private static let arrowReach = 30.0
-
-    let ringRadius: Double
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         proposal.replacingUnspecifiedDimensions()
@@ -66,31 +64,33 @@ private nonisolated struct MarkLabelsLayout: Layout {
         within bounds: CGRect
     ) -> CGRect {
         let screen = bounds.insetBy(dx: Self.screenMargin, dy: Self.screenMargin)
-        let center = point(mark.target, within: bounds)
-        let reach = ringRadius + Self.gapOutsideRing
-        let besides = [center.x + reach, center.x - reach - size.width].map { left in
-            CGRect(origin: CGPoint(x: left, y: center.y - size.height / 2), size: size).slidVertically(into: screen)
+        let markFrame = area(of: mark.place, within: bounds)
+        let gap = Self.gapOutsideMark
+        let besides = [markFrame.maxX + gap, markFrame.minX - gap - size.width].map { left in
+            CGRect(origin: CGPoint(x: left, y: markFrame.midY - size.height / 2), size: size)
+                .slidVertically(into: screen)
         }
-        let belowOrAbove = [center.y + reach, center.y - reach - size.height].map { top in
-            CGRect(origin: CGPoint(x: center.x - size.width / 2, y: top), size: size).slidHorizontally(into: screen)
+        let belowOrAbove = [markFrame.maxY + gap, markFrame.minY - gap - size.height].map { top in
+            CGRect(origin: CGPoint(x: markFrame.midX - size.width / 2, y: top), size: size)
+                .slidHorizontally(into: screen)
         }
         let sides = besides + belowOrAbove
         let onScreen = sides.filter(screen.contains)
         let arrow = arrowArea(for: mark, within: bounds)
         let usual = onScreen.filter { !$0.intersects(arrow) }
-        let taken = mark.otherRings.map { ringArea(around: $0, within: bounds) } + placed
+        let taken = mark.otherMarks.map { area(of: $0, within: bounds) } + placed
         return usual.first { side in !taken.contains(where: side.intersects) } ?? usual.first ?? onScreen.first
             ?? sides[0].slidHorizontally(into: screen).slidVertically(into: screen)
     }
 
-    private func ringArea(around target: CGPoint, within bounds: CGRect) -> CGRect {
-        let center = point(target, within: bounds)
-        return CGRect(x: center.x - ringRadius, y: center.y - ringRadius, width: ringRadius * 2, height: ringRadius * 2)
+    private func area(of place: MarkPlace, within bounds: CGRect) -> CGRect {
+        place.frame.offsetBy(dx: bounds.minX, dy: bounds.minY)
     }
 
     private func arrowArea(for mark: ScreenMark, within bounds: CGRect) -> CGRect {
         let tip = point(mark.arrowTip, within: bounds)
-        let away = CGVector(dx: mark.arrowTip.x - mark.target.x, dy: mark.arrowTip.y - mark.target.y)
+        let center = mark.place.center
+        let away = CGVector(dx: mark.arrowTip.x - center.x, dy: mark.arrowTip.y - center.y)
         let length = max(hypot(away.dx, away.dy), 1)
         let middle = CGPoint(
             x: tip.x + away.dx / length * Self.arrowReach / 2,

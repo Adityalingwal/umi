@@ -2,8 +2,8 @@ import CoreGraphics
 
 nonisolated struct ScreenMark: Identifiable, Sendable {
     let id: Int
-    let target: CGPoint
+    let place: MarkPlace
     let arrowTip: CGPoint
     let label: PointLabel?
-    let otherRings: [CGPoint]
+    let otherMarks: [MarkPlace]
 }

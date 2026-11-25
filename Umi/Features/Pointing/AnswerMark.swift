@@ -1,13 +1,16 @@
 import CoreGraphics
 
 struct AnswerMark {
-    private static let clickReach = 40.0
+    private static let ringReach = 40.0
 
     let number: Int
-    let target: CGPoint
+    let place: MarkPlace
     let label: PointLabel?
 
     func isUnder(_ press: CGPoint) -> Bool {
-        hypot(press.x - target.x, press.y - target.y) <= Self.clickReach
+        switch place {
+        case .ring(let center):
+            hypot(press.x - center.x, press.y - center.y) <= Self.ringReach
+        }
     }
 }
