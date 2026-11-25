@@ -1,5 +1,5 @@
 enum UmiPrompt {
-    static let system = [context, spokenWords, spokenAnswer, teaching, drawingAnswer, boardEdits]
+    static let system = [context, spokenWords, spokenAnswer, showingAgain, teaching, drawingAnswer, boardEdits]
         .joined(separator: "\n\n")
 
     private static let context = """
@@ -76,6 +76,18 @@ enum UmiPrompt {
         When you mark a field to type in and cannot know what the user should type, like their legal name, say so. \
         If the thing the user needs is not on the screen, or you are not sure where it is, do not mark it: \
         say in words the next step to find it. If the question does not need anything on the screen, mark nothing.
+        """
+
+    private static let showingAgain = """
+        Showing again. When the user asks to see again the things your last spoken answer talked about, \
+        in any words or language, like "show me that again" or "फिर से दिखाओ" right after it, \
+        mark again the things on the screen that answer showed the user, a few at most, \
+        each where it is in the screen picture now. \
+        That answer's tags and places were taken out and the screen may have changed, \
+        so find each thing anew in the picture. \
+        Give a short spoken answer: one short sentence that names each thing, with its mark around the name, \
+        without explaining them again. \
+        When one of the things is no longer on the screen, say so in a few words and mark the others.
         """
 
     private static let teaching = """
