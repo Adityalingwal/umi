@@ -78,20 +78,39 @@ private nonisolated struct MarkLabelsLayout: Layout {
         let onScreen = sides.filter(screen.contains)
         let arrow = arrowArea(for: mark, within: bounds)
         let usual = onScreen.filter { !$0.intersects(arrow) }
-        let taken = mark.otherMarks.map { area(of: $0, within: bounds) } + placed
-        return usual.first { side in !taken.contains(where: side.intersects) } ?? usual.first ?? onScreen.first
+        let ownOtherParts = areas(of: mark.place, within: bounds).dropFirst()
+        let taken = mark.otherMarks.flatMap { areas(of: $0, within: bounds) } + placed + ownOtherParts
+        let shafts = ([mark.place] + mark.otherMarks).compactMap { shaft(of: $0, within: bounds) }
+        let isClear = { (side: CGRect) in
+            !taken.contains(where: side.intersects)
+                && !shafts.contains { side.shareOfLine(from: $0.0, to: $0.1) != nil }
+        }
+        return usual.first(where: isClear) ?? usual.first ?? onScreen.first
             ?? sides[0].slidHorizontally(into: screen).slidVertically(into: screen)
     }
 
     // A stroke lies just under its line of text, so that line is part of its area and labels keep off the words.
+    // A drag's label sits by its ring, on the thing to pick up.
     private func area(of place: MarkPlace, within bounds: CGRect) -> CGRect {
         let frame = switch place {
         case .ring, .box:
             place.frame
         case .stroke:
             place.frame.union(place.frame.offsetBy(dx: 0, dy: -MarkPlace.textAboveStroke))
+        case .drag(let start, _):
+            MarkPlace.ring(start).frame
         }
         return frame.offsetBy(dx: bounds.minX, dy: bounds.minY)
+    }
+
+    private func areas(of place: MarkPlace, within bounds: CGRect) -> [CGRect] {
+        let dropBox = place.dropBox.map { [$0.offsetBy(dx: bounds.minX, dy: bounds.minY)] } ?? []
+        return [area(of: place, within: bounds)] + dropBox
+    }
+
+    private func shaft(of place: MarkPlace, within bounds: CGRect) -> (CGPoint, CGPoint)? {
+        guard case .drag(let start, let end) = place else { return nil }
+        return (point(start, within: bounds), point(end, within: bounds))
     }
 
     private func arrowArea(for mark: ScreenMark, within bounds: CGRect) -> CGRect {

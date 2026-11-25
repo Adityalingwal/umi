@@ -26,6 +26,11 @@ struct MarkView: View {
             MarkStroke(start: ends[0], end: ends[1], origin: drawn.origin)
                 .frame(width: drawn.width, height: drawn.height)
                 .position(x: drawn.midX, y: drawn.midY)
+        case .drag(let start, let end):
+            let drawn = place.frame.insetBy(dx: -MarkPlace.strokeWidth, dy: -MarkPlace.strokeWidth)
+            MarkDrag(start: start, end: end, origin: drawn.origin)
+                .frame(width: drawn.width, height: drawn.height)
+                .position(x: drawn.midX, y: drawn.midY)
         }
     }
 
@@ -92,6 +97,60 @@ private struct MarkStroke: View {
             line.stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
         }
         .accessibilityHidden(true)
+    }
+}
+
+private struct MarkDrag: View {
+    let start: CGPoint
+    let end: CGPoint
+    let origin: CGPoint
+
+    var body: some View {
+        let ring = CGPoint(x: start.x - origin.x, y: start.y - origin.y)
+        let drop = CGPoint(x: end.x - origin.x, y: end.y - origin.y)
+        let shaft = DragShaft(start: ring, end: drop)
+        ZStack {
+            shaft.stroke(.black.opacity(0.55), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+            shaft.stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            MarkRing()
+                .position(ring)
+            MarkBox()
+                .frame(width: MarkPlace.dropBoxSide, height: MarkPlace.dropBoxSide)
+                .position(drop)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+// The arrow runs from the ring's edge to the drop box's edge; when they are too close for it, only the two show.
+private nonisolated struct DragShaft: Shape {
+    private static let gap = 4.0
+    private static let headLength = 10.0
+    private static let headSpread = 0.5
+
+    let start: CGPoint
+    let end: CGPoint
+
+    func path(in rect: CGRect) -> Path {
+        let length = hypot(end.x - start.x, end.y - start.y)
+        let along = CGVector(dx: (end.x - start.x) / length, dy: (end.y - start.y) / length)
+        let fromStart = MarkPlace.ringDiameter / 2 + Self.gap
+        let fromEnd = MarkPlace.dropBoxSide / 2 / max(abs(along.dx), abs(along.dy)) + Self.gap
+        var path = Path()
+        guard length - fromStart - fromEnd > Self.headLength else { return path }
+        let tail = CGPoint(x: start.x + along.dx * fromStart, y: start.y + along.dy * fromStart)
+        let tip = CGPoint(x: end.x - along.dx * fromEnd, y: end.y - along.dy * fromEnd)
+        let back = atan2(-along.dy, -along.dx)
+        path.move(to: tail)
+        path.addLine(to: tip)
+        for side in [-Self.headSpread, Self.headSpread] {
+            path.move(to: tip)
+            path.addLine(to: CGPoint(
+                x: tip.x + cos(back + side) * Self.headLength,
+                y: tip.y + sin(back + side) * Self.headLength
+            ))
+        }
+        return path
     }
 }
 
