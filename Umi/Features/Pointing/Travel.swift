@@ -11,7 +11,7 @@ struct Travel {
     let arrowTip: CGPoint
     let isGoingHome: Bool
 
-    private let leavesFromInside: Bool
+    private let turnsAtTheEnd: Bool
     private let target: CGPoint
     private let start: CGPoint
     private let bendPoint: CGPoint
@@ -29,10 +29,10 @@ struct Travel {
         self.init(
             from: start,
             turningFrom: startAngle,
-            to: place.center,
+            to: place.aimPoint,
             arrowTip: Self.landing(beside: place, comingFrom: start, within: bounds),
             isGoingHome: false,
-            leavesFromInside: Self.isBox(place, holding: start),
+            turnsAtTheEnd: Self.passesItsAim(place, from: start),
             duration: duration,
             startingAt: date
         )
@@ -51,7 +51,7 @@ struct Travel {
             to: rest,
             arrowTip: rest,
             isGoingHome: true,
-            leavesFromInside: false,
+            turnsAtTheEnd: false,
             duration: duration,
             startingAt: date
         )
@@ -63,11 +63,11 @@ struct Travel {
         to target: CGPoint,
         arrowTip: CGPoint,
         isGoingHome: Bool,
-        leavesFromInside: Bool,
+        turnsAtTheEnd: Bool,
         duration: Duration,
         startingAt date: Date
     ) {
-        self.leavesFromInside = leavesFromInside
+        self.turnsAtTheEnd = turnsAtTheEnd
         self.start = start
         self.startAngle = startAngle
         self.target = target
@@ -108,22 +108,31 @@ struct Travel {
         return Self.turn(from: startAngle, to: heading, share: progress / Self.turningShare)
     }
 
-    // A flight that starts inside its box moves away from the box's centre, so it steers along its path
-    // and turns to face the box over its last quarter, in one direction chosen once.
+    // A flight that starts inside its box, or beyond a stroke's start from where it lands, passes the point it aims
+    // at, so facing that point all the way would swing it round at the end. It steers along its path instead
+    // and turns to face the point over its last quarter, in one direction chosen once.
     private func heading(at progress: Double) -> Double {
         if isGoingHome {
             return headingAlongPath(at: progress)
         }
-        guard leavesFromInside else { return headingToTarget(at: progress) }
+        guard turnsAtTheEnd else { return headingToTarget(at: progress) }
         let arriving = 1 - Self.turningShare
         guard progress > arriving else { return headingAlongPath(at: progress) }
         let share = (progress - arriving) / Self.turningShare
         return Self.turn(from: headingAlongPath(at: arriving), to: headingToTarget(at: 1), share: share)
     }
 
-    private static func isBox(_ place: MarkPlace, holding point: CGPoint) -> Bool {
-        guard case .box(let frame) = place else { return false }
-        return frame.contains(point)
+    private static func passesItsAim(_ place: MarkPlace, from point: CGPoint) -> Bool {
+        switch place {
+        case .ring:
+            return false
+        case .box(let frame):
+            return frame.contains(point)
+        case .stroke:
+            guard let landingSide = place.landingDirection else { return false }
+            let aim = place.aimPoint
+            return (point.x - aim.x) * landingSide.dx + (point.y - aim.y) * landingSide.dy <= 0
+        }
     }
 
     private static func turn(from start: Double, to end: Double, share: Double) -> Double {
@@ -149,7 +158,7 @@ struct Travel {
     }
 
     private static func landing(beside place: MarkPlace, comingFrom start: CGPoint, within bounds: CGRect) -> CGPoint {
-        let target = place.center
+        let target = place.aimPoint
         let away = CGVector(dx: start.x - target.x, dy: start.y - target.y)
         let length = hypot(away.dx, away.dy)
         let direction = length > 1 ? CGVector(dx: away.dx / length, dy: away.dy / length) : CGVector(dx: 0.7, dy: 0.7)
@@ -157,7 +166,8 @@ struct Travel {
         let turns = [direction, direction.turnedQuarter, direction.turnedQuarter.turnedQuarter.turnedQuarter,
                      direction.turnedQuarter.turnedQuarter]
         let sides = [CGVector(dx: 1, dy: 0), CGVector(dx: -1, dy: 0), CGVector(dx: 0, dy: 1), CGVector(dx: 0, dy: -1)]
-        let candidates = (turns + sides).map { place.edge(toward: $0, gap: gapOutsideMark) }
+        let preferred = place.landingDirection.map { [$0] } ?? []
+        let candidates = (preferred + turns + sides).map { place.edge(toward: $0, gap: gapOutsideMark) }
         let fallback = candidates[0]
         return candidates.first(where: safeArea.contains) ?? CGPoint(
             x: min(max(fallback.x, safeArea.minX), safeArea.maxX),

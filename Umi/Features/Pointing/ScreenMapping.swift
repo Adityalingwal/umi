@@ -9,6 +9,7 @@ struct ScreenMapping {
         switch location {
         case .point(let point): screenPoint(for: point).map(MarkPlace.ring)
         case .box(let box): screenFrame(for: box).map(MarkPlace.box)
+        case .stroke(let stroke): screenStroke(for: stroke)
         }
     }
 
@@ -24,6 +25,34 @@ struct ScreenMapping {
         return CGRect(
             corner: screenPoint(pixelX: kept.minX, pixelY: kept.minY),
             opposite: screenPoint(pixelX: kept.maxX, pixelY: kept.maxY)
+        )
+    }
+
+    private func screenStroke(for stroke: StrokeLocation) -> MarkPlace? {
+        guard pictureWidth > 0, pictureHeight > 0 else { return nil }
+        let start = CGPoint(x: stroke.start.pixelX, y: stroke.start.pixelY)
+        let end = CGPoint(x: stroke.end.pixelX, y: stroke.end.pixelY)
+        guard start != end else { return nil }
+        let step = CGVector(dx: end.x - start.x, dy: end.y - start.y)
+        let limits = [
+            (-step.dx, start.x), (step.dx, Double(pictureWidth) - start.x),
+            (-step.dy, start.y), (step.dy, Double(pictureHeight) - start.y)
+        ]
+        var enter = 0.0
+        var leave = 1.0
+        for (towardEdge, room) in limits {
+            if towardEdge == 0 {
+                guard room >= 0 else { return nil }
+            } else if towardEdge < 0 {
+                enter = max(enter, room / towardEdge)
+            } else {
+                leave = min(leave, room / towardEdge)
+            }
+        }
+        guard enter < leave else { return nil }
+        return .stroke(
+            start: screenPoint(pixelX: start.x + step.dx * enter, pixelY: start.y + step.dy * enter),
+            end: screenPoint(pixelX: start.x + step.dx * leave, pixelY: start.y + step.dy * leave)
         )
     }
 
