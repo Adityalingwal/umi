@@ -189,6 +189,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(SRCROOT)/.env",
 			);
 			name = "Write Keys";
 			outputFileListPaths = (
