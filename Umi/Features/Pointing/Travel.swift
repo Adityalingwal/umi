@@ -98,10 +98,29 @@ struct Travel {
     }
 
     func angle(at progress: Double) -> Double {
-        let heading = isGoingHome ? headingAlongPath(at: progress) : headingToTarget(at: progress)
+        let heading = heading(at: progress)
         guard let startAngle, progress < Self.turningShare else { return heading }
-        let turn = heading - startAngle
-        return startAngle + atan2(sin(turn), cos(turn)) * progress / Self.turningShare
+        return Self.turn(from: startAngle, to: heading, share: progress / Self.turningShare)
+    }
+
+    // A flight that starts inside its mark moves away from the mark's centre, so it steers along its path
+    // and turns to face the mark over its last quarter.
+    private func heading(at progress: Double) -> Double {
+        if isGoingHome {
+            return headingAlongPath(at: progress)
+        }
+        guard hypot(start.x - target.x, start.y - target.y) < hypot(arrowTip.x - target.x, arrowTip.y - target.y) else {
+            return headingToTarget(at: progress)
+        }
+        let arriving = 1 - Self.turningShare
+        guard progress > arriving else { return headingAlongPath(at: progress) }
+        let share = (progress - arriving) / Self.turningShare
+        return Self.turn(from: headingAlongPath(at: progress), to: headingToTarget(at: progress), share: share)
+    }
+
+    private static func turn(from start: Double, to end: Double, share: Double) -> Double {
+        let turn = end - start
+        return start + atan2(sin(turn), cos(turn)) * share
     }
 
     private func headingToTarget(at progress: Double) -> Double {
