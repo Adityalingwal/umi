@@ -14,6 +14,8 @@ final class Pointing {
     }
 
     private static let restOnMark = Duration.milliseconds(300)
+    // A flight after the arrow hid starts beside the pointer where the click was; its length must not tell how far.
+    private static let flightAfterHiding = Duration.milliseconds(500)
 
     private let stage: PointerStage
     private let displayFrame: CGRect
@@ -119,7 +121,8 @@ final class Pointing {
     private func flyToNextMark() {
         let mark = waitingMarks.removeFirst()
         let isFirst = marksShown == 0
-        let duration = stage.fly(to: mark.target, label: mark.label, startingFrom: cursorRest())
+        let fixed = phase == .arrowHidden ? Self.flightAfterHiding : nil
+        let duration = stage.fly(to: mark.target, label: mark.label, startingFrom: cursorRest(), taking: fixed)
         if isFirst {
             onDepart()
         }

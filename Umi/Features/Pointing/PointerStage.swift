@@ -15,10 +15,10 @@ final class PointerStage {
         CGRect(origin: .zero, size: displayFrame.size)
     }
 
-    func fly(to target: CGPoint, label: PointLabel?, startingFrom rest: CGPoint) -> Duration {
+    func fly(to target: CGPoint, label: PointLabel?, startingFrom rest: CGPoint, taking fixed: Duration?) -> Duration {
         let start = overlay.travel?.arrowTip ?? viewPointOnDisplay(rest)
         let end = viewPoint(target)
-        let duration = Travel.usualDuration(from: start, to: end)
+        let duration = fixed ?? Travel.usualDuration(from: start, to: end)
         let travel = Travel(
             from: start,
             turningFrom: overlay.travel?.angle(at: 1),
