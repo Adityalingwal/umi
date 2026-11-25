@@ -55,6 +55,14 @@ final class PointerStage {
         overlay.land()
     }
 
+    func keepHome(at rest: CGPoint) {
+        guard let last = overlay.travel else { return }
+        let home = viewPointOnDisplay(rest)
+        let travel = Travel(from: home, turningFrom: last.angle(at: 1), homeTo: home, duration: .zero, startingAt: .now)
+        overlay.start(travel, label: nil)
+        overlay.land()
+    }
+
     func clear() {
         panel.hide()
         overlay.clear()

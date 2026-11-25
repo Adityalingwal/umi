@@ -25,6 +25,7 @@ final class Pointing {
     private let appSwitches: AppSwitchWatch
     private let scrolls = ScrollWatch()
     private let clicks = ClickWatch()
+    private let pointerMoves = PointerMoveWatch()
     private let cursorRest: () -> CGPoint
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
@@ -169,7 +170,15 @@ final class Pointing {
         guard case .goingHome = phase else { return }
         stage.landHome()
         phase = .home
-        logger.notice("The arrow is back at its rest by the pointer")
+        pointerMoves.start { [weak self] in
+            self?.keepHomeBesidePointer()
+        }
+        logger.notice("The arrow is back at its rest by the pointer and follows it")
+    }
+
+    private func keepHomeBesidePointer() {
+        guard case .home = phase else { return }
+        stage.keepHome(at: cursorRest())
     }
 
     private func after(_ duration: Duration, then step: @escaping (Pointing) -> Void) -> Task<Void, Never> {
@@ -188,6 +197,7 @@ final class Pointing {
         waitingMarks = []
         appSwitches.stop()
         scrolls.stop()
+        pointerMoves.stop()
         if clicks.isWatching {
             clicks.stop()
             logger.notice("The click watch stopped")
