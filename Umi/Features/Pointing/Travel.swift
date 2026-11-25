@@ -11,6 +11,7 @@ struct Travel {
     let arrowTip: CGPoint
     let isGoingHome: Bool
 
+    private let leavesFromInside: Bool
     private let target: CGPoint
     private let start: CGPoint
     private let bendPoint: CGPoint
@@ -31,6 +32,7 @@ struct Travel {
             to: place.center,
             arrowTip: Self.landing(beside: place, comingFrom: start, within: bounds),
             isGoingHome: false,
+            leavesFromInside: Self.isBox(place, holding: start),
             duration: duration,
             startingAt: date
         )
@@ -49,6 +51,7 @@ struct Travel {
             to: rest,
             arrowTip: rest,
             isGoingHome: true,
+            leavesFromInside: false,
             duration: duration,
             startingAt: date
         )
@@ -60,9 +63,11 @@ struct Travel {
         to target: CGPoint,
         arrowTip: CGPoint,
         isGoingHome: Bool,
+        leavesFromInside: Bool,
         duration: Duration,
         startingAt date: Date
     ) {
+        self.leavesFromInside = leavesFromInside
         self.start = start
         self.startAngle = startAngle
         self.target = target
@@ -103,19 +108,22 @@ struct Travel {
         return Self.turn(from: startAngle, to: heading, share: progress / Self.turningShare)
     }
 
-    // A flight that starts inside its mark moves away from the mark's centre, so it steers along its path
-    // and turns to face the mark over its last quarter.
+    // A flight that starts inside its box moves away from the box's centre, so it steers along its path
+    // and turns to face the box over its last quarter.
     private func heading(at progress: Double) -> Double {
         if isGoingHome {
             return headingAlongPath(at: progress)
         }
-        guard hypot(start.x - target.x, start.y - target.y) < hypot(arrowTip.x - target.x, arrowTip.y - target.y) else {
-            return headingToTarget(at: progress)
-        }
+        guard leavesFromInside else { return headingToTarget(at: progress) }
         let arriving = 1 - Self.turningShare
         guard progress > arriving else { return headingAlongPath(at: progress) }
         let share = (progress - arriving) / Self.turningShare
         return Self.turn(from: headingAlongPath(at: progress), to: headingToTarget(at: progress), share: share)
+    }
+
+    private static func isBox(_ place: MarkPlace, holding point: CGPoint) -> Bool {
+        guard case .box(let frame) = place else { return false }
+        return frame.contains(point)
     }
 
     private static func turn(from start: Double, to end: Double, share: Double) -> Double {
