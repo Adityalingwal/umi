@@ -148,7 +148,8 @@ struct Travel {
         let safeArea = bounds.insetBy(dx: arrowLength, dy: arrowLength)
         let turns = [direction, direction.turnedQuarter, direction.turnedQuarter.turnedQuarter.turnedQuarter,
                      direction.turnedQuarter.turnedQuarter]
-        let candidates = turns.map { place.edge(toward: $0, gap: gapOutsideMark) }
+        let sides = [CGVector(dx: 1, dy: 0), CGVector(dx: -1, dy: 0), CGVector(dx: 0, dy: 1), CGVector(dx: 0, dy: -1)]
+        let candidates = (turns + sides).map { place.edge(toward: $0, gap: gapOutsideMark) }
         let fallback = candidates[0]
         return candidates.first(where: safeArea.contains) ?? CGPoint(
             x: min(max(fallback.x, safeArea.minX), safeArea.maxX),
