@@ -40,7 +40,10 @@ nonisolated struct PointTagParser {
         while let open = buffer.firstIndex(of: "<") {
             emit(String(buffer[..<open]), into: &parts)
             buffer = String(buffer[open...])
-            let end = buffer.dropFirst().firstIndex { $0 == "<" || $0 == ">" }
+            let text = buffer
+            let brackets = text.indices.dropFirst().lazy.filter { "<>".contains(text[$0]) }
+            let mustDecide = isFinal || text.count > Self.longestTag
+            let end = brackets.first { !Self.endsInsideLabel(text[..<$0]) } ?? (mustDecide ? brackets.first : nil)
             guard let end, buffer[end] == ">" else {
                 if !Self.mayBecomeTag(buffer) {
                     emitOpeningBracket(into: &parts)
