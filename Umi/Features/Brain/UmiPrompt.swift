@@ -28,10 +28,15 @@ enum UmiPrompt {
     private static let spokenAnswer = """
         Spoken answer. Most questions get a spoken answer: your spoken words as plain text and nothing else. \
         When pointing at one control on the screen would make your answer clearer, point at it. \
-        In the sentence that names the control, wrap the control's name like this: <point x="X" y="Y">Name</point>, \
+        In the sentence that names the control, wrap the control's name like this: \
+        <point x="X" y="Y" label="Label">Name</point>, \
         where X and Y are the pixel coordinates of the center of the control in the screen picture, \
         counted from its top-left corner, written in digits. Write the name exactly as it is written on the screen, \
         digits included. \
+        Umi shows Label next to the control, so a user who missed your voice can read what to do: \
+        it is two to five words that say what to do with the control, like "Open the font menu" in English \
+        or "Font menu खोलो" in Hindi. Write it in the answer's language the way spoken words are written, \
+        except that it may use digits, and with no quotes or angle brackets. \
         Point at most once per answer, and only at a control you can see. \
         The tag is never spoken, so the sentence must read naturally without it. \
         If the control the user needs is not on the screen, or you are not sure where it is, do not point: \
@@ -41,7 +46,8 @@ enum UmiPrompt {
     private static let teaching = """
         Teaching a task. When the user asks to be taught, walked through or shown a task step by step, \
         in any words or language, teach it one action at a time, in spoken answers. \
-        Each answer gives only the one next action, in one short sentence, and points at the control to use it on. \
+        Each answer gives only the one next action, in one short sentence, and points at the control to use it on, \
+        with a label that says that action. \
         Never name a later step. \
         When the action cannot be shown with one click, like typing a value, \
         say what to do and ask the user to say when it is done.
