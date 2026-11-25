@@ -11,6 +11,7 @@ struct ScreenMapping {
         case .box(let box): screenFrame(for: box).map(MarkPlace.box)
         case .stroke(let stroke): screenStroke(for: stroke)
         case .drag(let drag): screenDrag(for: drag)
+        case .shape(let shape): screenShape(for: shape)
         }
     }
 
@@ -53,6 +54,22 @@ struct ScreenMapping {
             return nil
         }
         return .drag(start: start, end: end)
+    }
+
+    private func screenShape(for shape: ShapeLocation) -> MarkPlace? {
+        guard pictureWidth > 0, pictureHeight > 0 else { return nil }
+        let kept = shape.points.map { point in
+            CGPoint(
+                x: min(max(point.pixelX, picture.minX), picture.maxX),
+                y: min(max(point.pixelY, picture.minY), picture.maxY)
+            )
+        }
+        let bounds = CGRect(enclosing: kept)
+        guard let start = kept.first, bounds.width > 0, bounds.height > 0 else { return nil }
+        return .shape(
+            start: screenPoint(pixelX: start.x, pixelY: start.y),
+            others: kept.dropFirst().map { screenPoint(pixelX: $0.x, pixelY: $0.y) }
+        )
     }
 
     private func screenPoint(for location: PointLocation) -> CGPoint? {

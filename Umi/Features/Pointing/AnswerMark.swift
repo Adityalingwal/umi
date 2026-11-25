@@ -4,6 +4,7 @@ struct AnswerMark {
     private static let ringReach = 40.0
     private static let boxReach = 8.0
     private static let strokeReach = 8.0
+    private static let shapeReach = 8.0
 
     let number: Int
     let place: MarkPlace
@@ -20,6 +21,8 @@ struct AnswerMark {
         case .drag(let start, _):
             hypot(press.x - start.x, press.y - start.y) <= Self.ringReach
                 || place.dropBox?.insetBy(dx: -Self.boxReach, dy: -Self.boxReach).contains(press) == true
+        case .shape:
+            place.frame.insetBy(dx: -Self.shapeReach, dy: -Self.shapeReach).contains(press)
         }
     }
 

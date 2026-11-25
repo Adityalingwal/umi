@@ -11,7 +11,8 @@ nonisolated struct MarkTagParser {
         case emptyName
     }
 
-    private static let longestTag = 200
+    // A free shape's opening tag with twelve points and a long label is about 230 characters.
+    private static let longestTag = 400
 
     private var buffer = ""
     private var waitingMark: MarkTag?

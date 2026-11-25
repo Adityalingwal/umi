@@ -93,7 +93,7 @@ private nonisolated struct MarkLabelsLayout: Layout {
     // A drag's label sits by its ring, on the thing to pick up.
     private func area(of place: MarkPlace, within bounds: CGRect) -> CGRect {
         let frame = switch place {
-        case .ring, .box:
+        case .ring, .box, .shape:
             place.frame
         case .stroke:
             place.frame.union(place.frame.offsetBy(dx: 0, dy: -MarkPlace.textAboveStroke))
