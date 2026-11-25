@@ -26,10 +26,9 @@ final class HoldFile: AudioSource {
     }
 
     static func atLaunch(defaults: UserDefaults) -> HoldFile? {
-        let key = "UmiHoldFile"
-        let paths = defaults.stringArray(forKey: key) ?? defaults.string(forKey: key).map { [$0] } ?? []
+        let paths = list(forKey: "UmiHoldFile", in: defaults)
         guard !paths.isEmpty else { return nil }
-        guard paths.count == 1 || defaults.object(forKey: "UmiScreenImage") != nil else {
+        guard paths.count == 1 || !list(forKey: "UmiScreenImage", in: defaults).isEmpty else {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
                 .error("Several hold files need -UmiScreenImage, so no hold plays")
             return HoldFile(fileURLs: [])
@@ -38,10 +37,12 @@ final class HoldFile: AudioSource {
         return HoldFile(fileURLs: fileURLs, pauses: pauses(in: defaults))
     }
 
+    private static func list(forKey key: String, in defaults: UserDefaults) -> [String] {
+        defaults.stringArray(forKey: key) ?? defaults.string(forKey: key).map { [$0] } ?? []
+    }
+
     private static func pauses(in defaults: UserDefaults) -> [Duration] {
-        let key = "UmiHoldPause"
-        let texts = defaults.stringArray(forKey: key) ?? defaults.string(forKey: key).map { [$0] } ?? []
-        return texts.map { text in
+        list(forKey: "UmiHoldPause", in: defaults).map { text in
             Double(text).flatMap { $0 > 0 ? Duration.seconds($0) : nil } ?? pauseBetweenHolds
         }
     }
