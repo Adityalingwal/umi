@@ -12,12 +12,6 @@ final class Pointing {
         case over
     }
 
-    private struct WaitingMark {
-        let number: Int
-        let target: CGPoint
-        let label: PointLabel?
-    }
-
     private static let restOnMark = Duration.milliseconds(300)
 
     private let stage: PointerStage
@@ -30,7 +24,8 @@ final class Pointing {
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
     private var phase = Phase.waiting
-    private var waitingMarks: [WaitingMark] = []
+    private var waitingMarks: [AnswerMark] = []
+    private var marksOnScreen: [AnswerMark] = []
     private var marksInHand = 0
     private var marksShown = 0
     private var hasTextEnded = false
@@ -84,7 +79,7 @@ final class Pointing {
             return
         }
         marksInHand += 1
-        waitingMarks.append(WaitingMark(number: marksInHand, target: target, label: label))
+        waitingMarks.append(AnswerMark(number: marksInHand, target: target, label: label))
         logger.notice(
             "Mark \(self.marksInHand, privacy: .public) is in hand; a label: \(label != nil, privacy: .public)"
         )
@@ -100,6 +95,7 @@ final class Pointing {
 
     func answerTextEnded() {
         hasTextEnded = true
+        endIfAnswerIsDone()
         if case .onLastMark = phase, marksShown > 1 {
             goHome()
         }
@@ -132,19 +128,53 @@ final class Pointing {
         nextStep = after(duration) { $0.land(mark) }
     }
 
-    private func land(_ mark: WaitingMark) {
+    private func land(_ mark: AnswerMark) {
         guard case .travelling = phase else { return }
-        stage.landOnMark(waitingAt: waitingMarks.map(\.target))
+        stage.landOnMark(numbered: mark.number, waitingAt: waitingMarks.map(\.target))
+        marksOnScreen.append(mark)
         marksShown += 1
         phase = .resting
         logger.notice("The arrow landed and mark \(mark.number, privacy: .public) is on")
         if !clicks.isWatching {
-            clicks.start { [weak self] in
-                self?.end(because: "the user clicked")
+            clicks.start { [weak self] press in
+                self?.clicked(at: press)
             }
             logger.notice("The click watch started")
         }
         nextStep = after(Self.restOnMark) { $0.leaveMark() }
+    }
+
+    private func clicked(at press: CGPoint) {
+        guard !marksOnScreen.isEmpty else { return }
+        let cleared = marksOnScreen.filter { $0.isUnder(press) }
+        guard !cleared.isEmpty else {
+            logger.notice("A click landed elsewhere")
+            end(because: "the user clicked elsewhere")
+            return
+        }
+        clear(cleared)
+    }
+
+    private func clear(_ cleared: [AnswerMark]) {
+        let numbers = cleared.map(\.number)
+        marksOnScreen.removeAll { numbers.contains($0.number) }
+        stage.clearMarks(numbered: numbers)
+        let gone = cleared.count
+        let left = marksOnScreen.count
+        logger.notice("A click landed on a mark; cleared: \(gone, privacy: .public), left: \(left, privacy: .public)")
+        guard marksOnScreen.isEmpty else { return }
+        stopClickWatch()
+        endIfAnswerIsDone()
+    }
+
+    private func endIfAnswerIsDone() {
+        guard hasTextEnded, marksOnScreen.isEmpty, waitingMarks.isEmpty else { return }
+        switch phase {
+        case .resting, .onLastMark, .goingHome, .home:
+            end(because: "the last mark was cleared and the answer's text has ended")
+        case .waiting, .travelling, .over:
+            break
+        }
     }
 
     private func leaveMark() {
@@ -190,19 +220,23 @@ final class Pointing {
         }
     }
 
+    private func stopClickWatch() {
+        guard clicks.isWatching else { return }
+        clicks.stop()
+        logger.notice("The click watch stopped")
+    }
+
     private func end(because reason: String) {
         if case .over = phase { return }
         let wasShowing = isShowing
         phase = .over
         nextStep?.cancel()
         waitingMarks = []
+        marksOnScreen = []
         appSwitches.stop()
         scrolls.stop()
         pointerMoves.stop()
-        if clicks.isWatching {
-            clicks.stop()
-            logger.notice("The click watch stopped")
-        }
+        stopClickWatch()
         if wasShowing {
             stage.clear()
         }
