@@ -157,7 +157,7 @@ nonisolated struct PointTagParser {
     }
 
     private static func point(in tag: String) -> (location: PointLocation, label: PointLabel?)? {
-        let label = tag.firstMatch(of: /\blabel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'<>\/]*))/.ignoresCase())
+        let label = tag.firstMatch(of: /\blabel\s*=\s*(?:"([^"]*)"|'([^']*)'|["'].*|([^\s"'<>\/]*))/.ignoresCase())
         var place = tag
         if let label {
             place.removeSubrange(label.range)
