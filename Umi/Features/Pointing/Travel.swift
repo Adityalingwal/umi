@@ -10,9 +10,9 @@ struct Travel {
 
     let target: CGPoint
     let duration: Duration
+    let arrowTip: CGPoint
 
     private let start: CGPoint
-    private let end: CGPoint
     private let bendPoint: CGPoint
     private let startDate: Date
 
@@ -21,11 +21,11 @@ struct Travel {
         self.target = target
         self.duration = duration
         startDate = date
-        end = Self.landing(beside: target, comingFrom: start, within: bounds)
-        let middle = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+        arrowTip = Self.landing(beside: target, comingFrom: start, within: bounds)
+        let middle = CGPoint(x: (start.x + arrowTip.x) / 2, y: (start.y + arrowTip.y) / 2)
         bendPoint = CGPoint(
-            x: middle.x + (end.y - start.y) * Self.bend,
-            y: middle.y - (end.x - start.x) * Self.bend
+            x: middle.x + (arrowTip.y - start.y) * Self.bend,
+            y: middle.y - (arrowTip.x - start.x) * Self.bend
         )
     }
 
@@ -44,8 +44,8 @@ struct Travel {
         let eased = progress < 0.5 ? 4 * pow(progress, 3) : 1 - pow(-2 * progress + 2, 3) / 2
         let rest = 1 - eased
         return CGPoint(
-            x: rest * rest * start.x + 2 * rest * eased * bendPoint.x + eased * eased * end.x,
-            y: rest * rest * start.y + 2 * rest * eased * bendPoint.y + eased * eased * end.y
+            x: rest * rest * start.x + 2 * rest * eased * bendPoint.x + eased * eased * arrowTip.x,
+            y: rest * rest * start.y + 2 * rest * eased * bendPoint.y + eased * eased * arrowTip.y
         )
     }
 

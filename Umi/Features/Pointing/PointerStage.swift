@@ -15,7 +15,7 @@ final class PointerStage {
         Travel.usualDuration(from: viewPoint(rest), to: viewPoint(target))
     }
 
-    func travel(from rest: CGPoint, to target: CGPoint, taking duration: Duration) {
+    func travel(from rest: CGPoint, to target: CGPoint, taking duration: Duration, label: PointLabel?) {
         let bounds = CGRect(origin: .zero, size: displayFrame.size)
         let restPoint = viewPoint(rest)
         let start = CGPoint(
@@ -24,7 +24,7 @@ final class PointerStage {
         )
         let travel = Travel(from: start, to: viewPoint(target), within: bounds, duration: duration, startingAt: .now)
         panel.show(on: displayFrame)
-        overlay.start(travel)
+        overlay.start(travel, label: label)
     }
 
     func land() {
