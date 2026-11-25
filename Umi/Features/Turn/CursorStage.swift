@@ -15,8 +15,8 @@ final class CursorStage {
         self.panel = panel
     }
 
-    var center: CGPoint {
-        panel.center
+    var restBesidePointer: CGPoint {
+        panel.restBesidePointer
     }
 
     var isFailed: Bool {

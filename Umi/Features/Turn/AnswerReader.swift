@@ -94,6 +94,7 @@ struct AnswerReader {
             for part in tags.finish() {
                 read(part)
             }
+            pointing?.answerTextEnded()
             voice.endText()
         case .drawing:
             drawing.end()

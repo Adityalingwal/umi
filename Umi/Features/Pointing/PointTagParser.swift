@@ -9,7 +9,6 @@ nonisolated struct PointTagParser {
         case malformedTag
         case unfinishedTag
         case emptyName
-        case secondPoint
     }
 
     private static let longestTag = 200
@@ -19,7 +18,6 @@ nonisolated struct PointTagParser {
     private var buffer = ""
     private var waitingPoint: (location: PointLocation, label: PointLabel?)?
     private var isInsideName = false
-    private var hasPointed = false
 
     mutating func add(_ piece: String) -> [Part] {
         buffer += piece
@@ -43,7 +41,8 @@ nonisolated struct PointTagParser {
             let text = buffer
             let brackets = text.indices.dropFirst().lazy.filter { "<>".contains(text[$0]) }
             let mustDecide = isFinal || text.count > Self.longestTag
-            let end = brackets.first { !Self.endsInsideLabel(text[..<$0]) } ?? (mustDecide ? brackets.first : nil)
+            let end = brackets.first { !Self.endsInsideLabel(text[..<$0]) || Self.opensPoint(text[$0...]) }
+                ?? (mustDecide ? brackets.first : nil)
             guard let end, buffer[end] == ">" else {
                 if !Self.mayBecomeTag(buffer) {
                     emitOpeningBracket(into: &parts)
@@ -113,11 +112,9 @@ nonisolated struct PointTagParser {
             parts.append(.dropped(.malformedTag))
             return
         }
-        guard !hasPointed else {
-            parts.append(.dropped(.secondPoint))
-            return
+        if waitingPoint != nil {
+            parts.append(.dropped(.emptyName))
         }
-        hasPointed = true
         waitingPoint = point
     }
 
@@ -150,6 +147,10 @@ nonisolated struct PointTagParser {
     private static func mayBecomeTag(_ text: String) -> Bool {
         let lowered = text.lowercased()
         return openTag.hasPrefix(lowered) || closeTag.hasPrefix(lowered) || isPointTag(lowered)
+    }
+
+    private static func opensPoint(_ text: Substring) -> Bool {
+        text.lowercased().prefixMatch(of: /<point(\s|\/|>)/) != nil
     }
 
     private static func isPointTag(_ text: String) -> Bool {

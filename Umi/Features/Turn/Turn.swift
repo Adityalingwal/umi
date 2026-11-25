@@ -85,7 +85,7 @@ final class Turn {
         }
         pointing = pointer.pointing(
             on: underPointer.screen.frame,
-            cursorRest: { [cursorStage] in cursorStage.center },
+            cursorRest: { [cursorStage] in cursorStage.restBesidePointer },
             onDepart: { [cursorStage] in cursorStage.hide() }
         )
         cursorStage.listen()

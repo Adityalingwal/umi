@@ -7,21 +7,71 @@ struct Travel {
     private static let gapOutsideRing = 6.0
     private static let arrowLength = 22.0
     private static let bend = 0.15
+    private static let turningShare = 0.25
 
     let target: CGPoint
     let duration: Duration
     let arrowTip: CGPoint
+    let isGoingHome: Bool
 
     private let start: CGPoint
     private let bendPoint: CGPoint
     private let startDate: Date
+    private let startAngle: Double?
 
-    init(from start: CGPoint, to target: CGPoint, within bounds: CGRect, duration: Duration, startingAt date: Date) {
+    init(
+        from start: CGPoint,
+        turningFrom startAngle: Double?,
+        toMarkAt target: CGPoint,
+        within bounds: CGRect,
+        duration: Duration,
+        startingAt date: Date
+    ) {
+        self.init(
+            from: start,
+            turningFrom: startAngle,
+            to: target,
+            arrowTip: Self.landing(beside: target, comingFrom: start, within: bounds),
+            isGoingHome: false,
+            duration: duration,
+            startingAt: date
+        )
+    }
+
+    init(
+        from start: CGPoint,
+        turningFrom startAngle: Double?,
+        homeTo rest: CGPoint,
+        duration: Duration,
+        startingAt date: Date
+    ) {
+        self.init(
+            from: start,
+            turningFrom: startAngle,
+            to: rest,
+            arrowTip: rest,
+            isGoingHome: true,
+            duration: duration,
+            startingAt: date
+        )
+    }
+
+    private init(
+        from start: CGPoint,
+        turningFrom startAngle: Double?,
+        to target: CGPoint,
+        arrowTip: CGPoint,
+        isGoingHome: Bool,
+        duration: Duration,
+        startingAt date: Date
+    ) {
         self.start = start
+        self.startAngle = startAngle
         self.target = target
+        self.arrowTip = arrowTip
+        self.isGoingHome = isGoingHome
         self.duration = duration
         startDate = date
-        arrowTip = Self.landing(beside: target, comingFrom: start, within: bounds)
         let middle = CGPoint(x: (start.x + arrowTip.x) / 2, y: (start.y + arrowTip.y) / 2)
         bendPoint = CGPoint(
             x: middle.x + (arrowTip.y - start.y) * Self.bend,
@@ -41,7 +91,7 @@ struct Travel {
     }
 
     func tip(at progress: Double) -> CGPoint {
-        let eased = progress < 0.5 ? 4 * pow(progress, 3) : 1 - pow(-2 * progress + 2, 3) / 2
+        let eased = Self.eased(progress)
         let rest = 1 - eased
         return CGPoint(
             x: rest * rest * start.x + 2 * rest * eased * bendPoint.x + eased * eased * arrowTip.x,
@@ -50,8 +100,27 @@ struct Travel {
     }
 
     func angle(at progress: Double) -> Double {
+        let heading = isGoingHome ? headingAlongPath(at: progress) : headingToTarget(at: progress)
+        guard let startAngle, progress < Self.turningShare else { return heading }
+        let turn = heading - startAngle
+        return startAngle + atan2(sin(turn), cos(turn)) * progress / Self.turningShare
+    }
+
+    private func headingToTarget(at progress: Double) -> Double {
         let tip = tip(at: progress)
         return atan2(target.y - tip.y, target.x - tip.x)
+    }
+
+    private func headingAlongPath(at progress: Double) -> Double {
+        let eased = Self.eased(progress)
+        let alongX = (1 - eased) * (bendPoint.x - start.x) + eased * (arrowTip.x - bendPoint.x)
+        let alongY = (1 - eased) * (bendPoint.y - start.y) + eased * (arrowTip.y - bendPoint.y)
+        guard hypot(alongX, alongY) > 0.001 else { return startAngle ?? 0 }
+        return atan2(alongY, alongX)
+    }
+
+    private static func eased(_ progress: Double) -> Double {
+        progress < 0.5 ? 4 * pow(progress, 3) : 1 - pow(-2 * progress + 2, 3) / 2
     }
 
     private static func landing(beside target: CGPoint, comingFrom start: CGPoint, within bounds: CGRect) -> CGPoint {

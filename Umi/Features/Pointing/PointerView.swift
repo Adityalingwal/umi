@@ -5,22 +5,19 @@ struct PointerView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            if let travel = overlay.travel, overlay.isLanded {
+            ForEach(overlay.marks) { mark in
                 MarkRing()
-                    .position(travel.target)
+                    .position(mark.target)
                     .transition(.opacity.combined(with: .scale(scale: 0.6)))
-                if let label = overlay.label {
-                    MarkLabel(label: label, travel: travel)
-                        .transition(.opacity)
-                }
             }
+            MarkLabels(marks: overlay.marks)
             if let travel = overlay.travel {
                 TravellingArrow(travel: travel, isLanded: overlay.isLanded)
                     .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.15), value: overlay.isLanded)
+        .animation(.easeOut(duration: 0.15), value: overlay.marks.count)
         .animation(.easeOut(duration: 0.15), value: overlay.travel == nil)
     }
 }

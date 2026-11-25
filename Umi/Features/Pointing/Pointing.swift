@@ -5,20 +5,36 @@ final class Pointing {
     private enum Phase {
         case waiting
         case travelling
-        case marked
+        case resting
+        case onLastMark
+        case goingHome
+        case home
         case over
     }
+
+    private struct WaitingMark {
+        let number: Int
+        let target: CGPoint
+        let label: PointLabel?
+    }
+
+    private static let restOnMark = Duration.milliseconds(300)
 
     private let stage: PointerStage
     private let displayFrame: CGRect
     private let appSwitches: AppSwitchWatch
     private let scrolls = ScrollWatch()
     private let clicks = ClickWatch()
+    private let pointerMoves = PointerMoveWatch()
     private let cursorRest: () -> CGPoint
     private let onDepart: () -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
     private var phase = Phase.waiting
-    private var landing: Task<Void, Never>?
+    private var waitingMarks: [WaitingMark] = []
+    private var marksInHand = 0
+    private var marksShown = 0
+    private var hasTextEnded = false
+    private var nextStep: Task<Void, Never>?
 
     init(
         stage: PointerStage,
@@ -36,7 +52,7 @@ final class Pointing {
 
     var isShowing: Bool {
         switch phase {
-        case .travelling, .marked: true
+        case .travelling, .resting, .onLastMark, .goingHome, .home: true
         case .waiting, .over: false
         }
     }
@@ -51,9 +67,12 @@ final class Pointing {
     }
 
     func aim(at location: PointLocation, label: PointLabel?, pictureWidth: Int, pictureHeight: Int) {
-        guard case .waiting = phase else {
+        switch phase {
+        case .over, .goingHome, .home:
             logger.notice("A location came after pointing had ended, so it is ignored")
             return
+        case .waiting, .travelling, .resting, .onLastMark:
+            break
         }
         let mapping = ScreenMapping(
             pictureWidth: pictureWidth,
@@ -61,16 +80,34 @@ final class Pointing {
             displayFrame: displayFrame
         )
         guard let target = mapping.screenPoint(for: location) else {
-            end(because: "the location is outside the screen picture")
+            logger.notice("A location is outside the screen picture, so its mark is dropped and the others stay")
             return
         }
-        logger.notice("The location is in hand, so the cursor leaves now; a label: \(label != nil, privacy: .public)")
-        depart(to: target, label: label)
+        marksInHand += 1
+        waitingMarks.append(WaitingMark(number: marksInHand, target: target, label: label))
+        logger.notice(
+            "Mark \(self.marksInHand, privacy: .public) is in hand; a label: \(label != nil, privacy: .public)"
+        )
+        switch phase {
+        case .waiting, .onLastMark:
+            flyToNextMark()
+        case .travelling, .resting:
+            logger.notice("The arrow is busy, so mark \(self.marksInHand, privacy: .public) waits its turn")
+        case .goingHome, .home, .over:
+            break
+        }
+    }
+
+    func answerTextEnded() {
+        hasTextEnded = true
+        if case .onLastMark = phase, marksShown > 1 {
+            goHome()
+        }
     }
 
     func answerEnded() {
         switch phase {
-        case .travelling, .marked, .over:
+        case .travelling, .resting, .onLastMark, .goingHome, .home, .over:
             return
         case .waiting:
             end(because: "the answer ended without a location")
@@ -81,37 +118,87 @@ final class Pointing {
         end(because: "the question stopped")
     }
 
-    private func depart(to target: CGPoint, label: PointLabel?) {
-        let rest = cursorRest()
-        let duration = stage.usualTravelTime(from: rest, to: target)
-        stage.travel(from: rest, to: target, taking: duration, label: label)
-        onDepart()
+    private func flyToNextMark() {
+        let mark = waitingMarks.removeFirst()
+        let isFirst = marksShown == 0
+        let duration = stage.fly(to: mark.target, label: mark.label, startingFrom: cursorRest())
+        if isFirst {
+            onDepart()
+        }
         phase = .travelling
-        logger.notice("The cursor left; it lands in \(Self.milliseconds(duration), privacy: .public) ms")
-        landing = Task { [weak self] in
-            try? await Task.sleep(for: duration)
-            guard !Task.isCancelled else { return }
-            self?.land()
+        let time = Self.milliseconds(duration)
+        let number = mark.number
+        logger.notice("The arrow left for mark \(number, privacy: .public); it lands in \(time, privacy: .public) ms")
+        nextStep = after(duration) { $0.land(mark) }
+    }
+
+    private func land(_ mark: WaitingMark) {
+        guard case .travelling = phase else { return }
+        stage.landOnMark(waitingAt: waitingMarks.map(\.target))
+        marksShown += 1
+        phase = .resting
+        logger.notice("The arrow landed and mark \(mark.number, privacy: .public) is on")
+        if !clicks.isWatching {
+            clicks.start { [weak self] in
+                self?.end(because: "the user clicked")
+            }
+            logger.notice("The click watch started")
+        }
+        nextStep = after(Self.restOnMark) { $0.leaveMark() }
+    }
+
+    private func leaveMark() {
+        guard case .resting = phase else { return }
+        if !waitingMarks.isEmpty {
+            flyToNextMark()
+        } else if hasTextEnded, marksShown > 1 {
+            goHome()
+        } else {
+            phase = .onLastMark
         }
     }
 
-    private func land() {
-        guard case .travelling = phase else { return }
-        stage.land()
-        phase = .marked
-        clicks.start { [weak self] in
-            self?.end(because: "the user clicked")
+    private func goHome() {
+        let duration = stage.goHome(to: cursorRest())
+        phase = .goingHome
+        let time = Self.milliseconds(duration)
+        logger.notice("The last mark is visited; the arrow goes home, arriving in \(time, privacy: .public) ms")
+        nextStep = after(duration) { $0.arriveHome() }
+    }
+
+    private func arriveHome() {
+        guard case .goingHome = phase else { return }
+        stage.landHome()
+        phase = .home
+        keepHomeBesidePointer()
+        pointerMoves.start { [weak self] in
+            self?.keepHomeBesidePointer()
         }
-        logger.notice("The cursor landed and the mark is on; the click watch started")
+        logger.notice("The arrow is back at its rest by the pointer and follows it")
+    }
+
+    private func keepHomeBesidePointer() {
+        guard case .home = phase else { return }
+        stage.keepHome(at: cursorRest())
+    }
+
+    private func after(_ duration: Duration, then step: @escaping (Pointing) -> Void) -> Task<Void, Never> {
+        Task { [weak self] in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled, let self else { return }
+            step(self)
+        }
     }
 
     private func end(because reason: String) {
         if case .over = phase { return }
         let wasShowing = isShowing
         phase = .over
-        landing?.cancel()
+        nextStep?.cancel()
+        waitingMarks = []
         appSwitches.stop()
         scrolls.stop()
+        pointerMoves.stop()
         if clicks.isWatching {
             clicks.stop()
             logger.notice("The click watch stopped")
@@ -120,6 +207,7 @@ final class Pointing {
             stage.clear()
         }
         logger.notice("Pointing ended: \(reason, privacy: .public); it was showing: \(wasShowing, privacy: .public)")
+        logger.notice("Marks shown in this answer: \(self.marksShown, privacy: .public)")
     }
 
     private static func milliseconds(_ duration: Duration) -> Int {
