@@ -12,10 +12,10 @@ final class ClickWatch {
     func start(onClick: @escaping (CGPoint) -> Void) {
         guard monitors.isEmpty else { return }
         let global = NSEvent.addGlobalMonitorForEvents(matching: Self.clicks) { event in
-            onClick(Self.screenPlace(of: event))
+            Self.pass(event, to: onClick)
         }
         let local = NSEvent.addLocalMonitorForEvents(matching: Self.clicks) { event in
-            onClick(Self.screenPlace(of: event))
+            Self.pass(event, to: onClick)
             return event
         }
         monitors = [global, local].compactMap(\.self)
@@ -24,6 +24,12 @@ final class ClickWatch {
     func stop() {
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
+    }
+
+    // A double-click's later presses land where its first press did, on a mark the first press already cleared.
+    private static func pass(_ event: NSEvent, to onClick: (CGPoint) -> Void) {
+        guard event.clickCount <= 1 else { return }
+        onClick(screenPlace(of: event))
     }
 
     private static func screenPlace(of event: NSEvent) -> CGPoint {
