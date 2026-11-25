@@ -43,7 +43,8 @@ enum UmiPrompt {
         wrapped around its name the same way: \
         <stroke x1="X1" y1="Y1" x2="X2" y2="Y2" label="Label">Name</stroke>, \
         where X1, Y1 is its left end and X2, Y2 its right end, in pixel coordinates counted the same way. \
-        It runs from the first letter to the last letter of the words you mean, just below the letters. \
+        It runs just below the letters, from the first letter to the last letter of the whole line you explain, \
+        even when you say only part of it; for a word or phrase inside a line, it runs under that word or phrase only. \
         A stroke goes under one line of text: to explain several lines, give each line its own stroke. \
         Write the name exactly as it is written on the screen, digits included. \
         Umi shows Label next to the mark, so a user who missed your voice can read it. \
