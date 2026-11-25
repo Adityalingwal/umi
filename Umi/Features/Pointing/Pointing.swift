@@ -7,6 +7,7 @@ final class Pointing {
         case travelling
         case resting
         case onLastMark
+        case arrowHidden
         case goingHome
         case home
         case over
@@ -28,6 +29,7 @@ final class Pointing {
     private var marksOnScreen: [AnswerMark] = []
     private var marksInHand = 0
     private var marksShown = 0
+    private var lastLanded: Int?
     private var hasTextEnded = false
     private var nextStep: Task<Void, Never>?
 
@@ -47,7 +49,7 @@ final class Pointing {
 
     var isShowing: Bool {
         switch phase {
-        case .travelling, .resting, .onLastMark, .goingHome, .home: true
+        case .travelling, .resting, .onLastMark, .arrowHidden, .goingHome, .home: true
         case .waiting, .over: false
         }
     }
@@ -66,7 +68,7 @@ final class Pointing {
         case .over, .goingHome, .home:
             logger.notice("A location came after pointing had ended, so it is ignored")
             return
-        case .waiting, .travelling, .resting, .onLastMark:
+        case .waiting, .travelling, .resting, .onLastMark, .arrowHidden:
             break
         }
         let mapping = ScreenMapping(
@@ -84,7 +86,7 @@ final class Pointing {
             "Mark \(self.marksInHand, privacy: .public) is in hand; a label: \(label != nil, privacy: .public)"
         )
         switch phase {
-        case .waiting, .onLastMark:
+        case .waiting, .onLastMark, .arrowHidden:
             flyToNextMark()
         case .travelling, .resting:
             logger.notice("The arrow is busy, so mark \(self.marksInHand, privacy: .public) waits its turn")
@@ -96,14 +98,14 @@ final class Pointing {
     func answerTextEnded() {
         hasTextEnded = true
         endIfAnswerIsDone()
-        if case .onLastMark = phase, marksShown > 1 {
+        if [.onLastMark, .arrowHidden].contains(phase), marksShown > 1 {
             goHome()
         }
     }
 
     func answerEnded() {
         switch phase {
-        case .travelling, .resting, .onLastMark, .goingHome, .home, .over:
+        case .travelling, .resting, .onLastMark, .arrowHidden, .goingHome, .home, .over:
             return
         case .waiting:
             end(because: "the answer ended without a location")
@@ -132,6 +134,7 @@ final class Pointing {
         guard case .travelling = phase else { return }
         stage.landOnMark(numbered: mark.number, waitingAt: waitingMarks.map(\.target))
         marksOnScreen.append(mark)
+        lastLanded = mark.number
         marksShown += 1
         phase = .resting
         logger.notice("The arrow landed and mark \(mark.number, privacy: .public) is on")
@@ -162,15 +165,36 @@ final class Pointing {
         let gone = cleared.count
         let left = marksOnScreen.count
         logger.notice("A click landed on a mark; cleared: \(gone, privacy: .public), left: \(left, privacy: .public)")
+        if let lastLanded, numbers.contains(lastLanded) {
+            hideArrowBesideClearedMark()
+        }
         guard marksOnScreen.isEmpty else { return }
         stopClickWatch()
         endIfAnswerIsDone()
     }
 
+    private func hideArrowBesideClearedMark() {
+        switch phase {
+        case .resting, .onLastMark:
+            break
+        case .waiting, .travelling, .arrowHidden, .goingHome, .home, .over:
+            return
+        }
+        nextStep?.cancel()
+        stage.hideArrow()
+        phase = .arrowHidden
+        logger.notice("The mark beside the arrow was cleared, so the arrow hides")
+        if !waitingMarks.isEmpty {
+            flyToNextMark()
+        } else if hasTextEnded, marksShown > 1, !marksOnScreen.isEmpty {
+            goHome()
+        }
+    }
+
     private func endIfAnswerIsDone() {
         guard hasTextEnded, marksOnScreen.isEmpty, waitingMarks.isEmpty else { return }
         switch phase {
-        case .resting, .onLastMark, .goingHome, .home:
+        case .resting, .onLastMark, .arrowHidden, .goingHome, .home:
             end(because: "the last mark was cleared and the answer's text has ended")
         case .waiting, .travelling, .over:
             break

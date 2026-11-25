@@ -36,6 +36,12 @@ final class PointerOverlay {
         marks.removeAll { numbers.contains($0.id) }
     }
 
+    func hideArrow() {
+        travel = nil
+        travelLabel = nil
+        isLanded = false
+    }
+
     func clear() {
         marks = []
         travel = nil

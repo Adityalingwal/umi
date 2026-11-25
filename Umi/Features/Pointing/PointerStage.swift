@@ -33,12 +33,12 @@ final class PointerStage {
     }
 
     func goHome(to rest: CGPoint) -> Duration {
-        guard let last = overlay.travel else { return .zero }
         let home = viewPointOnDisplay(rest)
-        let duration = Travel.usualDuration(from: last.arrowTip, to: home)
+        let start = overlay.travel?.arrowTip ?? home
+        let duration = Travel.usualDuration(from: start, to: home)
         let travel = Travel(
-            from: last.arrowTip,
-            turningFrom: last.angle(at: 1),
+            from: start,
+            turningFrom: overlay.travel?.angle(at: 1),
             homeTo: home,
             duration: duration,
             startingAt: .now
@@ -53,6 +53,13 @@ final class PointerStage {
 
     func clearMarks(numbered numbers: [Int]) {
         overlay.remove(marksNumbered: numbers)
+    }
+
+    func hideArrow() {
+        overlay.hideArrow()
+        if overlay.marks.isEmpty {
+            panel.hide()
+        }
     }
 
     func landHome() {
