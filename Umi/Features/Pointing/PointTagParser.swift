@@ -9,7 +9,6 @@ nonisolated struct PointTagParser {
         case malformedTag
         case unfinishedTag
         case emptyName
-        case secondPoint
     }
 
     private static let longestTag = 200
@@ -19,7 +18,6 @@ nonisolated struct PointTagParser {
     private var buffer = ""
     private var waitingPoint: (location: PointLocation, label: PointLabel?)?
     private var isInsideName = false
-    private var hasPointed = false
 
     mutating func add(_ piece: String) -> [Part] {
         buffer += piece
@@ -113,11 +111,9 @@ nonisolated struct PointTagParser {
             parts.append(.dropped(.malformedTag))
             return
         }
-        guard !hasPointed else {
-            parts.append(.dropped(.secondPoint))
-            return
+        if waitingPoint != nil {
+            parts.append(.dropped(.emptyName))
         }
-        hasPointed = true
         waitingPoint = point
     }
 
