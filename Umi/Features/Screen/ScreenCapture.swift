@@ -7,36 +7,36 @@ import ScreenCaptureKit
 nonisolated struct ScreenCapture: Sendable {
     private let ownBundleID: String?
     private let probe: ScreenAccessProbe?
-    private let replacementImageURL: URL?
+    private let replacementScreens: ReplacementScreens?
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Screen")
 
-    private init(ownBundleID: String?, probe: ScreenAccessProbe?, replacementImageURL: URL?) {
+    private init(ownBundleID: String?, probe: ScreenAccessProbe?, replacementScreens: ReplacementScreens?) {
         self.ownBundleID = ownBundleID
         self.probe = probe
-        self.replacementImageURL = replacementImageURL
+        self.replacementScreens = replacementScreens
     }
 
     static func atLaunch(defaults: UserDefaults, bundle: Bundle) -> ScreenCapture {
-        var replacementImageURL: URL?
+        var replacementScreens: ReplacementScreens?
         #if DEBUG
-        replacementImageURL = defaults.string(forKey: "UmiScreenImage").map { URL(filePath: $0) }
+        replacementScreens = ReplacementScreens.atLaunch(defaults: defaults)
         #endif
         return ScreenCapture(
             ownBundleID: bundle.bundleIdentifier,
             probe: bundle.executableURL.map(ScreenAccessProbe.init),
-            replacementImageURL: replacementImageURL
+            replacementScreens: replacementScreens
         )
     }
 
     var isAllowed: Bool {
-        replacementImageURL != nil || CGPreflightScreenCaptureAccess()
+        replacementScreens != nil || CGPreflightScreenCaptureAccess()
     }
 
     @concurrent
     func picture(ofDisplay displayID: CGDirectDisplayID) async throws -> ScreenPicture {
         #if DEBUG
-        if let replacementImageURL {
-            return try replacementPicture(from: replacementImageURL)
+        if let replacementScreens {
+            return try replacementPicture(from: replacementScreens.next())
         }
         #endif
         guard CGPreflightScreenCaptureAccess() else {
@@ -78,7 +78,6 @@ nonisolated struct ScreenCapture: Sendable {
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             throw ScreenError.replacementImageUnreadable
         }
-        logger.notice("Using the replacement screen image")
         try Task.checkCancellation()
         return ScreenPicture(jpegData: try JPEGEncoder.encode(image), width: image.width, height: image.height)
     }

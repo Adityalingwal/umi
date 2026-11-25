@@ -29,7 +29,7 @@ final class HoldFile: AudioSource {
         let key = "UmiHoldFile"
         let paths = defaults.stringArray(forKey: key) ?? defaults.string(forKey: key).map { [$0] } ?? []
         guard !paths.isEmpty else { return nil }
-        guard paths.count == 1 || defaults.string(forKey: "UmiScreenImage") != nil else {
+        guard paths.count == 1 || defaults.object(forKey: "UmiScreenImage") != nil else {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
                 .error("Several hold files need -UmiScreenImage, so no hold plays")
             return HoldFile(fileURLs: [])
