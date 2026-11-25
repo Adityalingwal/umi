@@ -18,7 +18,7 @@ final class PointerStage {
     func fly(to place: MarkPlace, startingFrom rest: CGPoint, taking fixed: Duration?) -> Duration {
         let start = overlay.travel?.arrowTip ?? viewPointOnDisplay(rest)
         let end = viewPlace(place)
-        let duration = fixed ?? Travel.usualDuration(from: start, to: end.center)
+        let duration = fixed ?? Travel.usualDuration(from: start, to: end.aimPoint)
         let travel = Travel(
             from: start,
             turningFrom: overlay.travel?.angle(at: 1),

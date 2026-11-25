@@ -41,6 +41,7 @@ private nonisolated struct MarkLabelsLayout: Layout {
     private static let gapOutsideMark = 8.0
     private static let screenMargin = 4.0
     private static let arrowReach = 30.0
+    private static let textAboveStroke = 18.0
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         proposal.replacingUnspecifiedDimensions()
@@ -83,14 +84,21 @@ private nonisolated struct MarkLabelsLayout: Layout {
             ?? sides[0].slidHorizontally(into: screen).slidVertically(into: screen)
     }
 
+    // A stroke lies just under its line of text, so that line is part of its area and labels keep off the words.
     private func area(of place: MarkPlace, within bounds: CGRect) -> CGRect {
-        place.frame.offsetBy(dx: bounds.minX, dy: bounds.minY)
+        let frame = switch place {
+        case .ring, .box:
+            place.frame
+        case .stroke:
+            place.frame.union(place.frame.offsetBy(dx: 0, dy: -Self.textAboveStroke))
+        }
+        return frame.offsetBy(dx: bounds.minX, dy: bounds.minY)
     }
 
     private func arrowArea(for mark: ScreenMark, within bounds: CGRect) -> CGRect {
         let tip = point(mark.arrowTip, within: bounds)
-        let center = mark.place.center
-        let away = CGVector(dx: mark.arrowTip.x - center.x, dy: mark.arrowTip.y - center.y)
+        let aim = mark.place.aimPoint
+        let away = CGVector(dx: mark.arrowTip.x - aim.x, dy: mark.arrowTip.y - aim.y)
         let length = max(hypot(away.dx, away.dy), 1)
         let middle = CGPoint(
             x: tip.x + away.dx / length * Self.arrowReach / 2,

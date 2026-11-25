@@ -29,7 +29,7 @@ struct Travel {
         self.init(
             from: start,
             turningFrom: startAngle,
-            to: place.center,
+            to: place.aimPoint,
             arrowTip: Self.landing(beside: place, comingFrom: start, within: bounds),
             isGoingHome: false,
             leavesFromInside: Self.isBox(place, holding: start),
@@ -149,7 +149,7 @@ struct Travel {
     }
 
     private static func landing(beside place: MarkPlace, comingFrom start: CGPoint, within bounds: CGRect) -> CGPoint {
-        let target = place.center
+        let target = place.aimPoint
         let away = CGVector(dx: start.x - target.x, dy: start.y - target.y)
         let length = hypot(away.dx, away.dy)
         let direction = length > 1 ? CGVector(dx: away.dx / length, dy: away.dy / length) : CGVector(dx: 0.7, dy: 0.7)
@@ -157,7 +157,8 @@ struct Travel {
         let turns = [direction, direction.turnedQuarter, direction.turnedQuarter.turnedQuarter.turnedQuarter,
                      direction.turnedQuarter.turnedQuarter]
         let sides = [CGVector(dx: 1, dy: 0), CGVector(dx: -1, dy: 0), CGVector(dx: 0, dy: 1), CGVector(dx: 0, dy: -1)]
-        let candidates = (turns + sides).map { place.edge(toward: $0, gap: gapOutsideMark) }
+        let preferred = place.landingDirection.map { [$0] } ?? []
+        let candidates = (preferred + turns + sides).map { place.edge(toward: $0, gap: gapOutsideMark) }
         let fallback = candidates[0]
         return candidates.first(where: safeArea.contains) ?? CGPoint(
             x: min(max(fallback.x, safeArea.minX), safeArea.maxX),

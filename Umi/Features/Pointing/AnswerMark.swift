@@ -3,6 +3,7 @@ import CoreGraphics
 struct AnswerMark {
     private static let ringReach = 40.0
     private static let boxReach = 8.0
+    private static let strokeReach = 8.0
 
     let number: Int
     let place: MarkPlace
@@ -14,6 +15,16 @@ struct AnswerMark {
             hypot(press.x - center.x, press.y - center.y) <= Self.ringReach
         case .box(let frame):
             frame.insetBy(dx: -Self.boxReach, dy: -Self.boxReach).contains(press)
+        case .stroke(let start, let end):
+            Self.distance(from: press, toLineFrom: start, to: end) <= Self.strokeReach
         }
+    }
+
+    private static func distance(from point: CGPoint, toLineFrom start: CGPoint, to end: CGPoint) -> Double {
+        let line = CGVector(dx: end.x - start.x, dy: end.y - start.y)
+        let lengthSquared = line.dx * line.dx + line.dy * line.dy
+        let along = ((point.x - start.x) * line.dx + (point.y - start.y) * line.dy) / lengthSquared
+        let share = min(1, max(0, along))
+        return hypot(point.x - (start.x + line.dx * share), point.y - (start.y + line.dy * share))
     }
 }
