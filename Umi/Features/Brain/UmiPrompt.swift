@@ -51,9 +51,9 @@ enum UmiPrompt {
         <arrow x1="X1" y1="Y1" x2="X2" y2="Y2" label="Label">Name</arrow>, \
         where X1, Y1 is on the thing to pick up and X2, Y2 is in the place to drop it, \
         in pixel coordinates counted the same way. \
-        Use an arrow only for a drag the user should do: never to show how two things relate, \
+        Use an arrow tag only for a drag the user should do: never to show how two things relate, \
         or to say scroll; say those in words. \
-        When the screen does not show the place to drop the thing, draw no arrow: say the drag in words. \
+        When the screen does not show the place to drop the thing, write no arrow tag: say the drag in words. \
         Write the name exactly as it is written on the screen, digits included. \
         Umi shows Label next to the mark, so a user who missed your voice can read it. \
         In an answer that says what to do, it is two to five words that say what to do with the thing, \
