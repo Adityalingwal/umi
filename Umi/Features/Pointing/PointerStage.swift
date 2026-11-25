@@ -11,20 +11,40 @@ final class PointerStage {
         self.displayFrame = displayFrame
     }
 
-    func usualTravelTime(from rest: CGPoint, to target: CGPoint) -> Duration {
-        Travel.usualDuration(from: viewPoint(rest), to: viewPoint(target))
+    private var bounds: CGRect {
+        CGRect(origin: .zero, size: displayFrame.size)
     }
 
-    func travel(from rest: CGPoint, to target: CGPoint, taking duration: Duration, label: PointLabel?) {
-        let bounds = CGRect(origin: .zero, size: displayFrame.size)
-        let restPoint = viewPoint(rest)
-        let start = CGPoint(
-            x: min(max(restPoint.x, bounds.minX), bounds.maxX),
-            y: min(max(restPoint.y, bounds.minY), bounds.maxY)
+    func fly(to target: CGPoint, label: PointLabel?, startingFrom rest: CGPoint) -> Duration {
+        let start = overlay.travel?.arrowTip ?? viewPointOnDisplay(rest)
+        let end = viewPoint(target)
+        let duration = Travel.usualDuration(from: start, to: end)
+        let travel = Travel(
+            from: start,
+            turningFrom: overlay.travel?.angle(at: 1),
+            toMarkAt: end,
+            within: bounds,
+            duration: duration,
+            startingAt: .now
         )
-        let travel = Travel(from: start, to: viewPoint(target), within: bounds, duration: duration, startingAt: .now)
         panel.show(on: displayFrame)
         overlay.start(travel, label: label)
+        return duration
+    }
+
+    func goHome(to rest: CGPoint) -> Duration {
+        guard let last = overlay.travel else { return .zero }
+        let home = viewPointOnDisplay(rest)
+        let duration = Travel.usualDuration(from: last.arrowTip, to: home)
+        let travel = Travel(
+            from: last.arrowTip,
+            turningFrom: last.angle(at: 1),
+            homeTo: home,
+            duration: duration,
+            startingAt: .now
+        )
+        overlay.start(travel, label: nil)
+        return duration
     }
 
     func land() {
@@ -34,6 +54,11 @@ final class PointerStage {
     func clear() {
         panel.hide()
         overlay.clear()
+    }
+
+    private func viewPointOnDisplay(_ screenPoint: CGPoint) -> CGPoint {
+        let point = viewPoint(screenPoint)
+        return CGPoint(x: min(max(point.x, bounds.minX), bounds.maxX), y: min(max(point.y, bounds.minY), bounds.maxY))
     }
 
     private func viewPoint(_ screenPoint: CGPoint) -> CGPoint {

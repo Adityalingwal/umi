@@ -2,10 +2,10 @@ import SwiftUI
 
 struct MarkLabel: View {
     let label: PointLabel
-    let travel: Travel
+    let mark: ScreenMark
 
     var body: some View {
-        MarkLabelLayout(target: travel.target, arrowTip: travel.arrowTip, ringRadius: Travel.ringDiameter / 2) {
+        MarkLabelLayout(target: mark.target, arrowTip: mark.arrowTip, ringRadius: Travel.ringDiameter / 2) {
             Text(label.text)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.black)

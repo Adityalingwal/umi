@@ -29,8 +29,9 @@ final class CursorPanel {
         panel.contentView = hostingView
     }
 
-    var center: CGPoint {
-        CGPoint(x: panel.frame.midX, y: panel.frame.midY)
+    var restBesidePointer: CGPoint {
+        let origin = originBesidePointer()
+        return CGPoint(x: origin.x + Self.size.width / 2, y: origin.y + Self.size.height / 2)
     }
 
     func startFollowingPointer() {
@@ -53,6 +54,10 @@ final class CursorPanel {
     }
 
     private func moveToPointer() {
+        panel.setFrameOrigin(originBesidePointer())
+    }
+
+    private func originBesidePointer() -> NSPoint {
         let pointer = NSEvent.mouseLocation
         var origin = NSPoint(
             x: pointer.x - Self.size.width / 2,
@@ -64,6 +69,6 @@ final class CursorPanel {
             }
             origin.x = min(max(origin.x, area.minX), area.maxX - Self.size.width)
         }
-        panel.setFrameOrigin(origin)
+        return origin
     }
 }
