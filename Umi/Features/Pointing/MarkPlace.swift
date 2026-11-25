@@ -3,6 +3,8 @@ import CoreGraphics
 nonisolated enum MarkPlace: Sendable {
     static let ringDiameter = 34.0
     static let strokeWidth = 5.0
+    // A stroke lies just under its line of text; this is about how far that text reaches above it.
+    static let textAboveStroke = 18.0
 
     case ring(CGPoint)
     case box(CGRect)

@@ -16,8 +16,18 @@ struct AnswerMark {
         case .box(let frame):
             frame.insetBy(dx: -Self.boxReach, dy: -Self.boxReach).contains(press)
         case .stroke(let start, let end):
-            Self.distance(from: press, toLineFrom: start, to: end) <= Self.strokeReach
+            isOnStroke(press, from: start, to: end)
         }
+    }
+
+    // The marked thing is the line of text above the stroke. Screen points grow upward, so that text is at larger y:
+    // a press counts from the reach under the stroke up to the top of the text.
+    private func isOnStroke(_ press: CGPoint, from start: CGPoint, to end: CGPoint) -> Bool {
+        let lift = MarkPlace.textAboveStroke - Self.strokeReach
+        let raisedStart = CGPoint(x: start.x, y: start.y + lift)
+        let raisedEnd = CGPoint(x: end.x, y: end.y + lift)
+        return Self.distance(from: press, toLineFrom: start, to: end) <= Self.strokeReach
+            || Self.distance(from: press, toLineFrom: raisedStart, to: raisedEnd) <= Self.strokeReach
     }
 
     private static func distance(from point: CGPoint, toLineFrom start: CGPoint, to end: CGPoint) -> Double {

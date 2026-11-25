@@ -41,7 +41,6 @@ private nonisolated struct MarkLabelsLayout: Layout {
     private static let gapOutsideMark = 8.0
     private static let screenMargin = 4.0
     private static let arrowReach = 30.0
-    private static let textAboveStroke = 18.0
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         proposal.replacingUnspecifiedDimensions()
@@ -90,7 +89,7 @@ private nonisolated struct MarkLabelsLayout: Layout {
         case .ring, .box:
             place.frame
         case .stroke:
-            place.frame.union(place.frame.offsetBy(dx: 0, dy: -Self.textAboveStroke))
+            place.frame.union(place.frame.offsetBy(dx: 0, dy: -MarkPlace.textAboveStroke))
         }
         return frame.offsetBy(dx: bounds.minX, dy: bounds.minY)
     }
