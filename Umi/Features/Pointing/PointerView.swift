@@ -4,19 +4,20 @@ struct PointerView: View {
     @Environment(PointerOverlay.self) private var overlay
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            ForEach(overlay.marks) { mark in
-                MarkRing()
-                    .position(mark.target)
-                    .transition(.opacity.combined(with: .scale(scale: 0.6)))
+        GeometryReader { geometry in
+            ZStack(alignment: .topLeading) {
+                ForEach(overlay.marks) { mark in
+                    MarkView(place: mark.place, within: CGRect(origin: .zero, size: geometry.size))
+                        .transition(.opacity.combined(with: .scale(scale: 0.6)))
+                }
+                MarkLabels(marks: overlay.marks)
+                if let travel = overlay.travel {
+                    TravellingArrow(travel: travel, isLanded: overlay.isLanded)
+                        .transition(.opacity)
+                }
             }
-            MarkLabels(marks: overlay.marks)
-            if let travel = overlay.travel {
-                TravellingArrow(travel: travel, isLanded: overlay.isLanded)
-                    .transition(.opacity)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .animation(.easeOut(duration: 0.15), value: overlay.marks.count)
         .animation(.easeOut(duration: 0.15), value: overlay.travel == nil)
     }
@@ -60,37 +61,5 @@ private nonisolated struct ArrowShape: Shape {
         path.addLine(to: CGPoint(x: tip.x - 20, y: tip.y + 9))
         path.closeSubpath()
         return path
-    }
-}
-
-private struct MarkRing: View {
-    @State private var hasPulsed = false
-
-    var body: some View {
-        ZStack {
-            RingStroke()
-                .scaleEffect(hasPulsed ? 1.8 : 1)
-                .opacity(hasPulsed ? 0 : 0.9)
-            RingStroke()
-        }
-        .frame(width: Travel.ringDiameter, height: Travel.ringDiameter)
-        .accessibilityHidden(true)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.6)) {
-                hasPulsed = true
-            }
-        }
-    }
-}
-
-private struct RingStroke: View {
-    var body: some View {
-        Circle()
-            .strokeBorder(.black.opacity(0.55), lineWidth: 5)
-            .overlay(
-                Circle()
-                    .inset(by: 1)
-                    .strokeBorder(.white, lineWidth: 3)
-            )
     }
 }

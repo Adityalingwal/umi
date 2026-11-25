@@ -64,7 +64,7 @@ final class Pointing {
         }
     }
 
-    func aim(at location: PointLocation, label: PointLabel?, pictureWidth: Int, pictureHeight: Int) {
+    func aim(at location: MarkLocation, label: PointLabel?, pictureWidth: Int, pictureHeight: Int) {
         switch phase {
         case .over, .goingHome, .home:
             logger.notice("A location came after pointing had ended, so it is ignored")
@@ -77,20 +77,20 @@ final class Pointing {
             pictureHeight: pictureHeight,
             displayFrame: displayFrame
         )
-        guard let target = mapping.screenPoint(for: location) else {
+        guard let place = mapping.screenPlace(for: location) else {
             logger.notice("A location is outside the screen picture, so its mark is dropped and the others stay")
             return
         }
         marksInHand += 1
-        waitingMarks.append(AnswerMark(number: marksInHand, target: target, label: label))
-        logger.notice(
-            "Mark \(self.marksInHand, privacy: .public) is in hand; a label: \(label != nil, privacy: .public)"
-        )
+        waitingMarks.append(AnswerMark(number: marksInHand, place: place, label: label))
+        let number = marksInHand
+        logger.notice("Mark \(number, privacy: .public) is in hand: \(place.kindName, privacy: .public)")
+        logger.notice("Mark \(number, privacy: .public) has a label: \(label != nil, privacy: .public)")
         switch phase {
         case .waiting, .onLastMark, .arrowHidden:
             flyToNextMark()
         case .travelling, .resting:
-            logger.notice("The arrow is busy, so mark \(self.marksInHand, privacy: .public) waits its turn")
+            logger.notice("The arrow is busy, so mark \(number, privacy: .public) waits its turn")
         case .goingHome, .home, .over:
             break
         }
@@ -121,7 +121,7 @@ final class Pointing {
         let mark = waitingMarks.removeFirst()
         let isFirst = marksShown == 0
         let fixed = phase == .arrowHidden ? Self.flightAfterHiding : nil
-        let duration = stage.fly(to: mark.target, label: mark.label, startingFrom: cursorRest(), taking: fixed)
+        let duration = stage.fly(to: mark.place, startingFrom: cursorRest(), taking: fixed)
         if isFirst {
             onDepart()
         }
@@ -134,7 +134,7 @@ final class Pointing {
 
     private func land(_ mark: AnswerMark) {
         guard case .travelling = phase else { return }
-        stage.landOnMark(numbered: mark.number, waitingAt: waitingMarks.map(\.target))
+        stage.landOnMark(numbered: mark.number, at: mark.place, label: mark.label, waitingAt: waitingMarks.map(\.place))
         marksOnScreen.append(mark)
         marksShown += 1
         phase = .resting

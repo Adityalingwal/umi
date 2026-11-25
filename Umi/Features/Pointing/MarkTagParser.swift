@@ -1,7 +1,7 @@
-nonisolated struct PointTagParser {
+nonisolated struct MarkTagParser {
     enum Part: Equatable {
         case text(String)
-        case nameStart(PointLocation, PointLabel?)
+        case nameStart(MarkLocation, PointLabel?)
         case dropped(Problem)
     }
 
@@ -12,12 +12,10 @@ nonisolated struct PointTagParser {
     }
 
     private static let longestTag = 200
-    private static let openTag = "<point"
-    private static let closeTag = "</point"
 
     private var buffer = ""
-    private var waitingPoint: (location: PointLocation, label: PointLabel?)?
-    private var isInsideName = false
+    private var waitingMark: MarkTag?
+    private var openName: MarkTag.Name?
 
     mutating func add(_ piece: String) -> [Part] {
         buffer += piece
@@ -26,8 +24,8 @@ nonisolated struct PointTagParser {
 
     mutating func finish() -> [Part] {
         var parts = drain(isFinal: true)
-        if waitingPoint != nil {
-            waitingPoint = nil
+        if waitingMark != nil {
+            waitingMark = nil
             parts.append(.dropped(.emptyName))
         }
         return parts
@@ -41,10 +39,10 @@ nonisolated struct PointTagParser {
             let text = buffer
             let brackets = text.indices.dropFirst().lazy.filter { "<>".contains(text[$0]) }
             let mustDecide = isFinal || text.count > Self.longestTag
-            let end = brackets.first { !Self.endsInsideLabel(text[..<$0]) || Self.opensPoint(text[$0...]) }
+            let end = brackets.first { !Self.endsInsideLabel(text[..<$0]) || MarkTag.opens(text[$0...]) }
                 ?? (mustDecide ? brackets.first : nil)
             guard let end, buffer[end] == ">" else {
-                if !Self.mayBecomeTag(buffer) {
+                if !MarkTag.mayBecomeTag(buffer) {
                     emitOpeningBracket(into: &parts)
                 } else if let end {
                     dropUnclosedTag(before: end, isCutOff: false, into: &parts)
@@ -56,7 +54,7 @@ nonisolated struct PointTagParser {
                 continue
             }
             let tag = String(buffer[...end])
-            guard Self.isPointTag(tag) else {
+            guard MarkTag.isTag(tag) else {
                 emitOpeningBracket(into: &parts)
                 continue
             }
@@ -85,7 +83,7 @@ nonisolated struct PointTagParser {
 
     // A tag cut off by the answer's end may stop inside its attributes, and those letters are not a name.
     private static func hasWholeLocation(_ attributes: String) -> Bool {
-        !attributes.lowercased().hasPrefix(openTag) || point(in: attributes) != nil
+        !MarkTag.startsOpening(attributes) || MarkTag(attributes) != nil
     }
 
     // Words after an unclosed label quote belong to the label, which is never spoken.
@@ -100,7 +98,7 @@ nonisolated struct PointTagParser {
     }
 
     private mutating func read(_ tag: String, into parts: inout [Part]) {
-        if tag.lowercased().hasPrefix(Self.closeTag) {
+        if MarkTag.isClosing(tag) {
             readClose(tag, into: &parts)
             return
         }
@@ -108,21 +106,21 @@ nonisolated struct PointTagParser {
             parts.append(.dropped(.emptyName))
             return
         }
-        guard let point = Self.point(in: tag) else {
+        guard let mark = MarkTag(tag) else {
             parts.append(.dropped(.malformedTag))
             return
         }
-        if waitingPoint != nil {
+        if waitingMark != nil {
             parts.append(.dropped(.emptyName))
         }
-        waitingPoint = point
+        waitingMark = mark
     }
 
     private mutating func readClose(_ tag: String, into parts: inout [Part]) {
-        if isInsideName, tag.lowercased().wholeMatch(of: /<\/point\s*>/) != nil {
-            isInsideName = false
-        } else if waitingPoint != nil {
-            waitingPoint = nil
+        if let openName, MarkTag.closes(tag, named: openName) {
+            self.openName = nil
+        } else if waitingMark != nil {
+            waitingMark = nil
             parts.append(.dropped(.emptyName))
         } else {
             parts.append(.dropped(.malformedTag))
@@ -131,64 +129,16 @@ nonisolated struct PointTagParser {
 
     private mutating func emit(_ text: String, into parts: inout [Part]) {
         guard !text.isEmpty else { return }
-        guard let point = waitingPoint, let nameStart = text.firstIndex(where: { !$0.isWhitespace }) else {
+        guard let mark = waitingMark, let nameStart = text.firstIndex(where: { !$0.isWhitespace }) else {
             parts.append(.text(text))
             return
         }
         if nameStart > text.startIndex {
             parts.append(.text(String(text[..<nameStart])))
         }
-        parts.append(.nameStart(point.location, point.label))
+        parts.append(.nameStart(mark.location, mark.label))
         parts.append(.text(String(text[nameStart...])))
-        waitingPoint = nil
-        isInsideName = true
-    }
-
-    private static func mayBecomeTag(_ text: String) -> Bool {
-        let lowered = text.lowercased()
-        return openTag.hasPrefix(lowered) || closeTag.hasPrefix(lowered) || isPointTag(lowered)
-    }
-
-    private static func opensPoint(_ text: Substring) -> Bool {
-        text.lowercased().prefixMatch(of: /<point(\s|\/|>)/) != nil
-    }
-
-    private static func isPointTag(_ text: String) -> Bool {
-        text.lowercased().prefixMatch(of: /<\/?point(\s|\/|>)/) != nil
-    }
-
-    private static func point(in tag: String) -> (location: PointLocation, label: PointLabel?)? {
-        let label = tag.firstMatch(of: /\blabel\s*=\s*(?:"([^"]*)"|'([^']*)'|["'].*|([^\s"'<>\/]*))/.ignoresCase())
-        var place = tag
-        if let label {
-            place.removeSubrange(label.range)
-        }
-        guard let location = location(in: place) else { return nil }
-        let written = label.flatMap { $0.output.1 ?? $0.output.2 ?? $0.output.3 }
-        return (location, written.flatMap { PointLabel(String($0)) })
-    }
-
-    private static func location(in tag: String) -> PointLocation? {
-        guard tag.lowercased().hasPrefix(openTag) else { return nil }
-        var pixelX: Double?
-        var pixelY: Double?
-        for match in tag.lowercased().matches(of: /\b([xy])\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'<>\/]*))/) {
-            let text = match.output.2 ?? match.output.3 ?? match.output.4 ?? ""
-            guard let value = coordinate(in: text) else { return nil }
-            if match.output.1 == "x" {
-                guard pixelX == nil else { return nil }
-                pixelX = value
-            } else {
-                guard pixelY == nil else { return nil }
-                pixelY = value
-            }
-        }
-        guard let pixelX, let pixelY else { return nil }
-        return PointLocation(pixelX: pixelX, pixelY: pixelY)
-    }
-
-    private static func coordinate(in text: Substring) -> Double? {
-        guard let match = text.wholeMatch(of: /\s*(-?[0-9]+(?:\.[0-9]+)?)\s*/) else { return nil }
-        return Double(match.output.1)
+        waitingMark = nil
+        openName = mark.name
     }
 }

@@ -2,18 +2,17 @@ import CoreGraphics
 import Foundation
 
 struct Travel {
-    static let ringDiameter = 34.0
-
-    private static let gapOutsideRing = 6.0
+    private static let gapOutsideMark = 6.0
     private static let arrowLength = 22.0
     private static let bend = 0.15
     private static let turningShare = 0.25
 
-    let target: CGPoint
     let duration: Duration
     let arrowTip: CGPoint
     let isGoingHome: Bool
 
+    private let leavesFromInside: Bool
+    private let target: CGPoint
     private let start: CGPoint
     private let bendPoint: CGPoint
     private let startDate: Date
@@ -22,7 +21,7 @@ struct Travel {
     init(
         from start: CGPoint,
         turningFrom startAngle: Double?,
-        toMarkAt target: CGPoint,
+        toMark place: MarkPlace,
         within bounds: CGRect,
         duration: Duration,
         startingAt date: Date
@@ -30,9 +29,10 @@ struct Travel {
         self.init(
             from: start,
             turningFrom: startAngle,
-            to: target,
-            arrowTip: Self.landing(beside: target, comingFrom: start, within: bounds),
+            to: place.center,
+            arrowTip: Self.landing(beside: place, comingFrom: start, within: bounds),
             isGoingHome: false,
+            leavesFromInside: Self.isBox(place, holding: start),
             duration: duration,
             startingAt: date
         )
@@ -51,6 +51,7 @@ struct Travel {
             to: rest,
             arrowTip: rest,
             isGoingHome: true,
+            leavesFromInside: false,
             duration: duration,
             startingAt: date
         )
@@ -62,9 +63,11 @@ struct Travel {
         to target: CGPoint,
         arrowTip: CGPoint,
         isGoingHome: Bool,
+        leavesFromInside: Bool,
         duration: Duration,
         startingAt date: Date
     ) {
+        self.leavesFromInside = leavesFromInside
         self.start = start
         self.startAngle = startAngle
         self.target = target
@@ -100,10 +103,32 @@ struct Travel {
     }
 
     func angle(at progress: Double) -> Double {
-        let heading = isGoingHome ? headingAlongPath(at: progress) : headingToTarget(at: progress)
+        let heading = heading(at: progress)
         guard let startAngle, progress < Self.turningShare else { return heading }
-        let turn = heading - startAngle
-        return startAngle + atan2(sin(turn), cos(turn)) * progress / Self.turningShare
+        return Self.turn(from: startAngle, to: heading, share: progress / Self.turningShare)
+    }
+
+    // A flight that starts inside its box moves away from the box's centre, so it steers along its path
+    // and turns to face the box over its last quarter, in one direction chosen once.
+    private func heading(at progress: Double) -> Double {
+        if isGoingHome {
+            return headingAlongPath(at: progress)
+        }
+        guard leavesFromInside else { return headingToTarget(at: progress) }
+        let arriving = 1 - Self.turningShare
+        guard progress > arriving else { return headingAlongPath(at: progress) }
+        let share = (progress - arriving) / Self.turningShare
+        return Self.turn(from: headingAlongPath(at: arriving), to: headingToTarget(at: 1), share: share)
+    }
+
+    private static func isBox(_ place: MarkPlace, holding point: CGPoint) -> Bool {
+        guard case .box(let frame) = place else { return false }
+        return frame.contains(point)
+    }
+
+    private static func turn(from start: Double, to end: Double, share: Double) -> Double {
+        let turn = end - start
+        return start + atan2(sin(turn), cos(turn)) * share
     }
 
     private func headingToTarget(at progress: Double) -> Double {
@@ -123,16 +148,21 @@ struct Travel {
         progress < 0.5 ? 4 * pow(progress, 3) : 1 - pow(-2 * progress + 2, 3) / 2
     }
 
-    private static func landing(beside target: CGPoint, comingFrom start: CGPoint, within bounds: CGRect) -> CGPoint {
+    private static func landing(beside place: MarkPlace, comingFrom start: CGPoint, within bounds: CGRect) -> CGPoint {
+        let target = place.center
         let away = CGVector(dx: start.x - target.x, dy: start.y - target.y)
         let length = hypot(away.dx, away.dy)
         let direction = length > 1 ? CGVector(dx: away.dx / length, dy: away.dy / length) : CGVector(dx: 0.7, dy: 0.7)
-        let distance = ringDiameter / 2 + gapOutsideRing
         let safeArea = bounds.insetBy(dx: arrowLength, dy: arrowLength)
         let turns = [direction, direction.turnedQuarter, direction.turnedQuarter.turnedQuarter.turnedQuarter,
                      direction.turnedQuarter.turnedQuarter]
-        let candidates = turns.map { CGPoint(x: target.x + $0.dx * distance, y: target.y + $0.dy * distance) }
-        return candidates.first(where: safeArea.contains) ?? candidates[0]
+        let sides = [CGVector(dx: 1, dy: 0), CGVector(dx: -1, dy: 0), CGVector(dx: 0, dy: 1), CGVector(dx: 0, dy: -1)]
+        let candidates = (turns + sides).map { place.edge(toward: $0, gap: gapOutsideMark) }
+        let fallback = candidates[0]
+        return candidates.first(where: safeArea.contains) ?? CGPoint(
+            x: min(max(fallback.x, safeArea.minX), safeArea.maxX),
+            y: min(max(fallback.y, safeArea.minY), safeArea.maxY)
+        )
     }
 }
 

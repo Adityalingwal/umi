@@ -6,11 +6,9 @@ final class PointerOverlay {
     private(set) var marks: [ScreenMark] = []
     private(set) var travel: Travel?
     private(set) var isLanded = false
-    private var travelLabel: PointLabel?
 
-    func start(_ travel: Travel, label: PointLabel?) {
+    func start(_ travel: Travel) {
         self.travel = travel
-        travelLabel = label
         isLanded = false
     }
 
@@ -19,15 +17,15 @@ final class PointerOverlay {
         isLanded = true
     }
 
-    func landOnMark(numbered number: Int, avoiding waitingRings: [CGPoint]) {
+    func landOnMark(numbered number: Int, at place: MarkPlace, label: PointLabel?, avoiding waiting: [MarkPlace]) {
         guard let travel else { return }
         isLanded = true
         marks.append(ScreenMark(
             id: number,
-            target: travel.target,
+            place: place,
             arrowTip: travel.arrowTip,
-            label: travelLabel,
-            otherRings: marks.map(\.target) + waitingRings
+            label: label,
+            otherMarks: marks.map(\.place) + waiting
         ))
     }
 
@@ -37,14 +35,12 @@ final class PointerOverlay {
 
     func hideArrow() {
         travel = nil
-        travelLabel = nil
         isLanded = false
     }
 
     func clear() {
         marks = []
         travel = nil
-        travelLabel = nil
         isLanded = false
     }
 }

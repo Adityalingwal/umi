@@ -14,7 +14,7 @@ struct AnswerReader {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var form = Form.undecided
     private var undecidedText = ""
-    private var tags = PointTagParser()
+    private var tags = MarkTagParser()
     private var drawing = DrawingReader()
     private var drawingSpokenText = ""
     private var readText = ""
@@ -132,7 +132,7 @@ struct AnswerReader {
         }
     }
 
-    private mutating func read(_ part: PointTagParser.Part) {
+    private mutating func read(_ part: MarkTagParser.Part) {
         switch part {
         case .text(let text):
             readText += text

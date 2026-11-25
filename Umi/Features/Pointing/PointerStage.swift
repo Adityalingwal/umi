@@ -15,20 +15,20 @@ final class PointerStage {
         CGRect(origin: .zero, size: displayFrame.size)
     }
 
-    func fly(to target: CGPoint, label: PointLabel?, startingFrom rest: CGPoint, taking fixed: Duration?) -> Duration {
+    func fly(to place: MarkPlace, startingFrom rest: CGPoint, taking fixed: Duration?) -> Duration {
         let start = overlay.travel?.arrowTip ?? viewPointOnDisplay(rest)
-        let end = viewPoint(target)
-        let duration = fixed ?? Travel.usualDuration(from: start, to: end)
+        let end = viewPlace(place)
+        let duration = fixed ?? Travel.usualDuration(from: start, to: end.center)
         let travel = Travel(
             from: start,
             turningFrom: overlay.travel?.angle(at: 1),
-            toMarkAt: end,
+            toMark: end,
             within: bounds,
             duration: duration,
             startingAt: .now
         )
         panel.show(on: displayFrame)
-        overlay.start(travel, label: label)
+        overlay.start(travel)
         return duration
     }
 
@@ -43,12 +43,12 @@ final class PointerStage {
             duration: duration,
             startingAt: .now
         )
-        overlay.start(travel, label: nil)
+        overlay.start(travel)
         return duration
     }
 
-    func landOnMark(numbered number: Int, waitingAt targets: [CGPoint]) {
-        overlay.landOnMark(numbered: number, avoiding: targets.map(viewPoint))
+    func landOnMark(numbered number: Int, at place: MarkPlace, label: PointLabel?, waitingAt places: [MarkPlace]) {
+        overlay.landOnMark(numbered: number, at: viewPlace(place), label: label, avoiding: places.map(viewPlace))
     }
 
     func clearMarks(numbered numbers: [Int]) {
@@ -70,7 +70,7 @@ final class PointerStage {
         guard let last = overlay.travel else { return }
         let home = viewPointOnDisplay(rest)
         let travel = Travel(from: home, turningFrom: last.angle(at: 1), homeTo: home, duration: .zero, startingAt: .now)
-        overlay.start(travel, label: nil)
+        overlay.start(travel)
         overlay.land()
     }
 
@@ -82,6 +82,10 @@ final class PointerStage {
     private func viewPointOnDisplay(_ screenPoint: CGPoint) -> CGPoint {
         let point = viewPoint(screenPoint)
         return CGPoint(x: min(max(point.x, bounds.minX), bounds.maxX), y: min(max(point.y, bounds.minY), bounds.maxY))
+    }
+
+    private func viewPlace(_ screenPlace: MarkPlace) -> MarkPlace {
+        screenPlace.mapped(viewPoint)
     }
 
     private func viewPoint(_ screenPoint: CGPoint) -> CGPoint {
