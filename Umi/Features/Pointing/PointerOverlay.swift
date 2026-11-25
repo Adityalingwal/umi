@@ -22,7 +22,6 @@ final class PointerOverlay {
     func landOnMark(numbered number: Int, avoiding waitingRings: [CGPoint]) {
         guard let travel else { return }
         isLanded = true
-        guard !travel.isGoingHome else { return }
         marks.append(ScreenMark(
             id: number,
             target: travel.target,
