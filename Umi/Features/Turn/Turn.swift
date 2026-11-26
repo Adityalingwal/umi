@@ -56,14 +56,14 @@ final class Turn {
         }
     }
 
-    @discardableResult
-    func escape() -> Bool {
-        guard speaking != nil || pointing?.isShowing == true || board.isDrawing || cursorStage.isFailed else {
-            return false
-        }
+    var isAnswering: Bool {
+        speaking != nil || board.isDrawing
+    }
+
+    func escape() {
+        guard isAnswering || pointing?.isShowing == true || cursorStage.isFailed else { return }
         cancel()
         logger.notice("Esc: the question stopped")
-        return true
     }
 
     private func begin() {

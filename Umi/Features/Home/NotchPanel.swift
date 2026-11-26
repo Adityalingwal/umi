@@ -48,12 +48,10 @@ final class NotchPanel {
         window.orderFrontRegardless()
     }
 
-    @discardableResult
-    func escape() -> Bool {
-        guard notch.escape() else { return false }
+    func escape() {
+        guard notch.escape() else { return }
         logger.notice("Esc: the panel closed")
         sizeToState()
-        return true
     }
 
     private func hostingView(notchHeight: CGFloat) -> NSView {

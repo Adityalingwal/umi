@@ -137,7 +137,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func escape(turn: Turn, notchPanel: NotchPanel?) {
-        guard !turn.escape() else { return }
+        let wasAnswering = turn.isAnswering
+        turn.escape()
+        guard !wasAnswering else { return }
         notchPanel?.escape()
     }
 }
