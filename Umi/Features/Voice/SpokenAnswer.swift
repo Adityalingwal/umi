@@ -15,7 +15,7 @@ final class SpokenAnswer {
     private let eventContinuation: AsyncStream<SpokenEvent>.Continuation
     private let socket: FluxSpeech?
     private let queue: SpeechQueue
-    private let player: SpeechPlayer
+    private lazy var player = SpeechPlayer(queue: queue)
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var mode = Mode.voiced
     private var turns = SpokenTurns()
@@ -35,7 +35,6 @@ final class SpokenAnswer {
         let queue = SpeechQueue()
         socket = voiceSocket
         self.queue = queue
-        player = SpeechPlayer(queue: queue)
         (events, eventContinuation) = AsyncStream.makeStream(of: SpokenEvent.self)
         if voiceSocket == nil {
             mode = .over
