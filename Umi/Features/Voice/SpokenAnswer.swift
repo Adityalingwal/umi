@@ -76,7 +76,6 @@ final class SpokenAnswer {
     func start(onFailure: @escaping (SpokenAnswer) -> Void) {
         guard let socket else { return }
         self.onFailure = onFailure
-        silenceRule.startConnecting()
         let messages = socket.messages()
         listening = Task { [weak self] in
             do {
