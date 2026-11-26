@@ -8,38 +8,48 @@ nonisolated struct ScreenCapture: Sendable {
     private let ownBundleID: String?
     private let probe: ScreenAccessProbe?
     private let replacementScreens: ReplacementScreens?
+    private let isRefused: Bool
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Screen")
 
-    private init(ownBundleID: String?, probe: ScreenAccessProbe?, replacementScreens: ReplacementScreens?) {
+    private init(
+        ownBundleID: String?,
+        probe: ScreenAccessProbe?,
+        replacementScreens: ReplacementScreens?,
+        isRefused: Bool
+    ) {
         self.ownBundleID = ownBundleID
         self.probe = probe
         self.replacementScreens = replacementScreens
+        self.isRefused = isRefused
     }
 
     static func atLaunch(defaults: UserDefaults, bundle: Bundle) -> ScreenCapture {
         var replacementScreens: ReplacementScreens?
+        var isRefused = false
         #if DEBUG
         replacementScreens = ReplacementScreens.atLaunch(defaults: defaults)
+        isRefused = defaults.bool(forKey: "UmiRefuseScreen")
         #endif
         return ScreenCapture(
             ownBundleID: bundle.bundleIdentifier,
             probe: bundle.executableURL.map(ScreenAccessProbe.init),
-            replacementScreens: replacementScreens
+            replacementScreens: replacementScreens,
+            isRefused: isRefused
         )
     }
 
     var isAllowed: Bool {
-        replacementScreens != nil || CGPreflightScreenCaptureAccess()
+        !isRefused && (replacementScreens != nil || CGPreflightScreenCaptureAccess())
     }
 
     @concurrent
     func picture(ofDisplay displayID: CGDirectDisplayID) async throws -> ScreenPicture {
         #if DEBUG
-        if let replacementScreens {
+        if let replacementScreens, !isRefused {
             return try replacementPicture(from: replacementScreens.next())
         }
         #endif
-        guard CGPreflightScreenCaptureAccess() else {
+        guard !isRefused, CGPreflightScreenCaptureAccess() else {
             throw await refusal()
         }
         try Task.checkCancellation()
@@ -50,7 +60,8 @@ nonisolated struct ScreenCapture: Sendable {
     }
 
     func refusal() async -> ScreenError {
-        await probe?.isGrantedNow() == true ? .needsRelaunch : .notAllowed
+        guard !isRefused else { return .notAllowed }
+        return await probe?.isGrantedNow() == true ? .needsRelaunch : .notAllowed
     }
 
     private func capture(displayID: CGDirectDisplayID) async throws -> CGImage {
