@@ -73,7 +73,11 @@ The build's "Write Keys" step copies `DEEPGRAM_API_KEY` from `.env` into `Conten
 open "build/Build/Products/Debug/Umi Dev.app"
 ```
 
-Umi has no icon in the menu bar. A hover on the notch opens the chat panel. The gear at the panel's top right, or at the chat window's top right, opens Settings: Permissions (Microphone, Screen, Accessibility), Brain (Claude or Codex) and General (the version and Quit Umi). Each time the Permissions or the Brain page shows, it checks its rows again. Every build also has a Dock icon; clicking it opens the chat window. The chat window remembers its size, its place and whether it was open (Umi's defaults: `chatWindowIsOpen` and `NSWindow Frame Chat`).
+Umi has no icon in the menu bar. A hover on the notch opens the chat panel. The gear at the panel's top right, or at the chat window's top right, opens Settings: Permissions (Microphone, Screen, Accessibility), Brain (Claude or Codex) and General (Clear chat, the version and Quit Umi). Each time the Permissions or the Brain page shows, it checks its rows again. Every build also has a Dock icon; clicking it opens the chat window. The chat window remembers its size, its place and whether it was open (Umi's defaults: `chatWindowIsOpen` and `NSWindow Frame Chat`).
+
+The chat is saved as plain JSON, text only, in `~/Library/Application Support/<bundle id>/chat.json` (`io.github.adityalingwal.umi.dev` for the Debug build): a list of messages, each with `author` (`user` or `umi`), `text`, `time` and `way` (`spoken` or `typed`; an answer has its question's way). It is written when a question is added and when an answer ends, and read once when Umi starts; the brain gets the last twenty exchanges from it as context. A failure line shown under a typed question is not saved. A file that cannot be read is moved to `chat-unreadable.json` beside it, and the chat starts empty. "Clear chat" on Settings' General page asks once, stops a running answer as Esc does, then empties the chat and the file and deletes `chat-unreadable.json`. The log never holds the chat's text.
+
+The Debug build uses the same file in every run: a proof run sees the chat saved on this Mac, shows it in its pictures and sends it to the brain as context. No launch argument points a run at another file.
 
 Launch only the `Umi Dev` build from your own checkout.
 
