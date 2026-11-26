@@ -36,7 +36,7 @@ How to set up a Mac for Umi, then build, sign, run and check the app.
 
    `Local.xcconfig.example` shows the format.
 
-7. Put the Deepgram key in `.env` in the main checkout, as one line `DEEPGRAM_API_KEY=<key>`. The file is git-ignored. Without it the app still builds; it only cannot hear questions.
+7. Put the Deepgram key in `.env` in the main checkout, as one line `DEEPGRAM_API_KEY=<key>`. The file is git-ignored. Without it the app still builds; it cannot hear or speak, and a typed question is answered as text only.
 
 A worktree links to the main checkout's files instead of copying them:
 

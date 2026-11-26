@@ -52,7 +52,7 @@ struct BrainReading {
             group.addTask { await send(answer, for: question, to: voice, pointing: pointing, on: screen) }
             group.addTask { await follower.follow(voice, pointing: pointing) }
         }
-        guard voice.hasFailed, !Task.isCancelled else { return }
+        guard voice.isSilent, !Task.isCancelled else { return }
         follower.endWithoutVoice(pointing: pointing)
     }
 

@@ -25,9 +25,4 @@ struct FailureLines {
         voice.endText()
         return true
     }
-
-    func showWithoutVoice(_ error: any Error, under typedQuestion: ChatMessage.ID) {
-        logger.error("The typed question stopped with no voice: \(StopReason.text(for: error), privacy: .public)")
-        conversation.addFailureLine(UmiLine.chatFailure(error), under: typedQuestion)
-    }
 }

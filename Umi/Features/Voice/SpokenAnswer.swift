@@ -10,10 +10,10 @@ final class SpokenAnswer {
     private static let watchInterval = Duration.milliseconds(100)
 
     let events: AsyncStream<SpokenEvent>
-    private(set) var hasFailed = false
+    private(set) var isSilent = false
 
     private let eventContinuation: AsyncStream<SpokenEvent>.Continuation
-    private let socket: FluxSpeech
+    private let socket: FluxSpeech?
     private let queue: SpeechQueue
     private let player: SpeechPlayer
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
@@ -31,12 +31,26 @@ final class SpokenAnswer {
     private var speechFile: SpeechFile?
     #endif
 
-    init(socket: FluxSpeech) {
+    private init(voiceSocket: FluxSpeech?) {
         let queue = SpeechQueue()
-        self.socket = socket
+        socket = voiceSocket
         self.queue = queue
         player = SpeechPlayer(queue: queue)
         (events, eventContinuation) = AsyncStream.makeStream(of: SpokenEvent.self)
+        if voiceSocket == nil {
+            mode = .over
+            isSilent = true
+            eventContinuation.finish()
+        }
+    }
+
+    convenience init(socket: FluxSpeech) {
+        self.init(voiceSocket: socket)
+    }
+
+    // An answer with no voice at all: it takes text and speaks none of it.
+    static func silent() -> SpokenAnswer {
+        SpokenAnswer(voiceSocket: nil)
     }
 
     #if DEBUG
@@ -60,6 +74,7 @@ final class SpokenAnswer {
     }
 
     func start(onFailure: @escaping (SpokenAnswer) -> Void) {
+        guard let socket else { return }
         self.onFailure = onFailure
         silenceRule.startConnecting()
         let messages = socket.messages()
@@ -97,7 +112,7 @@ final class SpokenAnswer {
         guard mode == .voiced else { return }
         closeOpenTurn()
         guard send(line) else { return }
-        socket.flush()
+        socket?.flush()
         let turn = turns.add()
         logger.notice("Piece \(turn, privacy: .public) sent to the voice as one whole line")
     }
@@ -119,7 +134,7 @@ final class SpokenAnswer {
 
     private func send(_ text: String) -> Bool {
         do {
-            try socket.send(text)
+            try socket?.send(text)
             return true
         } catch {
             fail(error)
@@ -129,7 +144,7 @@ final class SpokenAnswer {
 
     private func closeOpenTurn() {
         guard let turn = turns.close() else { return }
-        socket.flush()
+        socket?.flush()
         silenceRule.pieceFlushed()
         let characters = openTurnCharacters
         logger.notice("Piece \(turn, privacy: .public) closed after \(characters, privacy: .public) characters")
@@ -190,7 +205,7 @@ final class SpokenAnswer {
     private func endAudioIfComplete() {
         guard isTextEnded, !turns.isAudioOwed else { return }
         isAudioComplete = true
-        socket.close()
+        socket?.close()
         if player.isStarted {
             queue.audioEnded()
         } else {
@@ -211,7 +226,7 @@ final class SpokenAnswer {
             \(self.playedMilliseconds, privacy: .public) ms of sound; it takes no more text
             """
         )
-        hasFailed = true
+        isSilent = true
         end()
         eventContinuation.finish()
         onFailure?(self)
@@ -231,7 +246,7 @@ final class SpokenAnswer {
     private func silence() {
         queue.cut()
         player.stop()
-        socket.close()
+        socket?.close()
         listening?.cancel()
         playing?.cancel()
         watching?.cancel()

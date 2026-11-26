@@ -29,7 +29,7 @@ struct VoiceFollower {
 
     func followToEnd(_ voice: SpokenAnswer, pointing: Pointing?) async {
         await follow(voice, pointing: pointing)
-        guard voice.hasFailed, !Task.isCancelled else { return }
+        guard voice.isSilent, !Task.isCancelled else { return }
         endWithoutVoice(pointing: pointing)
     }
 

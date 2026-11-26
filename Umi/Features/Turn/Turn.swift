@@ -84,9 +84,9 @@ final class Turn {
         do {
             speaking = try speaker.answer()
         } catch {
-            failureLines.showWithoutVoice(error, under: question.id)
-            conversation.endAnswer(to: question.id)
-            return
+            let reason = StopReason.text(for: error)
+            logger.error("No voice for the typed answer, so it is text only: \(reason, privacy: .public)")
+            speaking = .silent()
         }
         parts.speaking = speaking
         start(speaking, for: question.way)
