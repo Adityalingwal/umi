@@ -1,6 +1,6 @@
 import AppKit
 
-struct NotchPlace {
+struct NotchPlace: Equatable {
     static let shoulder = 8.0
     static let restBottomRadius = 9.0
     static let openBottomRadius = 22.0

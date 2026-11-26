@@ -46,7 +46,9 @@ final class NotchPanel {
         sizeToState()
     }
 
+    // The system also sends this when only the Dock or the menu bar changes, which leaves the notch where it is.
     private func displaysChanged() {
+        guard NotchPlace.onNotchedScreen(among: NSScreen.screens) != place else { return }
         logger.notice("The displays changed: the notch is set up again")
         tearDown()
         setUp()
