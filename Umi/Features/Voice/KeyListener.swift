@@ -87,13 +87,22 @@ final class KeyListener {
         logger.notice("Listening for the right Option key")
     }
 
+    // Secure input hides other apps' key presses, so a shortcut typed there looks like Command alone.
+    private func commandPressedTwice() {
+        guard !IsSecureEventInputEnabled() else {
+            logger.notice("Command was pressed twice while secure input is on, so it is ignored")
+            return
+        }
+        logger.notice("Command was pressed twice")
+        commandDoublePressContinuation.yield()
+    }
+
     private func handle(_ event: NSEvent) {
         switch event.type {
         case .flagsChanged:
             let flags = event.modifierFlags
             if commandDoublePress.modifiersChanged(keyCode: event.keyCode, flags: flags, at: event.timestamp) {
-                logger.notice("Command was pressed twice")
-                commandDoublePressContinuation.yield()
+                commandPressedTwice()
             }
             guard isHearingHold else { return }
             if let change = hold.modifiersChanged(keyCode: event.keyCode, flags: flags) {
