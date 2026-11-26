@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct BrainPage: View {
@@ -19,8 +20,12 @@ struct BrainPage: View {
                 }
             }
         }
+        // The page can stay open while the user signs in to a brain in Terminal.
         .task {
             brains.refresh()
+            for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                brains.refresh()
+            }
         }
     }
 }

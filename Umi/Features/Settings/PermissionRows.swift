@@ -40,7 +40,9 @@ final class PermissionRows {
     }
 
     func actOnMicrophone() {
-        switch microphonePermission.currentAccess() {
+        let access = microphonePermission.currentAccess()
+        microphone = access
+        switch access {
         case .notAsked:
             logger.notice("The Microphone row asks for access")
             action = Task { [weak self] in
@@ -57,7 +59,9 @@ final class PermissionRows {
     }
 
     func actOnScreen() {
-        switch screenPermission.lastKnownAccess {
+        let access = screenPermission.lastKnownAccess
+        screen = access
+        switch access {
         case .notAsked:
             logger.notice("The Screen row asks for access")
             action = Task { [weak self] in
@@ -79,7 +83,9 @@ final class PermissionRows {
     }
 
     func actOnAccessibility() {
-        switch accessibilityPermission.currentAccess() {
+        let access = accessibilityPermission.currentAccess()
+        accessibility = access
+        switch access {
         case .notAsked:
             logger.notice("The Accessibility row asks for access")
             accessibility = accessibilityPermission.requestAccess()

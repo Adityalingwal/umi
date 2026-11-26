@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct PermissionsPage: View {
@@ -12,8 +13,12 @@ struct PermissionsPage: View {
                 PermissionRow(name: "Accessibility", state: rows.accessibility?.rowState, act: rows.actOnAccessibility)
             }
         }
+        // The page can stay open while the user grants a permission in System Settings.
         .task {
             rows.refresh()
+            for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                rows.refresh()
+            }
         }
     }
 }
