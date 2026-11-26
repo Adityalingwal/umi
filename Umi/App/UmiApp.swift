@@ -127,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let conversation else { return .terminateNow }
         Task {
-            await conversation.saved()
+            await conversation.saveAsItStands()
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

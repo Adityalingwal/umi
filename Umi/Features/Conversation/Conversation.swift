@@ -9,6 +9,7 @@ final class Conversation {
     private(set) var messages: [ChatMessage] = []
     @ObservationIgnored private let file: ChatFile
     @ObservationIgnored private var saving: Task<Void, Never>?
+    @ObservationIgnored private var isRead = false
     @ObservationIgnored private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "Umi",
         category: "Conversation"
@@ -30,6 +31,7 @@ final class Conversation {
 
     // Runs once, before any question is taken, so no save can replace the file before it is read.
     func load() async {
+        defer { isRead = true }
         switch await file.read() {
         case .noFile:
             logger.notice("There is no saved chat yet")
@@ -110,8 +112,11 @@ final class Conversation {
         logger.notice("The chat was cleared")
     }
 
-    // Waits for every save asked for so far, so a quit right after an answer still has it on disk.
-    func saved() async {
+    // At quit an answer may still be written or read aloud; it is kept as far as the chat shows it.
+    func saveAsItStands() async {
+        if isRead {
+            save()
+        }
         await saving?.value
     }
 
