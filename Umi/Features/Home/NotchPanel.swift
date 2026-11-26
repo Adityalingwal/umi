@@ -149,8 +149,10 @@ final class NotchPanel {
     }
 
     // Shrinking the window under the pointer, as when the chat moves into its window, sends an enter outside the notch.
+    // The window sits on whole points, so the notch's half-point edges are rounded out.
     private func pointerEntered() {
-        guard !notch.isOpen, let place, NSMouseInRect(NSEvent.mouseLocation, place.restFrame, false) else { return }
+        guard !notch.isOpen, let place,
+              NSMouseInRect(NSEvent.mouseLocation, place.restFrame.integral, false) else { return }
         notch.pointerEntered()
         logger.notice("The pointer came to the notch: the panel opened")
         sizeToState()
