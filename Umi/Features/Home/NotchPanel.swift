@@ -10,6 +10,7 @@ final class NotchPanel {
 
     private let notch: Notch
     private let conversation: Conversation
+    private let chatWindow: ChatWindowKeeper
     private let hover = NotchHover()
     private let moves = PointerMoveWatch()
     private let clicks = ClickWatch()
@@ -18,10 +19,12 @@ final class NotchPanel {
     private var place: NotchPlace?
     private var screenChanges: Task<Void, Never>?
     private var shortcuts: Task<Void, Never>?
+    private var windowRequests: Task<Void, Never>?
 
-    init(notch: Notch, conversation: Conversation) {
+    init(notch: Notch, conversation: Conversation, chatWindow: ChatWindowKeeper) {
         self.notch = notch
         self.conversation = conversation
+        self.chatWindow = chatWindow
     }
 
     func show(notificationCenter: NotificationCenter, commandDoublePresses: AsyncStream<Void>) {
@@ -39,6 +42,11 @@ final class NotchPanel {
                 self?.commandPressedTwice()
             }
         }
+        windowRequests = Task { [weak self, notch] in
+            for await _ in notch.windowRequests {
+                self?.openWindow()
+            }
+        }
     }
 
     func stop() {
@@ -46,6 +54,8 @@ final class NotchPanel {
         screenChanges = nil
         shortcuts?.cancel()
         shortcuts = nil
+        windowRequests?.cancel()
+        windowRequests = nil
     }
 
     func escape() {
@@ -133,8 +143,14 @@ final class NotchPanel {
         sizeToState()
     }
 
+    private func openWindow() {
+        sizeToState()
+        chatWindow.open()
+    }
+
+    // Shrinking the window under the pointer, as when the chat moves into its window, sends an enter outside the notch.
     private func pointerEntered() {
-        guard !notch.isOpen, place != nil else { return }
+        guard !notch.isOpen, let place, NSMouseInRect(NSEvent.mouseLocation, place.restFrame, false) else { return }
         notch.pointerEntered()
         logger.notice("The pointer came to the notch: the panel opened")
         sizeToState()

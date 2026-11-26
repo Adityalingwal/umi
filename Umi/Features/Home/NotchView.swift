@@ -16,10 +16,13 @@ struct NotchView: View {
             if notch.isOpen {
                 DottedPattern()
                 VStack(spacing: 0) {
-                    ChatView()
-                    AskRow()
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
+                    ChatView(jumpsToNewest: false)
+                    HStack(spacing: 8) {
+                        AskRow(isFocusWanted: notch.isFieldWanted) { notch.fieldTookFocus() }
+                        OpenWindowButton { notch.openWindow() }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
                 }
                 .padding(.top, notchHeight)
                 .padding(.horizontal, NotchPlace.shoulder)
@@ -28,5 +31,23 @@ struct NotchView: View {
         }
         .clipShape(shape)
         .animation(Self.motion, value: notch.isOpen)
+    }
+}
+
+private struct OpenWindowButton: View {
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(width: AskRow.fieldHeight, height: AskRow.fieldHeight)
+                .background(.white.opacity(0.1), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help("Open in a window")
+        .accessibilityLabel("Open in a window")
     }
 }

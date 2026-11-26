@@ -9,12 +9,15 @@ final class Notch {
     private(set) var isOpen = false
     private(set) var isHeld = false
     private(set) var isFieldWanted = false
+    private(set) var isWindowFieldWanted = false
     private(set) var readsAloud: Bool
     var draft = "" {
         didSet { draftChanged(from: oldValue) }
     }
     @ObservationIgnored let questions: AsyncStream<SentQuestion>
+    @ObservationIgnored let windowRequests: AsyncStream<Void>
     @ObservationIgnored private let questionContinuation: AsyncStream<SentQuestion>.Continuation
+    @ObservationIgnored private let windowRequestContinuation: AsyncStream<Void>.Continuation
     @ObservationIgnored private let pasteboard: NSPasteboard
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Home")
@@ -24,6 +27,7 @@ final class Notch {
         self.defaults = defaults
         readsAloud = defaults.object(forKey: Self.readAloudKey) as? Bool ?? true
         (questions, questionContinuation) = AsyncStream.makeStream(of: SentQuestion.self)
+        (windowRequests, windowRequestContinuation) = AsyncStream.makeStream(of: Void.self)
     }
 
     var canSend: Bool {
@@ -53,10 +57,18 @@ final class Notch {
         isFieldWanted = false
     }
 
-    // The click makes the panel key, so the field takes the keys typed next.
+    func windowOpened() {
+        isWindowFieldWanted = true
+    }
+
+    func windowFieldTookFocus() {
+        isWindowFieldWanted = false
+    }
+
+    // A click in the panel makes it key, so its field takes the keys typed next.
     func toggleReadAloud() {
         readsAloud.toggle()
-        isFieldWanted = true
+        isFieldWanted = isOpen
         defaults.set(readsAloud, forKey: Self.readAloudKey)
         logger.notice("Read aloud is now \(self.readsAloud ? "on" : "off", privacy: .public)")
     }
@@ -79,13 +91,20 @@ final class Notch {
         return true
     }
 
+    // The chat moves into the window, so the panel closes.
+    func openWindow() {
+        close()
+        windowRequestContinuation.yield()
+        logger.notice("The panel's window button was clicked")
+    }
+
     func send() {
         let question = question
         guard !question.isEmpty else { return }
         hold()
         draft = ""
         questionContinuation.yield(SentQuestion(text: question, readsAloud: readsAloud))
-        logger.notice("A question was sent from the panel")
+        logger.notice("A typed question was sent")
     }
 
     func copy(_ text: String) {
@@ -98,8 +117,9 @@ final class Notch {
         hold()
     }
 
+    // Only the panel is held; typing or sending in the window leaves it as it is.
     private func hold() {
-        guard !isHeld else { return }
+        guard isOpen, !isHeld else { return }
         isHeld = true
         logger.notice("The user typed in the panel: it stays open until a click outside or Esc")
     }
