@@ -72,7 +72,7 @@ final class Turn {
         logger.notice("Esc: the question stopped")
     }
 
-    func ask(typed text: String) {
+    func ask(typed text: String, readsAloud: Bool) {
         cancel()
         guard let underPointer = PointerScreen.current() else {
             logger.error("No screen is under the pointer")
@@ -80,13 +80,9 @@ final class Turn {
         }
         let question = AskedQuestion(id: conversation.addQuestion(text), way: .typed)
         logger.notice("A typed question came: \(text.count, privacy: .public) characters")
-        let speaking: SpokenAnswer
-        do {
-            speaking = try speaker.answer()
-        } catch {
-            let reason = StopReason.text(for: error)
-            logger.error("No voice for the typed answer, so it is text only: \(reason, privacy: .public)")
-            speaking = .silent()
+        let speaking = readsAloud ? typedVoice() : .silent()
+        if !readsAloud {
+            logger.notice("Read aloud is off: the typed answer is text only")
         }
         parts.speaking = speaking
         start(speaking, for: question.way)
@@ -98,6 +94,16 @@ final class Turn {
         cursorStage.think()
         parts.answering = Task { [weak self] in
             await self?.answer(typed: text, question: question, picture: picture, voice: speaking, pointing: pointing)
+        }
+    }
+
+    private func typedVoice() -> SpokenAnswer {
+        do {
+            return try speaker.answer()
+        } catch {
+            let reason = StopReason.text(for: error)
+            logger.error("No voice for the typed answer, so it is text only: \(reason, privacy: .public)")
+            return .silent()
         }
     }
 

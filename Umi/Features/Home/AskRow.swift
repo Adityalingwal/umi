@@ -13,6 +13,7 @@ struct AskRow: View {
                 .font(.system(size: 13))
                 .foregroundStyle(.white)
                 .onSubmit { notch.send() }
+            ReadAloudButton(isOn: notch.readsAloud) { notch.toggleReadAloud() }
             SendButton(isEnabled: notch.canSend) { notch.send() }
         }
         .padding(.leading, 14)
@@ -42,5 +43,26 @@ private struct SendButton: View {
         .help("Send")
         .accessibilityLabel("Send")
         .animation(.easeOut(duration: 0.12), value: isEnabled)
+    }
+}
+
+private struct ReadAloudButton: View {
+    let isOn: Bool
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            Image(systemName: isOn ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(isOn ? 0.95 : 0.45))
+                .frame(width: SendButton.size, height: SendButton.size)
+                .background(.white.opacity(isOn ? 0.18 : 0.08), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(isOn ? "Read aloud is on" : "Read aloud is off")
+        .accessibilityLabel("Read aloud")
+        .accessibilityValue(isOn ? "On" : "Off")
+        .animation(.easeOut(duration: 0.12), value: isOn)
     }
 }
