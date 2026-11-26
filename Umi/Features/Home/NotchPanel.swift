@@ -17,13 +17,14 @@ final class NotchPanel {
     private var window: NotchWindow?
     private var place: NotchPlace?
     private var screenChanges: Task<Void, Never>?
+    private var shortcuts: Task<Void, Never>?
 
     init(notch: Notch, conversation: Conversation) {
         self.notch = notch
         self.conversation = conversation
     }
 
-    func show(notificationCenter: NotificationCenter) {
+    func show(notificationCenter: NotificationCenter, commandDoublePresses: AsyncStream<Void>) {
         hover.onEnter = { [weak self] in self?.pointerEntered() }
         hover.onExit = { [weak self] in self?.pointerMayHaveLeft() }
         setUp()
@@ -33,11 +34,18 @@ final class NotchPanel {
                 self?.displaysChanged()
             }
         }
+        shortcuts = Task { [weak self] in
+            for await _ in commandDoublePresses {
+                self?.commandPressedTwice()
+            }
+        }
     }
 
     func stop() {
         screenChanges?.cancel()
         screenChanges = nil
+        shortcuts?.cancel()
+        shortcuts = nil
     }
 
     func escape() {
@@ -109,6 +117,20 @@ final class NotchPanel {
             userInfo: nil
         ))
         return hostingView
+    }
+
+    // The panel takes the keyboard without making Umi the active app.
+    private func commandPressedTwice() {
+        guard let window, place != nil else { return }
+        let wasOpen = notch.isOpen
+        notch.commandPressedTwice()
+        if notch.isOpen {
+            window.makeKeyAndOrderFront(nil)
+            logger.notice("Command twice: the panel \(wasOpen ? "stays" : "opened", privacy: .public) for typing")
+        } else {
+            logger.notice("Command twice: the panel closed")
+        }
+        sizeToState()
     }
 
     private func pointerEntered() {

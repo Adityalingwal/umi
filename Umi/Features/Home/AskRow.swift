@@ -4,6 +4,7 @@ struct AskRow: View {
     private static let fieldHeight = 34.0
 
     @Environment(Notch.self) private var notch
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         @Bindable var notch = notch
@@ -12,8 +13,15 @@ struct AskRow: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundStyle(.white)
+                .focused($isFieldFocused)
                 .onSubmit { notch.send() }
+            ReadAloudButton(isOn: notch.readsAloud) { notch.toggleReadAloud() }
             SendButton(isEnabled: notch.canSend) { notch.send() }
+        }
+        .onChange(of: notch.isFieldWanted, initial: true) {
+            guard notch.isFieldWanted else { return }
+            isFieldFocused = true
+            notch.fieldTookFocus()
         }
         .padding(.leading, 14)
         .padding(.trailing, (Self.fieldHeight - SendButton.size) / 2)
@@ -42,5 +50,26 @@ private struct SendButton: View {
         .help("Send")
         .accessibilityLabel("Send")
         .animation(.easeOut(duration: 0.12), value: isEnabled)
+    }
+}
+
+private struct ReadAloudButton: View {
+    let isOn: Bool
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            Image(systemName: isOn ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(isOn ? 0.95 : 0.45))
+                .frame(width: SendButton.size, height: SendButton.size)
+                .background(.white.opacity(isOn ? 0.18 : 0.08), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(isOn ? "Read aloud is on" : "Read aloud is off")
+        .accessibilityLabel("Read aloud")
+        .accessibilityValue(isOn ? "On" : "Off")
+        .animation(.easeOut(duration: 0.12), value: isOn)
     }
 }

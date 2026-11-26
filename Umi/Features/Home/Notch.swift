@@ -4,19 +4,26 @@ import OSLog
 
 @Observable
 final class Notch {
+    private static let readAloudKey = "readAloud"
+
     private(set) var isOpen = false
     private(set) var isHeld = false
+    private(set) var isFieldWanted = false
+    private(set) var readsAloud: Bool
     var draft = "" {
         didSet { draftChanged(from: oldValue) }
     }
-    @ObservationIgnored let questions: AsyncStream<String>
-    @ObservationIgnored private let questionContinuation: AsyncStream<String>.Continuation
+    @ObservationIgnored let questions: AsyncStream<SentQuestion>
+    @ObservationIgnored private let questionContinuation: AsyncStream<SentQuestion>.Continuation
     @ObservationIgnored private let pasteboard: NSPasteboard
+    @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Home")
 
-    init(pasteboard: NSPasteboard) {
+    init(pasteboard: NSPasteboard, defaults: UserDefaults) {
         self.pasteboard = pasteboard
-        (questions, questionContinuation) = AsyncStream.makeStream(of: String.self)
+        self.defaults = defaults
+        readsAloud = defaults.object(forKey: Self.readAloudKey) as? Bool ?? true
+        (questions, questionContinuation) = AsyncStream.makeStream(of: SentQuestion.self)
     }
 
     var canSend: Bool {
@@ -29,6 +36,29 @@ final class Notch {
 
     func pointerEntered() {
         isOpen = true
+    }
+
+    // Held at once, so the panel stays while the pointer is elsewhere.
+    func commandPressedTwice() {
+        guard !(isOpen && isHeld) else {
+            close()
+            return
+        }
+        isOpen = true
+        isHeld = true
+        isFieldWanted = true
+    }
+
+    func fieldTookFocus() {
+        isFieldWanted = false
+    }
+
+    // The click makes the panel key, so the field takes the keys typed next.
+    func toggleReadAloud() {
+        readsAloud.toggle()
+        isFieldWanted = true
+        defaults.set(readsAloud, forKey: Self.readAloudKey)
+        logger.notice("Read aloud is now \(self.readsAloud ? "on" : "off", privacy: .public)")
     }
 
     func pointerLeft() {
@@ -54,7 +84,7 @@ final class Notch {
         guard !question.isEmpty else { return }
         hold()
         draft = ""
-        questionContinuation.yield(question)
+        questionContinuation.yield(SentQuestion(text: question, readsAloud: readsAloud))
         logger.notice("A question was sent from the panel")
     }
 
@@ -77,5 +107,6 @@ final class Notch {
     private func close() {
         isOpen = false
         isHeld = false
+        isFieldWanted = false
     }
 }

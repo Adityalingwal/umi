@@ -46,9 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         keyListener.start()
         self.keyListener = keyListener
         let conversation = Conversation()
-        let notch = Notch(pasteboard: .general)
+        let notch = Notch(pasteboard: .general, defaults: .standard)
         let notchPanel = NotchPanel(notch: notch, conversation: conversation)
-        notchPanel.show(notificationCenter: .default)
+        notchPanel.show(notificationCenter: .default, commandDoublePresses: keyListener.commandDoublePresses)
         self.notchPanel = notchPanel
         #if DEBUG
         menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
@@ -132,7 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 group.addTask {
                     for await question in questions.typed {
-                        await turn.ask(typed: question)
+                        await turn.ask(typed: question.text, readsAloud: question.readsAloud)
                     }
                 }
                 group.addTask {
