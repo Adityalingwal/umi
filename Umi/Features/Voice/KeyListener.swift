@@ -16,6 +16,7 @@ final class KeyListener {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var hold = RightOptionHold()
     private var monitors: [Any] = []
+    private var isHearingHold = false
     private var waitingForAccess: Task<Void, Never>?
 
     init(accessibility: AccessibilityPermission) {
@@ -26,12 +27,13 @@ final class KeyListener {
 
     func start() {
         guard waitingForAccess == nil, monitors.isEmpty else { return }
+        listenInUmi()
         waitingForAccess = Task { [weak self, accessibility] in
             while accessibility.currentAccess() != .allowed {
                 try? await Task.sleep(for: Self.accessCheckInterval)
                 guard !Task.isCancelled else { return }
             }
-            self?.listen()
+            self?.listenInOtherApps()
         }
     }
 
@@ -40,6 +42,7 @@ final class KeyListener {
         waitingForAccess = nil
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
+        isHearingHold = false
         holdContinuation.finish()
         escapeContinuation.finish()
     }
@@ -55,22 +58,31 @@ final class KeyListener {
         }
     }
 
-    private func listen() {
-        waitingForAccess = nil
-        let otherApps = NSEvent.addGlobalMonitorForEvents(matching: Self.keyEvents) { [weak self] event in
-            self?.handle(event)
-        }
+    // Keys typed into Umi's own panel reach it without the Accessibility grant, so Esc works there before it.
+    private func listenInUmi() {
         let umi = NSEvent.addLocalMonitorForEvents(matching: Self.keyEvents) { [weak self] event in
             self?.handle(event)
             return event
         }
-        monitors = [otherApps, umi].compactMap(\.self)
+        monitors = [umi].compactMap(\.self)
+        logger.notice("Listening for Esc in Umi's own windows")
+    }
+
+    // Without the grant a release in another app goes unseen, so a hold is heard only once both monitors run.
+    private func listenInOtherApps() {
+        waitingForAccess = nil
+        let otherApps = NSEvent.addGlobalMonitorForEvents(matching: Self.keyEvents) { [weak self] event in
+            self?.handle(event)
+        }
+        monitors += [otherApps].compactMap(\.self)
+        isHearingHold = true
         logger.notice("Listening for the right Option key")
     }
 
     private func handle(_ event: NSEvent) {
         switch event.type {
         case .flagsChanged:
+            guard isHearingHold else { return }
             if let change = hold.modifiersChanged(keyCode: event.keyCode, flags: event.modifierFlags) {
                 holdContinuation.yield(change)
             }
