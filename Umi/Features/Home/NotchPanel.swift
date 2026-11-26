@@ -10,42 +10,27 @@ final class NotchPanel {
 
     private let notch: Notch
     private let conversation: Conversation
-    private let window: NotchWindow
     private let hover = NotchHover()
     private let moves = PointerMoveWatch()
     private let clicks = ClickWatch()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Home")
+    private var window: NotchWindow?
     private var place: NotchPlace?
     private var screenChanges: Task<Void, Never>?
-    private var hasContent = false
 
     init(notch: Notch, conversation: Conversation) {
         self.notch = notch
         self.conversation = conversation
-        window = NotchWindow(
-            contentRect: .zero,
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.hasShadow = false
-        window.level = Self.aboveMarks
-        window.hidesOnDeactivate = false
-        window.becomesKeyOnlyIfNeeded = true
-        window.animationBehavior = .none
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
     }
 
     func show(notificationCenter: NotificationCenter) {
         hover.onEnter = { [weak self] in self?.pointerEntered() }
         hover.onExit = { [weak self] in self?.pointerMayHaveLeft() }
-        placeOnNotchedScreen()
+        setUp()
         screenChanges = Task { [weak self] in
             let changes = notificationCenter.notifications(named: NSApplication.didChangeScreenParametersNotification)
             for await _ in changes {
-                self?.placeOnNotchedScreen()
+                self?.displaysChanged()
             }
         }
     }
@@ -61,20 +46,52 @@ final class NotchPanel {
         sizeToState()
     }
 
-    private func placeOnNotchedScreen() {
+    private func displaysChanged() {
+        logger.notice("The displays changed: the notch is set up again")
+        tearDown()
+        setUp()
+    }
+
+    private func setUp() {
         guard let place = NotchPlace.onNotchedScreen(among: NSScreen.screens) else {
             logger.notice("No screen has a notch, so the notch is not shown")
-            self.place = nil
-            window.orderOut(nil)
             return
         }
-        self.place = place
-        if !hasContent {
-            window.contentView = hostingView(notchHeight: place.notchHeight)
-            hasContent = true
-        }
-        window.setFrame(notch.isOpen ? place.openFrame : place.restFrame, display: true)
+        let window = makeWindow(notchHeight: place.notchHeight)
+        window.setFrame(place.restFrame, display: true)
         window.orderFrontRegardless()
+        self.window = window
+        self.place = place
+    }
+
+    // A window kept ordered out is left behind on one Space once a full-screen Space closes, so it is not reused.
+    private func tearDown() {
+        notch.displaysChanged()
+        moves.stop()
+        clicks.stop()
+        window?.orderOut(nil)
+        window = nil
+        place = nil
+    }
+
+    private func makeWindow(notchHeight: CGFloat) -> NotchWindow {
+        let window = NotchWindow(
+            contentRect: .zero,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.level = Self.aboveMarks
+        window.hidesOnDeactivate = false
+        window.becomesKeyOnlyIfNeeded = true
+        window.animationBehavior = .none
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        window.contentView = hostingView(notchHeight: notchHeight)
+        return window
     }
 
     private func hostingView(notchHeight: CGFloat) -> NSView {
@@ -92,7 +109,7 @@ final class NotchPanel {
     }
 
     private func pointerEntered() {
-        guard !notch.isOpen else { return }
+        guard !notch.isOpen, place != nil else { return }
         notch.pointerEntered()
         logger.notice("The pointer came to the notch: the panel opened")
         sizeToState()
@@ -114,20 +131,20 @@ final class NotchPanel {
     }
 
     private func sizeToState() {
-        guard let place else { return }
+        guard let window, let place else { return }
         if notch.isOpen {
             moves.start { [weak self] in self?.pointerMayHaveLeft() }
             clicks.start { [weak self] click in self?.clicked(at: click.place) }
-            resize(to: place.openFrame, duration: Self.openDuration)
+            resize(window, to: place.openFrame, duration: Self.openDuration)
         } else {
             moves.stop()
             clicks.stop()
-            giveUpKey()
-            resize(to: place.restFrame, duration: Self.closeDuration)
+            giveUpKey(window)
+            resize(window, to: place.restFrame, duration: Self.closeDuration)
         }
     }
 
-    private func resize(to frame: CGRect, duration: TimeInterval) {
+    private func resize(_ window: NotchWindow, to frame: CGRect, duration: TimeInterval) {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = duration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -136,7 +153,7 @@ final class NotchPanel {
     }
 
     // The window stays in the window list at rest, so a full-screen Space never leaves it behind.
-    private func giveUpKey() {
+    private func giveUpKey(_ window: NotchWindow) {
         guard window.isKeyWindow else { return }
         window.orderOut(nil)
         window.orderFrontRegardless()

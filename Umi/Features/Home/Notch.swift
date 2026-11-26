@@ -22,6 +22,10 @@ final class Notch {
         isOpen = false
     }
 
+    func displaysChanged() {
+        isOpen = false
+    }
+
     func escape() -> Bool {
         guard isOpen else { return false }
         isOpen = false
