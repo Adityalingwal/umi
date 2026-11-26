@@ -86,7 +86,6 @@ final class Notch {
 
     func showChatInWindow() {
         windowContent = .chat
-        isWindowFieldWanted = true
         logger.notice("The chat window is back to the chat")
     }
 
