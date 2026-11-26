@@ -53,8 +53,10 @@ final class Notch {
         isFieldWanted = false
     }
 
+    // The click makes the panel key, so the field takes the keys typed next.
     func toggleReadAloud() {
         readsAloud.toggle()
+        isFieldWanted = true
         defaults.set(readsAloud, forKey: Self.readAloudKey)
         logger.notice("Read aloud is now \(self.readsAloud ? "on" : "off", privacy: .public)")
     }
