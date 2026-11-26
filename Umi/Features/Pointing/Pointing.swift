@@ -140,17 +140,18 @@ final class Pointing {
         phase = .resting
         logger.notice("The arrow landed and mark \(mark.number, privacy: .public) is on")
         if !clicks.isWatching {
-            clicks.start { [weak self] press in
-                self?.clicked(at: press)
+            clicks.start { [weak self] click in
+                self?.clicked(click)
             }
             logger.notice("The click watch started")
         }
         nextStep = after(Self.restOnMark) { $0.leaveMark() }
     }
 
-    private func clicked(at press: CGPoint) {
+    // A click into one of Umi's own windows, such as the chat, lands on that window and not on a mark under it.
+    private func clicked(_ click: ClickWatch.Click) {
         guard !marksOnScreen.isEmpty else { return }
-        let cleared = marksOnScreen.filter { $0.isUnder(press) }
+        let cleared = click.isOnUmiWindow ? [] : marksOnScreen.filter { $0.isUnder(click.place) }
         guard !cleared.isEmpty else {
             logger.notice("A click landed elsewhere")
             end(because: "the user clicked elsewhere")

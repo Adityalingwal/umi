@@ -96,7 +96,7 @@ final class NotchPanel {
         guard let place else { return }
         if notch.isOpen {
             moves.start { [weak self] in self?.pointerMayHaveLeft() }
-            clicks.start { [weak self] point in self?.clicked(at: point) }
+            clicks.start { [weak self] click in self?.clicked(at: click.place) }
             resize(to: place.openFrame, duration: Self.openDuration)
         } else {
             moves.stop()
