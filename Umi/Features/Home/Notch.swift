@@ -38,9 +38,9 @@ final class Notch {
         isOpen = true
     }
 
-    // Opened this way the panel is held at once, so it stays while the pointer is elsewhere.
+    // Held at once, so the panel stays while the pointer is elsewhere.
     func commandPressedTwice() {
-        guard !isOpen else {
+        guard !(isOpen && isHeld) else {
             close()
             return
         }

@@ -122,10 +122,11 @@ final class NotchPanel {
     // The panel takes the keyboard without making Umi the active app.
     private func commandPressedTwice() {
         guard let window, place != nil else { return }
+        let wasOpen = notch.isOpen
         notch.commandPressedTwice()
         if notch.isOpen {
             window.makeKeyAndOrderFront(nil)
-            logger.notice("Command twice: the panel opened for typing")
+            logger.notice("Command twice: the panel \(wasOpen ? "stays" : "opened", privacy: .public) for typing")
         } else {
             logger.notice("Command twice: the panel closed")
         }
