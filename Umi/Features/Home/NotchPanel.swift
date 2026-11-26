@@ -5,7 +5,7 @@ import SwiftUI
 final class NotchPanel {
     private static let openDuration = 0.22
     private static let closeDuration = 0.16
-    // The pointer overlay and the cursor sit at the status bar level; the chat stays readable above them.
+    // The mark overlay sits at the status bar level; the chat stays readable above it.
     private static let aboveMarks = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
 
     private let notch: Notch
