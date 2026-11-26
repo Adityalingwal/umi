@@ -11,6 +11,7 @@ struct AnswerReader {
     private let pointing: Pointing?
     private let picture: ScreenPicture
     private let board: Board
+    private let written: (String) -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var form = Form.undecided
     private var undecidedText = ""
@@ -31,11 +32,18 @@ struct AnswerReader {
         }
     }
 
-    init(voice: SpokenAnswer, pointing: Pointing?, picture: ScreenPicture, board: Board) {
+    init(
+        voice: SpokenAnswer,
+        pointing: Pointing?,
+        picture: ScreenPicture,
+        board: Board,
+        written: @escaping (String) -> Void
+    ) {
         self.voice = voice
         self.pointing = pointing
         self.picture = picture
         self.board = board
+        self.written = written
     }
 
     mutating func read(_ answer: AsyncThrowingStream<String, any Error>) async throws {
@@ -122,6 +130,7 @@ struct AnswerReader {
                 try board.add(marks, removing: removedIDs)
                 voice.speak(say)
                 drawingSpokenText += drawingSpokenText.isEmpty ? say : " " + say
+                written(drawingSpokenText)
             }
         }
     }
@@ -137,6 +146,7 @@ struct AnswerReader {
         case .text(let text):
             readText += text
             voice.stream(text)
+            written(readText)
         case let .nameStart(location, label):
             pointing?.aim(at: location, label: label, pictureWidth: picture.width, pictureHeight: picture.height)
         case .dropped(let problem):
