@@ -79,14 +79,14 @@ final class NotchPanel {
 
     // Growing the window sends an exit while the pointer is still inside it.
     private func pointerMayHaveLeft() {
-        guard notch.isOpen, let place, !place.openFrame.contains(NSEvent.mouseLocation) else { return }
+        guard notch.isOpen, let place, !NSMouseInRect(NSEvent.mouseLocation, place.openFrame, false) else { return }
         notch.pointerLeft()
         logger.notice("The pointer left the panel: it closed")
         sizeToState()
     }
 
     private func clicked(at point: CGPoint) {
-        guard notch.isOpen, let place, !place.openFrame.contains(point) else { return }
+        guard notch.isOpen, let place, !NSMouseInRect(point, place.openFrame, false) else { return }
         notch.clickedOutside()
         logger.notice("A click outside the panel: it closed")
         sizeToState()
