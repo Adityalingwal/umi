@@ -59,8 +59,9 @@ final class Pointing {
         appSwitches.start(capturedApp: capturedApp) { [weak self] in
             self?.end(because: "another app became active")
         }
-        scrolls.start { [weak self] umiWindowLevel in
-            guard !PointerPanel.isAboveMarks(umiWindowLevel) else { return }
+        // Scrolling Umi's own chat moves nothing under the marks.
+        scrolls.start { [weak self] isInUmiWindow in
+            guard !isInUmiWindow else { return }
             self?.end(because: "a scroll moved the screen")
         }
     }
@@ -149,11 +150,10 @@ final class Pointing {
         nextStep = after(Self.restOnMark) { $0.leaveMark() }
     }
 
-    // A click into one of Umi's windows drawn above the marks, such as the chat, lands there and not on a mark.
+    // Marks point into a screen picture without Umi's own windows, so a click in the chat is never on a mark.
     private func clicked(_ click: ClickWatch.Click) {
         guard !marksOnScreen.isEmpty else { return }
-        let isAboveMarks = PointerPanel.isAboveMarks(click.umiWindowLevel)
-        let cleared = isAboveMarks ? [] : marksOnScreen.filter { $0.isUnder(click.place) }
+        let cleared = click.isInUmiWindow ? [] : marksOnScreen.filter { $0.isUnder(click.place) }
         guard !cleared.isEmpty else {
             logger.notice("A click landed elsewhere")
             end(because: "the user clicked elsewhere")

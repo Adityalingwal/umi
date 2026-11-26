@@ -3,7 +3,7 @@ import AppKit
 final class ClickWatch {
     struct Click {
         let place: CGPoint
-        let umiWindowLevel: NSWindow.Level?
+        let isInUmiWindow: Bool
     }
 
     private static let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
@@ -34,7 +34,7 @@ final class ClickWatch {
     // A double-click's later presses land where its first press did, on a mark the first press already cleared.
     private static func pass(_ event: NSEvent, to onClick: (Click) -> Void) {
         guard event.clickCount <= 1 else { return }
-        onClick(Click(place: screenPlace(of: event), umiWindowLevel: event.window?.level))
+        onClick(Click(place: screenPlace(of: event), isInUmiWindow: event.window != nil))
     }
 
     private static func screenPlace(of event: NSEvent) -> CGPoint {

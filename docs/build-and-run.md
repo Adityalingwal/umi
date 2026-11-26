@@ -73,7 +73,7 @@ The build's "Write Keys" step copies `DEEPGRAM_API_KEY` from `.env` into `Conten
 open "build/Build/Products/Debug/Umi Dev.app"
 ```
 
-The app's icon is the `waveform` symbol in the menu bar; clicking it opens the menu. The Debug build also has a Dock icon, which opens the same menu, so computer use can find the app. The Release build lives only in the menu bar.
+The app's icon is the `waveform` symbol in the menu bar; clicking it opens the menu. Every build also has a Dock icon; clicking it opens the chat window. The chat window remembers its size, its place and whether it was open (Umi's defaults: `chatWindowIsOpen` and `NSWindow Frame Chat`).
 
 Launch only the `Umi Dev` build from your own checkout.
 

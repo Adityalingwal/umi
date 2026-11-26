@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyListener: KeyListener?
     private var brain: ChosenBrain?
     private var notchPanel: NotchPanel?
+    private var chatWindow: ChatWindowKeeper?
     private var turns: Task<Void, Never>?
     #if DEBUG
     private var menuUpdates: Task<Void, Never>?
@@ -47,9 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         let conversation = Conversation()
         let notch = Notch(pasteboard: .general, defaults: .standard)
-        let notchPanel = NotchPanel(notch: notch, conversation: conversation)
-        notchPanel.show(notificationCenter: .default, commandDoublePresses: keyListener.commandDoublePresses)
-        self.notchPanel = notchPanel
+        showHome(notch: notch, conversation: conversation, commandDoublePresses: keyListener.commandDoublePresses)
         #if DEBUG
         menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
@@ -76,13 +75,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    private func showHome(notch: Notch, conversation: Conversation, commandDoublePresses: AsyncStream<Void>) {
+        let chatWindow = ChatWindowKeeper(notch: notch, conversation: conversation, defaults: .standard)
+        let notchPanel = NotchPanel(notch: notch, conversation: conversation, chatWindow: chatWindow)
+        notchPanel.show(notificationCenter: .default, commandDoublePresses: commandDoublePresses)
+        chatWindow.reopenIfItWasOpen()
+        self.notchPanel = notchPanel
+        self.chatWindow = chatWindow
+    }
+
     // The shared scheme's Test action sets this variable in the app that hosts the tests.
     private static func isTestHost(_ environment: [String: String]) -> Bool {
         environment["UMI_TEST_HOST"] == "1"
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        statusMenu?.open()
+        chatWindow?.open()
         return false
     }
 

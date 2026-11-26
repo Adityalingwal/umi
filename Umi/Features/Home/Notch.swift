@@ -8,11 +8,10 @@ final class Notch {
 
     private(set) var isOpen = false
     private(set) var isHeld = false
-    private(set) var isFieldWanted = false
     private(set) var readsAloud: Bool
-    var draft = "" {
-        didSet { draftChanged(from: oldValue) }
-    }
+    var draft = ""
+    private var isPanelFieldWanted = false
+    private var isWindowFieldWanted = false
     @ObservationIgnored let questions: AsyncStream<SentQuestion>
     @ObservationIgnored private let questionContinuation: AsyncStream<SentQuestion>.Continuation
     @ObservationIgnored private let pasteboard: NSPasteboard
@@ -28,6 +27,13 @@ final class Notch {
 
     var canSend: Bool {
         !question.isEmpty
+    }
+
+    func isFieldWanted(in place: AskPlace) -> Bool {
+        switch place {
+        case .panel: isPanelFieldWanted
+        case .window: isWindowFieldWanted
+        }
     }
 
     private var question: String {
@@ -46,17 +52,27 @@ final class Notch {
         }
         isOpen = true
         isHeld = true
-        isFieldWanted = true
+        isPanelFieldWanted = true
     }
 
-    func fieldTookFocus() {
-        isFieldWanted = false
+    func fieldTookFocus(in place: AskPlace) {
+        switch place {
+        case .panel: isPanelFieldWanted = false
+        case .window: isWindowFieldWanted = false
+        }
     }
 
-    // The click makes the panel key, so the field takes the keys typed next.
-    func toggleReadAloud() {
+    func windowOpened() {
+        isWindowFieldWanted = true
+    }
+
+    // A click on the switch readies the field beside it for the keys typed next.
+    func toggleReadAloud(in place: AskPlace) {
         readsAloud.toggle()
-        isFieldWanted = true
+        switch place {
+        case .panel: isPanelFieldWanted = isOpen
+        case .window: isWindowFieldWanted = true
+        }
         defaults.set(readsAloud, forKey: Self.readAloudKey)
         logger.notice("Read aloud is now \(self.readsAloud ? "on" : "off", privacy: .public)")
     }
@@ -79,13 +95,27 @@ final class Notch {
         return true
     }
 
-    func send() {
+    // The chat moves into the window, so the panel closes.
+    func chatMovedToWindow() {
+        close()
+        logger.notice("The panel's window button was clicked")
+    }
+
+    // Only the panel's own field holds the panel; the text itself is shared with the window.
+    func fieldEdited(in place: AskPlace) {
+        guard place == .panel else { return }
+        hold()
+    }
+
+    func send(from place: AskPlace) {
         let question = question
         guard !question.isEmpty else { return }
-        hold()
+        if place == .panel {
+            hold()
+        }
         draft = ""
         questionContinuation.yield(SentQuestion(text: question, readsAloud: readsAloud))
-        logger.notice("A question was sent from the panel")
+        logger.notice("A typed question was sent")
     }
 
     func copy(_ text: String) {
@@ -93,13 +123,8 @@ final class Notch {
         pasteboard.setString(text, forType: .string)
     }
 
-    private func draftChanged(from oldValue: String) {
-        guard isOpen, draft != oldValue else { return }
-        hold()
-    }
-
     private func hold() {
-        guard !isHeld else { return }
+        guard isOpen, !isHeld else { return }
         isHeld = true
         logger.notice("The user typed in the panel: it stays open until a click outside or Esc")
     }
@@ -107,6 +132,6 @@ final class Notch {
     private func close() {
         isOpen = false
         isHeld = false
-        isFieldWanted = false
+        isPanelFieldWanted = false
     }
 }

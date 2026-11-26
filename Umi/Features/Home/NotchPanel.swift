@@ -10,6 +10,7 @@ final class NotchPanel {
 
     private let notch: Notch
     private let conversation: Conversation
+    private let chatWindow: ChatWindowKeeper
     private let hover = NotchHover()
     private let moves = PointerMoveWatch()
     private let clicks = ClickWatch()
@@ -19,9 +20,10 @@ final class NotchPanel {
     private var screenChanges: Task<Void, Never>?
     private var shortcuts: Task<Void, Never>?
 
-    init(notch: Notch, conversation: Conversation) {
+    init(notch: Notch, conversation: Conversation, chatWindow: ChatWindowKeeper) {
         self.notch = notch
         self.conversation = conversation
+        self.chatWindow = chatWindow
     }
 
     func show(notificationCenter: NotificationCenter, commandDoublePresses: AsyncStream<Void>) {
@@ -106,9 +108,8 @@ final class NotchPanel {
     }
 
     private func hostingView(notchHeight: CGFloat) -> NSView {
-        let hostingView = NSHostingView(
-            rootView: NotchView(notchHeight: notchHeight).environment(notch).environment(conversation)
-        )
+        let view = NotchView(notchHeight: notchHeight) { [weak self] in self?.openWindow() }
+        let hostingView = NSHostingView(rootView: view.environment(notch).environment(conversation))
         hostingView.sizingOptions = []
         hostingView.addTrackingArea(NSTrackingArea(
             rect: .zero,
@@ -133,8 +134,17 @@ final class NotchPanel {
         sizeToState()
     }
 
+    private func openWindow() {
+        notch.chatMovedToWindow()
+        sizeToState()
+        chatWindow.open()
+    }
+
+    // Shrinking the window under the pointer, as when the chat moves into its window, sends an enter outside the notch.
+    // The window sits on whole points, so the notch's half-point edges are rounded out.
     private func pointerEntered() {
-        guard !notch.isOpen, place != nil else { return }
+        guard !notch.isOpen, let place,
+              NSMouseInRect(NSEvent.mouseLocation, place.restFrame.integral, false) else { return }
         notch.pointerEntered()
         logger.notice("The pointer came to the notch: the panel opened")
         sizeToState()
