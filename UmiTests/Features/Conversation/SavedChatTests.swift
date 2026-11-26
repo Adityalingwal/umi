@@ -13,7 +13,7 @@ struct SavedChatTests {
         let typed = first.addQuestion("And the drawer?", way: .typed)
         first.writeAnswer("The red one.", to: typed)
         first.endAnswer(to: typed)
-        await first.saveAsItStands()
+        await first.saved()
 
         let second = Conversation(file: ChatFile(folder: folder))
         await second.load()
@@ -25,7 +25,7 @@ struct SavedChatTests {
         #expect(second.messages.map(\.way) == [.spoken, .spoken, .typed, .typed])
 
         second.clear()
-        await second.saveAsItStands()
+        await second.saved()
         let third = Conversation(file: ChatFile(folder: folder))
         await third.load()
 

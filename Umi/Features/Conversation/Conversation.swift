@@ -9,7 +9,7 @@ final class Conversation {
     private(set) var messages: [ChatMessage] = []
     @ObservationIgnored private let file: ChatFile
     @ObservationIgnored private var saving: Task<Void, Never>?
-    @ObservationIgnored private var isRead = false
+    @ObservationIgnored private var hasUnwrittenAnswer = false
     @ObservationIgnored private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "Umi",
         category: "Conversation"
@@ -31,7 +31,6 @@ final class Conversation {
 
     // Runs once, before any question is taken, so no save can replace the file before it is read.
     func load() async {
-        defer { isRead = true }
         switch await file.read() {
         case .noFile:
             logger.notice("There is no saved chat yet")
@@ -60,12 +59,14 @@ final class Conversation {
         if answerIndex < messages.endIndex, messages[answerIndex].author == .umi, !messages[answerIndex].isFailureLine {
             guard messages[answerIndex].text != answer else { return }
             messages[answerIndex].text = answer
+            hasUnwrittenAnswer = true
         } else {
             let way = messages[index].way
             let message = ChatMessage(
                 id: UUID(), author: .umi, text: answer, time: .now, way: way, isFailureLine: false
             )
             messages.insert(message, at: answerIndex)
+            hasUnwrittenAnswer = true
         }
     }
 
@@ -99,6 +100,7 @@ final class Conversation {
 
     func clear() {
         messages.removeAll()
+        hasUnwrittenAnswer = false
         let previous = saving
         saving = Task { [file, logger] in
             await previous?.value
@@ -112,10 +114,15 @@ final class Conversation {
         logger.notice("The chat was cleared")
     }
 
+    func saved() async {
+        await saving?.value
+    }
+
     // At quit an answer may still be written or read aloud; it is kept as far as the chat shows it.
-    func saveAsItStands() async {
-        if isRead {
+    func saveAnswerBeforeQuit() async {
+        if hasUnwrittenAnswer {
             save()
+            logger.notice("At quit, the answer as far as it was written was saved")
         }
         await saving?.value
     }
@@ -123,6 +130,7 @@ final class Conversation {
     // Failure lines are for this run only; they are never written.
     private func save() {
         let kept = messages.filter { !$0.isFailureLine }
+        hasUnwrittenAnswer = false
         let previous = saving
         saving = Task { [file, logger] in
             await previous?.value
