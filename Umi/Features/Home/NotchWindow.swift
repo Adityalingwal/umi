@@ -28,8 +28,8 @@ final class NotchWindow: NSPanel {
     }
 
     private static func editingLetter(of event: NSEvent) -> String? {
-        guard let typed = event.charactersIgnoringModifiers?.lowercased() else { return nil }
-        return typed.allSatisfy(\.isASCII) ? typed : usLetters[event.keyCode]
+        let typed = event.characters?.lowercased() ?? ""
+        return !typed.isEmpty && typed.allSatisfy(\.isASCII) ? typed : usLetters[event.keyCode]
     }
 
     // The window sits over the menu bar, where AppKit would otherwise push it down.
