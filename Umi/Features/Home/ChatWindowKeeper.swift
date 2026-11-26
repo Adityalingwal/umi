@@ -32,8 +32,14 @@ final class ChatWindowKeeper: NSObject, NSWindowDelegate {
         logger.notice("The chat window opened")
     }
 
-    func windowWillClose(_ notification: Notification) {
+    // Quitting Umi also closes the window, but only the user's close counts, so a quit keeps it open for next time.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
         defaults.set(false, forKey: Self.isOpenKey)
+        logger.notice("The user closed the chat window")
+        return true
+    }
+
+    func windowWillClose(_ notification: Notification) {
         // The closed window gives up the name, so the next one can take it.
         window?.setFrameAutosaveName("")
         window = nil
