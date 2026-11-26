@@ -4,11 +4,6 @@ import SwiftUI
 final class PointerPanel {
     static let level = NSWindow.Level.statusBar
 
-    // The chat sits above the marks; a click or scroll there does not touch the screen under them.
-    static func isAboveMarks(_ umiWindowLevel: NSWindow.Level?) -> Bool {
-        umiWindowLevel.map { $0 > level } ?? false
-    }
-
     private let content: NSView
     private var panel: NSPanel?
 
