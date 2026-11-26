@@ -23,7 +23,7 @@ enum UmiLine {
             return line
         }
         switch error {
-        case BrainError.noInternet, SpeechError.noInternet: return noInternet
+        case BrainError.noInternet: return noInternet
         default: return somethingWentWrong
         }
     }
