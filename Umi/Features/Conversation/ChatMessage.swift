@@ -10,4 +10,5 @@ nonisolated struct ChatMessage: Identifiable, Equatable, Sendable {
     let author: Author
     var text: String
     let time: Date
+    let isFailureLine: Bool
 }
