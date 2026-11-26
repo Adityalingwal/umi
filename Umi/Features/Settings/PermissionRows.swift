@@ -18,6 +18,7 @@ final class PermissionRows {
     )
     @ObservationIgnored private var screenRefresh: Task<Void, Never>?
     @ObservationIgnored private var action: Task<Void, Never>?
+    @ObservationIgnored private var relaunch: Task<Void, Never>?
 
     init(
         microphone: MicrophonePermission,
@@ -73,9 +74,11 @@ final class PermissionRows {
             logger.notice("The Screen row opens System Settings")
             screenPermission.openSystemSettings()
         case .needsRelaunch:
+            guard relaunch == nil else { return }
             logger.notice("The Screen row relaunches Umi")
-            action = Task { [relauncher] in
+            relaunch = Task { [weak self, relauncher] in
                 await relauncher.relaunch()
+                self?.relaunch = nil
             }
         case .allowed:
             break
