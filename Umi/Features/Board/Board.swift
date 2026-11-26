@@ -115,6 +115,16 @@ final class Board {
         logger.notice("Board forgets the stopped drawing: this answer did not edit it")
     }
 
+    // The brain no longer knows the chat, so a drawing on screen goes too.
+    func forget() {
+        draft = nil
+        unfinished = nil
+        lastComplete = nil
+        content.clear()
+        window.hide()
+        logger.notice("Board forgets its drawings: the chat was cleared")
+    }
+
     func stop() {
         guard let draft else { return }
         if !draft.isComplete, draft.revealedRows > 0 || !draft.isEdit && draft.isNamed {

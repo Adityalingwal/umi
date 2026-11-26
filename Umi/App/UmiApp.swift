@@ -188,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 group.addTask {
                     for await _ in chatClears {
-                        await Self.clearChat(turn: turn, conversation: conversation)
+                        await Self.clearChat(turn: turn, board: board, conversation: conversation)
                     }
                 }
             }
@@ -203,8 +203,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // A running answer stops exactly as Esc stops it, and first, so nothing it writes later finds its question.
-    private static func clearChat(turn: Turn, conversation: Conversation) {
+    private static func clearChat(turn: Turn, board: Board, conversation: Conversation) {
         turn.escape()
+        board.forget()
         conversation.clear()
     }
 }
