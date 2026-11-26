@@ -93,7 +93,7 @@ The Debug build takes these launch arguments:
 - `-UmiSpeechFile <path>` also writes what Umi spoke to that WAV file: exactly the sound that played during that launch, every spoken line in order, each ending where a cut stopped it.
 
 ```sh
-open "build/Build/Products/Debug/Umi Dev.app" --args -UmiHoldFile "$PWD/question.wav" -UmiScreenImage "$PWD/screen.jpg"
+open "build/Build/Products/Debug/Umi Dev.app" --args -UmiHoldFile "$PWD/question.wav" -UmiScreenImage "$PWD/screen.jpg" -UmiChatFolder "$PWD/proof-chat"
 ```
 
 In the Debug build, each time the Brain page's check answers, the log lists every Brain option (chosen, enabled, hint), and each time the Permissions page checks, the log lists the three rows' states.
