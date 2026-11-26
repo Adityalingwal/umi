@@ -1,14 +1,12 @@
 import SwiftUI
 
 struct ChatWindowView: View {
-    @Environment(Notch.self) private var notch
-
     var body: some View {
         VStack(spacing: 0) {
             ChatView(jumpsToNewest: true)
             HStack(spacing: 8) {
                 HoldToTalkHint()
-                AskRow(isFocusWanted: notch.isWindowFieldWanted) { notch.windowFieldTookFocus() }
+                AskRow(place: .window)
             }
             .padding(12)
         }

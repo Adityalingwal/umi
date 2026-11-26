@@ -19,7 +19,7 @@ struct NotchView: View {
                 VStack(spacing: 0) {
                     ChatView(jumpsToNewest: false)
                     HStack(spacing: 8) {
-                        AskRow(isFocusWanted: notch.isFieldWanted) { notch.fieldTookFocus() }
+                        AskRow(place: .panel)
                         OpenWindowButton(open: openWindow)
                     }
                     .padding(.horizontal, 12)
