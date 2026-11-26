@@ -9,7 +9,7 @@ struct RightOptionHold {
         case waitingForRelease
     }
 
-    static let keyCode = UInt16(kVK_RightOption)
+    private static let keyCode = UInt16(kVK_RightOption)
     private static let rightOptionBit = UInt(NX_DEVICERALTKEYMASK)
     private static let leftOptionBit = UInt(NX_DEVICELALTKEYMASK)
     private static let otherModifiers: NSEvent.ModifierFlags = [.command, .control, .shift, .function]
@@ -42,11 +42,6 @@ struct RightOptionHold {
         case (.asking, true), (.waitingForRelease, true), (.released, false):
             return nil
         }
-    }
-
-    mutating func keyWasReleased() -> HoldEvent? {
-        defer { phase = .released }
-        return phase == .asking ? .ended : nil
     }
 
     mutating func keyPressed() -> HoldEvent? {

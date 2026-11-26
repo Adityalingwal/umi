@@ -55,17 +55,6 @@ final class KeyListener {
         commandDoublePressContinuation.finish()
     }
 
-    func menuDidClose() {
-        guard hold.isKeyDown,
-              !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(RightOptionHold.keyCode)) else {
-            return
-        }
-        logger.notice("The right Option key was released while Umi's menu was open")
-        if let release = hold.keyWasReleased() {
-            holdContinuation.yield(release)
-        }
-    }
-
     // Keys typed into Umi's own panel reach it without the Accessibility grant, so Esc works there before it.
     private func listenInUmi() {
         let umi = NSEvent.addLocalMonitorForEvents(matching: Self.events) { [weak self] event in

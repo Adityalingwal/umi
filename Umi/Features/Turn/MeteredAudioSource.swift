@@ -2,8 +2,6 @@ struct MeteredAudioSource: AudioSource {
     let source: any AudioSource
     let cursor: UmiCursor
 
-    var schedule: ListeningSchedule { source.schedule }
-
     func chunks() -> AsyncThrowingStream<AudioChunk, any Error> {
         let (stream, continuation) = AsyncThrowingStream.makeStream(of: AudioChunk.self)
         let upstream = source.chunks()

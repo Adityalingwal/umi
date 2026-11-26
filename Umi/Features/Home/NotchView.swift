@@ -5,6 +5,7 @@ struct NotchView: View {
 
     let notchHeight: CGFloat
     let openWindow: () -> Void
+    let toggleSettings: () -> Void
     @Environment(Notch.self) private var notch
 
     var body: some View {
@@ -17,6 +18,47 @@ struct NotchView: View {
             if notch.isOpen {
                 DottedPattern()
                 VStack(spacing: 0) {
+                    PanelTopRow(height: notchHeight, content: notch.panelContent, toggle: toggleSettings)
+                    PanelContent(content: notch.panelContent, openWindow: openWindow)
+                }
+                .padding(.horizontal, NotchPlace.shoulder)
+                .transition(.opacity)
+            }
+        }
+        .clipShape(shape)
+        .animation(Self.motion, value: notch.isOpen)
+    }
+}
+
+// The row beside the hardware notch keeps the chat's width, so its button stays put while the panel widens.
+private struct PanelTopRow: View {
+    let height: CGFloat
+    let content: HomeContent
+    let toggle: () -> Void
+
+    var body: some View {
+        HStack {
+            Spacer(minLength: 0)
+            switch content {
+            case .chat: SettingsButton(open: toggle)
+            case .settings: BackButton(back: toggle)
+            }
+        }
+        .padding(.trailing, 12)
+        .frame(width: NotchPlace.chatSize.width, height: height)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct PanelContent: View {
+    let content: HomeContent
+    let openWindow: () -> Void
+
+    var body: some View {
+        Group {
+            switch content {
+            case .chat:
+                VStack(spacing: 0) {
                     ChatView(jumpsToNewest: false)
                     HStack(spacing: 8) {
                         AskRow(place: .panel)
@@ -25,13 +67,13 @@ struct NotchView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
                 }
-                .padding(.top, notchHeight)
-                .padding(.horizontal, NotchPlace.shoulder)
-                .transition(.opacity)
+            case .settings:
+                SettingsView()
+                    .padding(.bottom, 10)
             }
         }
-        .clipShape(shape)
-        .animation(Self.motion, value: notch.isOpen)
+        .transition(.opacity)
+        .animation(.easeOut(duration: 0.15), value: content)
     }
 }
 

@@ -9,6 +9,8 @@ final class Notch {
     private(set) var isOpen = false
     private(set) var isHeld = false
     private(set) var readsAloud: Bool
+    private(set) var panelContent = HomeContent.chat
+    private(set) var windowContent = HomeContent.chat
     var draft = ""
     private var isPanelFieldWanted = false
     private var isWindowFieldWanted = false
@@ -52,6 +54,7 @@ final class Notch {
         }
         isOpen = true
         isHeld = true
+        panelContent = .chat
         isPanelFieldWanted = true
     }
 
@@ -63,7 +66,27 @@ final class Notch {
     }
 
     func windowOpened() {
-        isWindowFieldWanted = true
+        isWindowFieldWanted = windowContent == .chat
+    }
+
+    func windowClosed() {
+        windowContent = .chat
+    }
+
+    // One button in one place opens and leaves Settings, so it stays under the pointer as the panel changes width.
+    func toggleSettingsInPanel() {
+        panelContent = panelContent == .chat ? .settings : .chat
+        logger.notice("The panel shows \(self.panelContent == .chat ? "the chat" : "Settings", privacy: .public)")
+    }
+
+    func showSettingsInWindow() {
+        windowContent = .settings
+        logger.notice("The chat window shows Settings")
+    }
+
+    func showChatInWindow() {
+        windowContent = .chat
+        logger.notice("The chat window is back to the chat")
     }
 
     // A click on the switch readies the field beside it for the keys typed next.
@@ -133,5 +156,6 @@ final class Notch {
         isOpen = false
         isHeld = false
         isPanelFieldWanted = false
+        panelContent = .chat
     }
 }

@@ -11,6 +11,7 @@ final class NotchPanel {
     private let notch: Notch
     private let conversation: Conversation
     private let chatWindow: ChatWindowKeeper
+    private let settings: UmiSettings
     private let hover = NotchHover()
     private let moves = PointerMoveWatch()
     private let clicks = ClickWatch()
@@ -20,10 +21,11 @@ final class NotchPanel {
     private var screenChanges: Task<Void, Never>?
     private var shortcuts: Task<Void, Never>?
 
-    init(notch: Notch, conversation: Conversation, chatWindow: ChatWindowKeeper) {
+    init(notch: Notch, conversation: Conversation, chatWindow: ChatWindowKeeper, settings: UmiSettings) {
         self.notch = notch
         self.conversation = conversation
         self.chatWindow = chatWindow
+        self.settings = settings
     }
 
     func show(notificationCenter: NotificationCenter, commandDoublePresses: AsyncStream<Void>) {
@@ -108,8 +110,14 @@ final class NotchPanel {
     }
 
     private func hostingView(notchHeight: CGFloat) -> NSView {
-        let view = NotchView(notchHeight: notchHeight) { [weak self] in self?.openWindow() }
-        let hostingView = NSHostingView(rootView: view.environment(notch).environment(conversation))
+        let view = NotchView(
+            notchHeight: notchHeight,
+            openWindow: { [weak self] in self?.openWindow() },
+            toggleSettings: { [weak self] in self?.toggleSettings() }
+        )
+        let hostingView = NSHostingView(
+            rootView: view.environment(notch).environment(conversation).environment(settings)
+        )
         hostingView.sizingOptions = []
         hostingView.addTrackingArea(NSTrackingArea(
             rect: .zero,
@@ -140,6 +148,11 @@ final class NotchPanel {
         chatWindow.open()
     }
 
+    private func toggleSettings() {
+        notch.toggleSettingsInPanel()
+        sizeToState()
+    }
+
     // Shrinking the window under the pointer, as when the chat moves into its window, sends an enter outside the notch.
     // The window sits on whole points, so the notch's half-point edges are rounded out.
     private func pointerEntered() {
@@ -153,14 +166,15 @@ final class NotchPanel {
     // Growing the window sends an exit while the pointer is still inside it.
     private func pointerMayHaveLeft() {
         guard notch.isOpen, !notch.isHeld, let place,
-              !NSMouseInRect(NSEvent.mouseLocation, place.openFrame, false) else { return }
+              !NSMouseInRect(NSEvent.mouseLocation, place.openFrame(showing: notch.panelContent), false) else { return }
         notch.pointerLeft()
         logger.notice("The pointer left the panel: it closed")
         sizeToState()
     }
 
     private func clicked(at point: CGPoint) {
-        guard notch.isOpen, let place, !NSMouseInRect(point, place.openFrame, false) else { return }
+        guard notch.isOpen, let place,
+              !NSMouseInRect(point, place.openFrame(showing: notch.panelContent), false) else { return }
         notch.clickedOutside()
         logger.notice("A click outside the panel: it closed")
         sizeToState()
@@ -171,7 +185,7 @@ final class NotchPanel {
         if notch.isOpen {
             moves.start { [weak self] in self?.pointerMayHaveLeft() }
             clicks.start { [weak self] click in self?.clicked(at: click.place) }
-            resize(window, to: place.openFrame, duration: Self.openDuration)
+            resize(window, to: place.openFrame(showing: notch.panelContent), duration: Self.openDuration)
         } else {
             moves.stop()
             clicks.stop()
