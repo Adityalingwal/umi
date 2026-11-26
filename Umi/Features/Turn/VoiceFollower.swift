@@ -26,4 +26,19 @@ struct VoiceFollower {
             }
         }
     }
+
+    func followToEnd(_ voice: SpokenAnswer, pointing: Pointing?) async {
+        await follow(voice, pointing: pointing)
+        guard voice.hasFailed, !Task.isCancelled else { return }
+        endWithoutVoice(pointing: pointing)
+    }
+
+    // With the voice gone, nothing paces the board, so the rest of the drawing shows when the text ends.
+    func endWithoutVoice(pointing: Pointing?) {
+        hideCursor()
+        board.reveal(sentences: .max)
+        board.answerEnded()
+        pointing?.answerEnded()
+        logger.notice("Answer finished without the voice")
+    }
 }

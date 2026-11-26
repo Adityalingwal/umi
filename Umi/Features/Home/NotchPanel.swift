@@ -91,6 +91,7 @@ final class NotchPanel {
         window.hidesOnDeactivate = false
         window.becomesKeyOnlyIfNeeded = true
         window.animationBehavior = .none
+        window.appearance = NSAppearance(named: .darkAqua)
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         window.contentView = hostingView(notchHeight: notchHeight)
         return window
@@ -119,7 +120,8 @@ final class NotchPanel {
 
     // Growing the window sends an exit while the pointer is still inside it.
     private func pointerMayHaveLeft() {
-        guard notch.isOpen, let place, !NSMouseInRect(NSEvent.mouseLocation, place.openFrame, false) else { return }
+        guard notch.isOpen, !notch.isHeld, let place,
+              !NSMouseInRect(NSEvent.mouseLocation, place.openFrame, false) else { return }
         notch.pointerLeft()
         logger.notice("The pointer left the panel: it closed")
         sizeToState()

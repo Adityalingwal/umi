@@ -46,7 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         keyListener.start()
         self.keyListener = keyListener
         let conversation = Conversation()
-        let notchPanel = NotchPanel(notch: Notch(pasteboard: .general), conversation: conversation)
+        let notch = Notch(pasteboard: .general)
+        let notchPanel = NotchPanel(notch: notch, conversation: conversation)
         notchPanel.show(notificationCenter: .default)
         self.notchPanel = notchPanel
         #if DEBUG
@@ -55,8 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
             let holds = picks?.applied(to: holdFile.holds) ?? holdFile.holds
             startTurns(
-                audioSource: holdFile,
-                holds: holds,
+                questions: QuestionSources(audio: holdFile, holds: holds, typed: notch.questions),
                 escapes: keyListener.escapes,
                 brain: brain,
                 conversation: conversation
@@ -65,8 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         #endif
         startTurns(
-            audioSource: MicrophoneSource(permission: MicrophonePermission()),
-            holds: keyListener.holds,
+            questions: QuestionSources(
+                audio: MicrophoneSource(permission: MicrophonePermission()),
+                holds: keyListener.holds,
+                typed: notch.questions
+            ),
             escapes: keyListener.escapes,
             brain: brain,
             conversation: conversation
@@ -94,8 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startTurns(
-        audioSource: any AudioSource,
-        holds: AsyncStream<HoldEvent>,
+        questions: QuestionSources,
         escapes: AsyncStream<Void>,
         brain: ChosenBrain,
         conversation: Conversation
@@ -111,7 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let notchPanel = notchPanel
         turns = Task {
             let turn = Turn(
-                audioSource: audioSource,
+                audioSource: questions.audio,
                 speech: await SpeechToText.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),
                 speaker: await Speaker.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),
                 screen: screen,
@@ -124,8 +126,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             await withDiscardingTaskGroup { group in
                 group.addTask {
-                    for await hold in holds {
+                    for await hold in questions.holds {
                         await turn.handle(hold)
+                    }
+                }
+                group.addTask {
+                    for await question in questions.typed {
+                        await turn.ask(typed: question)
                     }
                 }
                 group.addTask {

@@ -13,6 +13,7 @@ final class SpokenAnswer {
     private static let watchInterval = Duration.milliseconds(100)
 
     let events: AsyncStream<SpokenEvent>
+    private(set) var hasFailed = false
 
     private let eventContinuation: AsyncStream<SpokenEvent>.Continuation
     private let socket: FluxSpeech
@@ -222,6 +223,7 @@ final class SpokenAnswer {
             \(self.playedMilliseconds, privacy: .public) ms of sound; it takes no more text
             """
         )
+        hasFailed = true
         end()
         eventContinuation.finish()
         onFailure?(self)

@@ -15,10 +15,15 @@ struct NotchView: View {
             Color.black
             if notch.isOpen {
                 DottedPattern()
-                ChatView()
-                    .padding(.top, notchHeight)
-                    .padding(.horizontal, NotchPlace.shoulder)
-                    .transition(.opacity)
+                VStack(spacing: 0) {
+                    ChatView()
+                    AskRow()
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
+                }
+                .padding(.top, notchHeight)
+                .padding(.horizontal, NotchPlace.shoulder)
+                .transition(.opacity)
             }
         }
         .clipShape(shape)
