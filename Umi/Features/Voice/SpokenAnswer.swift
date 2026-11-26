@@ -7,24 +7,22 @@ final class SpokenAnswer {
         case over
     }
 
-    // Aditya's pick from #14's measurements, where the first sound came at most 1.22 s after a Flush; the wait counts
-    // from a piece's Flush.
-    private static let waitingLimit = Duration.seconds(3)
     private static let watchInterval = Duration.milliseconds(100)
 
     let events: AsyncStream<SpokenEvent>
+    private(set) var isSilent = false
 
     private let eventContinuation: AsyncStream<SpokenEvent>.Continuation
-    private let socket: FluxSpeech
+    private let socket: FluxSpeech?
     private let queue: SpeechQueue
-    private let player: SpeechPlayer
+    private lazy var player = SpeechPlayer(queue: queue)
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
     private var mode = Mode.voiced
     private var turns = SpokenTurns()
     private var isTextEnded = false
     private var isAudioComplete = false
     private var openTurnCharacters = 0
-    private var waitingSince: ContinuousClock.Instant?
+    private var silenceRule = SilenceRule()
     private var listening: Task<Void, Never>?
     private var playing: Task<Void, Never>?
     private var watching: Task<Void, Never>?
@@ -33,12 +31,25 @@ final class SpokenAnswer {
     private var speechFile: SpeechFile?
     #endif
 
-    init(socket: FluxSpeech) {
+    private init(voiceSocket: FluxSpeech?) {
         let queue = SpeechQueue()
-        self.socket = socket
+        socket = voiceSocket
         self.queue = queue
-        player = SpeechPlayer(queue: queue)
         (events, eventContinuation) = AsyncStream.makeStream(of: SpokenEvent.self)
+        if voiceSocket == nil {
+            mode = .over
+            isSilent = true
+            eventContinuation.finish()
+        }
+    }
+
+    convenience init(socket: FluxSpeech) {
+        self.init(voiceSocket: socket)
+    }
+
+    // An answer with no voice at all: it takes text and speaks none of it.
+    static func silent() -> SpokenAnswer {
+        SpokenAnswer(voiceSocket: nil)
     }
 
     #if DEBUG
@@ -62,6 +73,7 @@ final class SpokenAnswer {
     }
 
     func start(onFailure: @escaping (SpokenAnswer) -> Void) {
+        guard let socket else { return }
         self.onFailure = onFailure
         let messages = socket.messages()
         listening = Task { [weak self] in
@@ -98,7 +110,8 @@ final class SpokenAnswer {
         guard mode == .voiced else { return }
         closeOpenTurn()
         guard send(line) else { return }
-        socket.flush()
+        socket?.flush()
+        silenceRule.pieceFlushed()
         let turn = turns.add()
         logger.notice("Piece \(turn, privacy: .public) sent to the voice as one whole line")
     }
@@ -120,7 +133,7 @@ final class SpokenAnswer {
 
     private func send(_ text: String) -> Bool {
         do {
-            try socket.send(text)
+            try socket?.send(text)
             return true
         } catch {
             fail(error)
@@ -130,8 +143,8 @@ final class SpokenAnswer {
 
     private func closeOpenTurn() {
         guard let turn = turns.close() else { return }
-        socket.flush()
-        waitingSince = .now
+        socket?.flush()
+        silenceRule.pieceFlushed()
         let characters = openTurnCharacters
         logger.notice("Piece \(turn, privacy: .public) closed after \(characters, privacy: .public) characters")
         openTurnCharacters = 0
@@ -141,8 +154,7 @@ final class SpokenAnswer {
         guard mode == .voiced else { return }
         switch message {
         case .connected:
-            guard waitingSince != nil else { return }
-            waitingSince = .now
+            guard silenceRule.connected() else { return }
             logger.notice("The voice connected after the first text was sent to it; the wait for sound starts now")
         case .turnStarted:
             turns.voiceStartedTurn()
@@ -178,22 +190,13 @@ final class SpokenAnswer {
 
     private func watchForSilence() {
         watching = Task { [weak self] in
-            var lastPlayed = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: Self.watchInterval)
                 guard let self, mode == .voiced else { return }
-                let played = queue.playedSamples
-                if !isSilenceJudged {
-                    waitingSince = nil
-                } else if let since = waitingSince, played == lastPlayed {
-                    if since.duration(to: .now) >= Self.waitingLimit {
-                        fail(SpeakingError.noSound)
-                        return
-                    }
-                } else {
-                    waitingSince = .now
+                if let failure = silenceRule.check(isSilenceJudged: isSilenceJudged, played: queue.playedSamples) {
+                    fail(failure)
+                    return
                 }
-                lastPlayed = played
             }
         }
     }
@@ -201,7 +204,7 @@ final class SpokenAnswer {
     private func endAudioIfComplete() {
         guard isTextEnded, !turns.isAudioOwed else { return }
         isAudioComplete = true
-        socket.close()
+        socket?.close()
         if player.isStarted {
             queue.audioEnded()
         } else {
@@ -222,6 +225,7 @@ final class SpokenAnswer {
             \(self.playedMilliseconds, privacy: .public) ms of sound; it takes no more text
             """
         )
+        isSilent = true
         end()
         eventContinuation.finish()
         onFailure?(self)
@@ -241,7 +245,7 @@ final class SpokenAnswer {
     private func silence() {
         queue.cut()
         player.stop()
-        socket.close()
+        socket?.close()
         listening?.cancel()
         playing?.cancel()
         watching?.cancel()

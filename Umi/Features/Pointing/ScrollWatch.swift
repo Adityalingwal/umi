@@ -3,16 +3,17 @@ import AppKit
 final class ScrollWatch {
     private var monitors: [Any] = []
 
-    func start(onScroll: @escaping () -> Void) {
+    // Gives the level of Umi's window the scroll landed in, or nil for another app's window.
+    func start(onScroll: @escaping (NSWindow.Level?) -> Void) {
         guard monitors.isEmpty else { return }
         let global = NSEvent.addGlobalMonitorForEvents(matching: .scrollWheel) { event in
             if Self.movesContent(event) {
-                onScroll()
+                onScroll(nil)
             }
         }
         let local = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
             if Self.movesContent(event) {
-                onScroll()
+                onScroll(event.window?.level)
             }
             return event
         }

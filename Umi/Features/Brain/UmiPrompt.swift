@@ -10,7 +10,7 @@ enum UmiPrompt {
         After them may come the board: the diagram Umi keeps on its board, with its marks. \
         Use them to understand a follow-up question; \
         when the topic has changed, answer from the new question and screen. \
-        Answer the user's spoken question in one of two forms: a spoken answer, or a drawing answer.
+        Answer the user's question, spoken or typed, in one of two forms: a spoken answer, or a drawing answer.
         """
 
     private static let spokenWords = """

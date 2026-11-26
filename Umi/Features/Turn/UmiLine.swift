@@ -1,8 +1,9 @@
 enum UmiLine {
     static let couldNotHear = "Couldn't hear you, say it again"
-    static let couldNotDraw = "Sorry, I couldn't make that drawing."
+    private static let couldNotDraw = "Sorry, I couldn't make that drawing."
 
     private static let somethingWentWrong = "Something went wrong. Please try again."
+    private static let noInternet = "Umi can't reach the internet. Check your connection and try again."
 
     // The voice needs the same internet and the same Deepgram service, so these failures have no line.
     static func failure(_ error: any Error) -> String? {
@@ -11,7 +12,19 @@ enum UmiLine {
         case let error as AudioSourceError: audio(error)
         case let error as ScreenError: screen(error)
         case let error as BrainError: brain(error)
+        case is DrawingError: couldNotDraw
         default: somethingWentWrong
+        }
+    }
+
+    // A typed question's failure is shown in the chat, so it always has a line, even where the voice has none.
+    static func chatFailure(_ error: any Error) -> String {
+        if let line = failure(error) {
+            return line
+        }
+        switch error {
+        case BrainError.noInternet: return noInternet
+        default: return somethingWentWrong
         }
     }
 

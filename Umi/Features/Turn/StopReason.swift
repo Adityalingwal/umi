@@ -5,6 +5,7 @@ enum StopReason {
         case let error as AudioSourceError: "audio: \(error)"
         case let error as ScreenError: "screen: \(error)"
         case let error as BrainError: "brain: \(error)"
+        case let error as DrawingError: "drawing: \(error)"
         default: "unexpected"
         }
     }

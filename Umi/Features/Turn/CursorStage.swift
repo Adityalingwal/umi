@@ -29,6 +29,7 @@ final class CursorStage {
     }
 
     func think() {
+        panel.startFollowingPointer()
         cursor.think()
     }
 
