@@ -148,10 +148,11 @@ final class Pointing {
         nextStep = after(Self.restOnMark) { $0.leaveMark() }
     }
 
-    // A click into one of Umi's own windows, such as the chat, lands on that window and not on a mark under it.
+    // A click into one of Umi's windows drawn above the marks, such as the chat, lands there and not on a mark.
     private func clicked(_ click: ClickWatch.Click) {
         guard !marksOnScreen.isEmpty else { return }
-        let cleared = click.isOnUmiWindow ? [] : marksOnScreen.filter { $0.isUnder(click.place) }
+        let isAboveMarks = click.umiWindowLevel.map { $0 > PointerPanel.level } ?? false
+        let cleared = isAboveMarks ? [] : marksOnScreen.filter { $0.isUnder(click.place) }
         guard !cleared.isEmpty else {
             logger.notice("A click landed elsewhere")
             end(because: "the user clicked elsewhere")

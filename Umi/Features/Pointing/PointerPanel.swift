@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 final class PointerPanel {
+    static let level = NSWindow.Level.statusBar
+
     private let content: NSView
     private var panel: NSPanel?
 
@@ -34,7 +36,7 @@ final class PointerPanel {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
-        panel.level = .statusBar
+        panel.level = Self.level
         panel.ignoresMouseEvents = true
         panel.animationBehavior = .none
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
