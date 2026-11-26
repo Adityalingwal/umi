@@ -16,6 +16,8 @@ final class NotchPanel {
     private let clicks = ClickWatch()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Home")
     private var place: NotchPlace?
+    private var screenChanges: Task<Void, Never>?
+    private var hasContent = false
 
     init(notch: Notch, conversation: Conversation) {
         self.notch = notch
@@ -36,23 +38,43 @@ final class NotchPanel {
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
     }
 
-    func show(on screens: [NSScreen]) {
-        guard let place = NotchPlace.onNotchedScreen(among: screens) else {
-            logger.notice("No screen has a notch, so the notch is not shown")
-            return
-        }
-        self.place = place
+    func show(notificationCenter: NotificationCenter) {
         hover.onEnter = { [weak self] in self?.pointerEntered() }
         hover.onExit = { [weak self] in self?.pointerMayHaveLeft() }
-        window.contentView = hostingView(notchHeight: place.notchHeight)
-        window.setFrame(place.restFrame, display: true)
-        window.orderFrontRegardless()
+        placeOnNotchedScreen()
+        screenChanges = Task { [weak self] in
+            let changes = notificationCenter.notifications(named: NSApplication.didChangeScreenParametersNotification)
+            for await _ in changes {
+                self?.placeOnNotchedScreen()
+            }
+        }
+    }
+
+    func stop() {
+        screenChanges?.cancel()
+        screenChanges = nil
     }
 
     func escape() {
         guard notch.escape() else { return }
         logger.notice("Esc: the panel closed")
         sizeToState()
+    }
+
+    private func placeOnNotchedScreen() {
+        guard let place = NotchPlace.onNotchedScreen(among: NSScreen.screens) else {
+            logger.notice("No screen has a notch, so the notch is not shown")
+            self.place = nil
+            window.orderOut(nil)
+            return
+        }
+        self.place = place
+        if !hasContent {
+            window.contentView = hostingView(notchHeight: place.notchHeight)
+            hasContent = true
+        }
+        window.setFrame(notch.isOpen ? place.openFrame : place.restFrame, display: true)
+        window.orderFrontRegardless()
     }
 
     private func hostingView(notchHeight: CGFloat) -> NSView {

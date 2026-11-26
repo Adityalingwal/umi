@@ -47,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         let conversation = Conversation()
         let notchPanel = NotchPanel(notch: Notch(pasteboard: .general), conversation: conversation)
-        notchPanel.show(on: NSScreen.screens)
+        notchPanel.show(notificationCenter: .default)
         self.notchPanel = notchPanel
         #if DEBUG
         menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
@@ -89,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuUpdates?.cancel()
         #endif
         keyListener?.stop()
+        notchPanel?.stop()
         brain?.stop()
     }
 
