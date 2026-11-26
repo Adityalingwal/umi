@@ -37,11 +37,10 @@ final class NotchPanel {
     }
 
     func show(on screens: [NSScreen]) {
-        guard let screen = NotchPlace.notchedScreen(among: screens) else {
-            logger.error("No screen to put the notch on")
+        guard let place = NotchPlace.onNotchedScreen(among: screens) else {
+            logger.notice("No screen has a notch, so the notch is not shown")
             return
         }
-        let place = NotchPlace(screen: screen)
         self.place = place
         hover.onEnter = { [weak self] in self?.pointerEntered() }
         hover.onExit = { [weak self] in self?.pointerMayHaveLeft() }

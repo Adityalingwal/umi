@@ -5,27 +5,16 @@ struct NotchPlace {
     static let restBottomRadius = 9.0
     static let openBottomRadius = 22.0
     private static let chatSize = CGSize(width: 480, height: 440)
-    private static let screenWithoutNotchWidth = 180.0
 
     let notchHeight: CGFloat
     let restFrame: CGRect
     let openFrame: CGRect
 
-    init(screen: NSScreen) {
+    init?(screen: NSScreen) {
+        guard let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea else { return nil }
         let frame = screen.frame
-        let notch: CGRect
-        if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-            let height = screen.safeAreaInsets.top
-            notch = CGRect(x: left.maxX, y: frame.maxY - height, width: right.minX - left.maxX, height: height)
-        } else {
-            let height = NSStatusBar.system.thickness
-            notch = CGRect(
-                x: frame.midX - Self.screenWithoutNotchWidth / 2,
-                y: frame.maxY - height,
-                width: Self.screenWithoutNotchWidth,
-                height: height
-            )
-        }
+        let height = screen.safeAreaInsets.top
+        let notch = CGRect(x: left.maxX, y: frame.maxY - height, width: right.minX - left.maxX, height: height)
         notchHeight = notch.height
         restFrame = notch.insetBy(dx: -Self.shoulder, dy: 0)
         let openWidth = Self.chatSize.width + 2 * Self.shoulder
@@ -37,7 +26,7 @@ struct NotchPlace {
         )
     }
 
-    static func notchedScreen(among screens: [NSScreen]) -> NSScreen? {
-        screens.first { $0.auxiliaryTopLeftArea != nil } ?? screens.first
+    static func onNotchedScreen(among screens: [NSScreen]) -> NotchPlace? {
+        screens.lazy.compactMap(NotchPlace.init).first
     }
 }
