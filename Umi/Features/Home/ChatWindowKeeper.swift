@@ -9,13 +9,15 @@ final class ChatWindowKeeper: NSObject, NSWindowDelegate {
 
     private let notch: Notch
     private let conversation: Conversation
+    private let settings: UmiSettings
     private let defaults: UserDefaults
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Home")
     private var window: ChatWindow?
 
-    init(notch: Notch, conversation: Conversation, defaults: UserDefaults) {
+    init(notch: Notch, conversation: Conversation, settings: UmiSettings, defaults: UserDefaults) {
         self.notch = notch
         self.conversation = conversation
+        self.settings = settings
         self.defaults = defaults
     }
 
@@ -43,6 +45,7 @@ final class ChatWindowKeeper: NSObject, NSWindowDelegate {
         // The closed window gives up the name, so the next one can take it.
         window?.setFrameAutosaveName("")
         window = nil
+        notch.windowClosed()
         logger.notice("The chat window closed")
     }
 
@@ -81,7 +84,9 @@ final class ChatWindowKeeper: NSObject, NSWindowDelegate {
     }
 
     private func hostingView() -> NSView {
-        let hostingView = NSHostingView(rootView: ChatWindowView().environment(notch).environment(conversation))
+        let hostingView = NSHostingView(
+            rootView: ChatWindowView().environment(notch).environment(conversation).environment(settings)
+        )
         hostingView.sizingOptions = [.minSize]
         return hostingView
     }

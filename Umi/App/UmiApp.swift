@@ -48,7 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         let conversation = Conversation()
         let notch = Notch(pasteboard: .general, defaults: .standard)
-        showHome(notch: notch, conversation: conversation, commandDoublePresses: keyListener.commandDoublePresses)
+        let settings = Self.makeSettings(brain: brain, check: parts.makeCheck(), accessibility: accessibility)
+        let presses = keyListener.commandDoublePresses
+        showHome(notch: notch, conversation: conversation, settings: settings, commandDoublePresses: presses)
         #if DEBUG
         menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
@@ -75,9 +77,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func showHome(notch: Notch, conversation: Conversation, commandDoublePresses: AsyncStream<Void>) {
-        let chatWindow = ChatWindowKeeper(notch: notch, conversation: conversation, defaults: .standard)
-        let notchPanel = NotchPanel(notch: notch, conversation: conversation, chatWindow: chatWindow)
+    private static func makeSettings(
+        brain: ChosenBrain,
+        check: BrainCheck,
+        accessibility: AccessibilityPermission
+    ) -> UmiSettings {
+        UmiSettings(
+            permissions: PermissionRows(
+                microphone: MicrophonePermission(),
+                screen: .atLaunch(defaults: .standard),
+                accessibility: accessibility,
+                relauncher: AppRelauncher()
+            ),
+            brains: BrainOptions(brain: brain, check: check),
+            bundle: .main
+        )
+    }
+
+    private func showHome(
+        notch: Notch,
+        conversation: Conversation,
+        settings: UmiSettings,
+        commandDoublePresses: AsyncStream<Void>
+    ) {
+        let chatWindow = ChatWindowKeeper(
+            notch: notch,
+            conversation: conversation,
+            settings: settings,
+            defaults: .standard
+        )
+        let notchPanel = NotchPanel(
+            notch: notch,
+            conversation: conversation,
+            chatWindow: chatWindow,
+            settings: settings
+        )
         notchPanel.show(notificationCenter: .default, commandDoublePresses: commandDoublePresses)
         chatWindow.reopenIfItWasOpen()
         self.notchPanel = notchPanel
