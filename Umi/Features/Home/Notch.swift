@@ -8,6 +8,7 @@ final class Notch {
 
     private(set) var isOpen = false
     private(set) var isHeld = false
+    private(set) var isFieldWanted = false
     private(set) var readsAloud: Bool
     var draft = "" {
         didSet { draftChanged(from: oldValue) }
@@ -35,6 +36,21 @@ final class Notch {
 
     func pointerEntered() {
         isOpen = true
+    }
+
+    // Opened this way the panel is held at once, so it stays while the pointer is elsewhere.
+    func commandPressedTwice() {
+        guard !isOpen else {
+            close()
+            return
+        }
+        isOpen = true
+        isHeld = true
+        isFieldWanted = true
+    }
+
+    func fieldTookFocus() {
+        isFieldWanted = false
     }
 
     func toggleReadAloud() {
@@ -89,5 +105,6 @@ final class Notch {
     private func close() {
         isOpen = false
         isHeld = false
+        isFieldWanted = false
     }
 }

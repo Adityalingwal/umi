@@ -4,6 +4,7 @@ struct AskRow: View {
     private static let fieldHeight = 34.0
 
     @Environment(Notch.self) private var notch
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         @Bindable var notch = notch
@@ -12,9 +13,15 @@ struct AskRow: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundStyle(.white)
+                .focused($isFieldFocused)
                 .onSubmit { notch.send() }
             ReadAloudButton(isOn: notch.readsAloud) { notch.toggleReadAloud() }
             SendButton(isEnabled: notch.canSend) { notch.send() }
+        }
+        .onChange(of: notch.isFieldWanted, initial: true) {
+            guard notch.isFieldWanted else { return }
+            isFieldFocused = true
+            notch.fieldTookFocus()
         }
         .padding(.leading, 14)
         .padding(.trailing, (Self.fieldHeight - SendButton.size) / 2)

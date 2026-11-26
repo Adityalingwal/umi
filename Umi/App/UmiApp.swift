@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let conversation = Conversation()
         let notch = Notch(pasteboard: .general, defaults: .standard)
         let notchPanel = NotchPanel(notch: notch, conversation: conversation)
-        notchPanel.show(notificationCenter: .default)
+        notchPanel.show(notificationCenter: .default, commandDoublePresses: keyListener.commandDoublePresses)
         self.notchPanel = notchPanel
         #if DEBUG
         menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
