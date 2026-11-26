@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var brain: ChosenBrain?
     private var notchPanel: NotchPanel?
     private var chatWindow: ChatWindowKeeper?
+    private var conversation: Conversation?
     private var turns: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -31,7 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = Self.makeSettings(brain: brain, check: parts.makeCheck(), accessibility: accessibility)
         keyListener.start()
         self.keyListener = keyListener
-        let conversation = Conversation()
+        let conversation = Conversation(file: ChatFile(folder: Self.applicationSupportFolder()))
+        self.conversation = conversation
         let notch = Notch(pasteboard: .general, defaults: .standard)
         let presses = keyListener.commandDoublePresses
         showHome(notch: notch, conversation: conversation, settings: settings, commandDoublePresses: presses)
@@ -58,6 +60,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             brain: brain,
             conversation: conversation
         )
+    }
+
+    private static func applicationSupportFolder() -> URL {
+        URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Umi")
     }
 
     private static func makeSettings(
@@ -111,6 +117,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let conversation else { return .terminateNow }
+        Task {
+            await conversation.saved()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         turns?.cancel()
         keyListener?.stop()
@@ -134,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let bundleURL = Bundle.main.bundleURL
         let notchPanel = notchPanel
         turns = Task {
+            await conversation.load()
             let turn = Turn(
                 audioSource: questions.audio,
                 speech: await SpeechToText.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),

@@ -78,7 +78,7 @@ final class Turn {
             logger.error("No screen is under the pointer")
             return
         }
-        let question = AskedQuestion(id: conversation.addQuestion(text), way: .typed)
+        let question = AskedQuestion(id: conversation.addQuestion(text, way: .typed), way: .typed)
         logger.notice("A typed question came: \(text.count, privacy: .public) characters")
         let speaking = readsAloud ? typedVoice() : .silent()
         if !readsAloud {
@@ -164,7 +164,7 @@ final class Turn {
             switch heard {
             case .words(let text):
                 logger.notice("Heard \(text.count, privacy: .public) characters")
-                let question = AskedQuestion(id: conversation.addQuestion(text), way: .spoken)
+                let question = AskedQuestion(id: conversation.addQuestion(text, way: .spoken), way: .spoken)
                 defer { conversation.endAnswer(to: question.id) }
                 await reading.answer(text, to: question, picture: picture, voice: voice, pointing: pointing)
             case .silence:
@@ -217,13 +217,13 @@ final class Turn {
         }
     }
 
-    private func start(_ voice: SpokenAnswer, for way: AskedQuestion.Way) {
+    private func start(_ voice: SpokenAnswer, for way: ChatMessage.Way) {
         voice.start { [weak self] voice in
             self?.voiceFailed(voice, for: way)
         }
     }
 
-    private func voiceFailed(_ voice: SpokenAnswer, for way: AskedQuestion.Way) {
+    private func voiceFailed(_ voice: SpokenAnswer, for way: ChatMessage.Way) {
         guard parts.speaking === voice else { return }
         switch way {
         case .spoken:
