@@ -77,8 +77,6 @@ Umi has no icon in the menu bar. A hover on the notch opens the chat panel. The 
 
 The chat is saved as plain JSON, text only, in `~/Library/Application Support/<bundle id>/chat.json` (`io.github.adityalingwal.umi.dev` for the Debug build): a list of messages, each with `author` (`user` or `umi`), `text`, `time` and `way` (`spoken` or `typed`; an answer has its question's way). It is written when a question is added and when an answer ends, and read once when Umi starts; the brain gets the last twenty exchanges from it as context. A failure line shown under a typed question is not saved. A file that cannot be read is moved to `chat-unreadable.json` beside it, and the chat starts empty. "Clear chat" on Settings' General page asks once, stops a running answer as Esc does, then empties the chat and the file and deletes `chat-unreadable.json`. The log never holds the chat's text.
 
-The Debug build uses the same file in every run: a proof run sees the chat saved on this Mac, shows it in its pictures and sends it to the brain as context. No launch argument points a run at another file.
-
 Launch only the `Umi Dev` build from your own checkout.
 
 The Debug build takes these launch arguments:
@@ -91,6 +89,7 @@ The Debug build takes these launch arguments:
 - `-UmiFailFlux YES` opens no Flux socket, so every hold takes the fallback: the whole recording goes to Deepgram Nova-3 after release. Nothing about the network changes.
 - `-UmiHoldPause <seconds>` works with a `-UmiHoldFile` list: each next hold starts that many seconds after the previous one ended, in place of 25 s. A short pause asks the next question while an answer (or a drawing) is still going; a long one lets a long drawing answer finish first. A list, `-UmiHoldPause '(40, 8)'`, sets the pause after each hold in order, and the last one repeats: there a first drawing finishes, then the third question interrupts the second answer.
 - `-UmiCutVoiceAfter <milliseconds>` makes the voice fail on purpose once Umi has received that many milliseconds of audio in one answer, the same way a Deepgram voice error does: the answer stops as with Esc and the fail mark shows. Audio arrives faster than it plays, so the cut comes before that much has been heard; the log's "after ... ms of sound" says how much played. A value under 250 cuts before the first sound. It holds for every answer of that launch, so a shorter answer is not cut.
+- `-UmiChatFolder <folder>` keeps the chat in `chat.json` in that folder instead of Umi's folder in Application Support. Without it, a Debug run reads, shows, sends to the brain and can clear the real chat saved on this Mac, so every proof run passes it, with a folder of its own.
 - `-UmiSpeechFile <path>` also writes what Umi spoke to that WAV file: exactly the sound that played during that launch, every spoken line in order, each ending where a cut stopped it.
 
 ```sh

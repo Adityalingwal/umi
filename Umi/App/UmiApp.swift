@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = Self.makeSettings(brain: brain, check: parts.makeCheck(), accessibility: accessibility)
         keyListener.start()
         self.keyListener = keyListener
-        let conversation = Conversation(file: ChatFile(folder: Self.applicationSupportFolder()))
+        let conversation = Conversation(file: ChatFile(folder: Self.chatFolder(defaults: .standard)))
         self.conversation = conversation
         let notch = Notch(pasteboard: .general, defaults: .standard)
         let presses = keyListener.commandDoublePresses
@@ -64,8 +64,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private static func applicationSupportFolder() -> URL {
-        URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Umi")
+    private static func chatFolder(defaults: UserDefaults) -> URL {
+        #if DEBUG
+        if let folder = defaults.string(forKey: "UmiChatFolder") {
+            return URL(filePath: folder)
+        }
+        #endif
+        return URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Umi")
     }
 
     private static func makeSettings(
