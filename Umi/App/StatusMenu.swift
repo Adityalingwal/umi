@@ -42,10 +42,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         statusItem.menu = makeMenu(appName: appName)
     }
 
-    func open() {
-        statusItem.button?.performClick(nil)
-    }
-
     #if DEBUG
     func updateAsIfOpened() {
         guard let menu = statusItem.menu else { return }
