@@ -19,7 +19,6 @@ final class NotchPanel {
     private var place: NotchPlace?
     private var screenChanges: Task<Void, Never>?
     private var shortcuts: Task<Void, Never>?
-    private var windowRequests: Task<Void, Never>?
 
     init(notch: Notch, conversation: Conversation, chatWindow: ChatWindowKeeper) {
         self.notch = notch
@@ -42,11 +41,6 @@ final class NotchPanel {
                 self?.commandPressedTwice()
             }
         }
-        windowRequests = Task { [weak self, notch] in
-            for await _ in notch.windowRequests {
-                self?.openWindow()
-            }
-        }
     }
 
     func stop() {
@@ -54,8 +48,6 @@ final class NotchPanel {
         screenChanges = nil
         shortcuts?.cancel()
         shortcuts = nil
-        windowRequests?.cancel()
-        windowRequests = nil
     }
 
     func escape() {
@@ -116,9 +108,8 @@ final class NotchPanel {
     }
 
     private func hostingView(notchHeight: CGFloat) -> NSView {
-        let hostingView = NSHostingView(
-            rootView: NotchView(notchHeight: notchHeight).environment(notch).environment(conversation)
-        )
+        let view = NotchView(notchHeight: notchHeight) { [weak self] in self?.openWindow() }
+        let hostingView = NSHostingView(rootView: view.environment(notch).environment(conversation))
         hostingView.sizingOptions = []
         hostingView.addTrackingArea(NSTrackingArea(
             rect: .zero,
@@ -144,6 +135,7 @@ final class NotchPanel {
     }
 
     private func openWindow() {
+        notch.chatMovedToWindow()
         sizeToState()
         chatWindow.open()
     }

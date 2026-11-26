@@ -4,6 +4,7 @@ struct NotchView: View {
     private static let motion = Animation.easeOut(duration: 0.2)
 
     let notchHeight: CGFloat
+    let openWindow: () -> Void
     @Environment(Notch.self) private var notch
 
     var body: some View {
@@ -19,7 +20,7 @@ struct NotchView: View {
                     ChatView(jumpsToNewest: false)
                     HStack(spacing: 8) {
                         AskRow(isFocusWanted: notch.isFieldWanted) { notch.fieldTookFocus() }
-                        OpenWindowButton { notch.openWindow() }
+                        OpenWindowButton(open: openWindow)
                     }
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)

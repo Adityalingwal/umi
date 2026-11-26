@@ -15,9 +15,7 @@ final class Notch {
         didSet { draftChanged(from: oldValue) }
     }
     @ObservationIgnored let questions: AsyncStream<SentQuestion>
-    @ObservationIgnored let windowRequests: AsyncStream<Void>
     @ObservationIgnored private let questionContinuation: AsyncStream<SentQuestion>.Continuation
-    @ObservationIgnored private let windowRequestContinuation: AsyncStream<Void>.Continuation
     @ObservationIgnored private let pasteboard: NSPasteboard
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Home")
@@ -27,7 +25,6 @@ final class Notch {
         self.defaults = defaults
         readsAloud = defaults.object(forKey: Self.readAloudKey) as? Bool ?? true
         (questions, questionContinuation) = AsyncStream.makeStream(of: SentQuestion.self)
-        (windowRequests, windowRequestContinuation) = AsyncStream.makeStream(of: Void.self)
     }
 
     var canSend: Bool {
@@ -92,9 +89,8 @@ final class Notch {
     }
 
     // The chat moves into the window, so the panel closes.
-    func openWindow() {
+    func chatMovedToWindow() {
         close()
-        windowRequestContinuation.yield()
         logger.notice("The panel's window button was clicked")
     }
 
