@@ -60,10 +60,6 @@ struct AnswerReader {
             try Task.checkCancellation()
             try finish()
             board.answerRead()
-        } catch let error as DrawingError {
-            logger.error("The drawing could not be made: \(String(describing: error), privacy: .public)")
-            board.fail()
-            throw error
         } catch {
             board.fail()
             throw error
