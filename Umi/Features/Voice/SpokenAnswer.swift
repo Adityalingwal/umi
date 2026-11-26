@@ -113,6 +113,7 @@ final class SpokenAnswer {
         closeOpenTurn()
         guard send(line) else { return }
         socket?.flush()
+        silenceRule.pieceFlushed()
         let turn = turns.add()
         logger.notice("Piece \(turn, privacy: .public) sent to the voice as one whole line")
     }
