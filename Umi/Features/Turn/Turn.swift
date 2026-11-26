@@ -56,8 +56,12 @@ final class Turn {
         }
     }
 
+    var isAnswering: Bool {
+        speaking != nil || board.isDrawing
+    }
+
     func escape() {
-        guard speaking != nil || pointing?.isShowing == true || board.isDrawing || cursorStage.isFailed else { return }
+        guard isAnswering || pointing?.isShowing == true || cursorStage.isFailed else { return }
         cancel()
         logger.notice("Esc: the question stopped")
     }
@@ -121,7 +125,9 @@ final class Turn {
             switch heard {
             case .words(let text):
                 logger.notice("Heard \(text.count, privacy: .public) characters")
-                try await ask(text, picture: picture, voice: voice, pointing: pointing)
+                let questionID = conversation.addQuestion(text)
+                defer { conversation.endAnswer(to: questionID) }
+                try await ask(text, questionID: questionID, picture: picture, voice: voice, pointing: pointing)
             case .silence:
                 cursorStage.hide()
                 pointing?.answerEnded()
@@ -185,6 +191,7 @@ final class Turn {
 
     private func ask(
         _ text: String,
+        questionID: ChatMessage.ID,
         picture: Task<ScreenPicture, any Error>,
         voice: SpokenAnswer,
         pointing: Pointing?
@@ -201,20 +208,23 @@ final class Turn {
         )
         let answer = brain.answer(question)
         await withDiscardingTaskGroup { group in
-            group.addTask { await self.send(answer, for: text, to: voice, pointing: pointing, on: screen) }
+            group.addTask { await self.send(answer, for: questionID, to: voice, pointing: pointing, on: screen) }
             group.addTask { await self.follower.follow(voice, pointing: pointing) }
         }
     }
 
     private func send(
         _ answer: AsyncThrowingStream<String, any Error>,
-        for question: String,
+        for questionID: ChatMessage.ID,
         to voice: SpokenAnswer,
         pointing: Pointing?,
         on picture: ScreenPicture
     ) async {
-        var reader = AnswerReader(voice: voice, pointing: pointing, picture: picture, board: board)
-        defer { conversation.add(Exchange(question: question, answer: reader.arrivedText)) }
+        let conversation = conversation
+        var reader = AnswerReader(voice: voice, pointing: pointing, picture: picture, board: board) { text in
+            conversation.writeAnswer(text, to: questionID)
+        }
+        defer { conversation.writeAnswer(reader.arrivedText, to: questionID) }
         do {
             try await reader.read(answer)
         } catch is CancellationError {

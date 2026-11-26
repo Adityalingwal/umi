@@ -4,6 +4,8 @@ import SwiftUI
 final class CursorPanel {
     private static let size = NSSize(width: 48, height: 28)
     private static let gapBelowPointer = 22.0
+    // Above the notch panel, so listening, thinking and the fail mark show over the open chat.
+    private static let level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
     private static let pointerEvents: NSEvent.EventTypeMask = [
         .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged
     ]
@@ -21,7 +23,7 @@ final class CursorPanel {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
-        panel.level = .statusBar
+        panel.level = Self.level
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         let hostingView = NSHostingView(rootView: CursorView().environment(cursor))

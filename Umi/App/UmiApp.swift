@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusMenu: StatusMenu?
     private var keyListener: KeyListener?
     private var brain: ChosenBrain?
+    private var notchPanel: NotchPanel?
     private var turns: Task<Void, Never>?
     #if DEBUG
     private var menuUpdates: Task<Void, Never>?
@@ -44,12 +45,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         listening.appDidLaunch()
         keyListener.start()
         self.keyListener = keyListener
+        let conversation = Conversation()
+        let notchPanel = NotchPanel(notch: Notch(pasteboard: .general), conversation: conversation)
+        notchPanel.show(notificationCenter: .default)
+        self.notchPanel = notchPanel
         #if DEBUG
         menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
             let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
             let holds = picks?.applied(to: holdFile.holds) ?? holdFile.holds
-            startTurns(audioSource: holdFile, holds: holds, escapes: keyListener.escapes, brain: brain)
+            startTurns(
+                audioSource: holdFile,
+                holds: holds,
+                escapes: keyListener.escapes,
+                brain: brain,
+                conversation: conversation
+            )
             return
         }
         #endif
@@ -57,7 +68,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             audioSource: MicrophoneSource(permission: MicrophonePermission()),
             holds: keyListener.holds,
             escapes: keyListener.escapes,
-            brain: brain
+            brain: brain,
+            conversation: conversation
         )
     }
 
@@ -77,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuUpdates?.cancel()
         #endif
         keyListener?.stop()
+        notchPanel?.stop()
         brain?.stop()
     }
 
@@ -84,9 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         audioSource: any AudioSource,
         holds: AsyncStream<HoldEvent>,
         escapes: AsyncStream<Void>,
-        brain: ChosenBrain
+        brain: ChosenBrain,
+        conversation: Conversation
     ) {
-        let conversation = Conversation()
         let cursor = UmiCursor()
         let cursorPanel = CursorPanel(cursor: cursor)
         let pointerOverlay = PointerOverlay()
@@ -95,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let boardContent = BoardContent()
         let board = Board(content: boardContent, window: BoardWindow(content: boardContent))
         let bundleURL = Bundle.main.bundleURL
+        let notchPanel = notchPanel
         turns = Task {
             let turn = Turn(
                 audioSource: audioSource,
@@ -116,10 +130,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 group.addTask {
                     for await _ in escapes {
-                        await turn.escape()
+                        await Self.escape(turn: turn, notchPanel: notchPanel)
                     }
                 }
             }
         }
+    }
+
+    private static func escape(turn: Turn, notchPanel: NotchPanel?) {
+        let wasAnswering = turn.isAnswering
+        turn.escape()
+        guard !wasAnswering else { return }
+        notchPanel?.escape()
     }
 }

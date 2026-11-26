@@ -1,6 +1,11 @@
 import AppKit
 
 final class ClickWatch {
+    struct Click {
+        let place: CGPoint
+        let umiWindowLevel: NSWindow.Level?
+    }
+
     private static let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
 
     private var monitors: [Any] = []
@@ -9,7 +14,7 @@ final class ClickWatch {
         !monitors.isEmpty
     }
 
-    func start(onClick: @escaping (CGPoint) -> Void) {
+    func start(onClick: @escaping (Click) -> Void) {
         guard monitors.isEmpty else { return }
         let global = NSEvent.addGlobalMonitorForEvents(matching: Self.clicks) { event in
             Self.pass(event, to: onClick)
@@ -27,9 +32,9 @@ final class ClickWatch {
     }
 
     // A double-click's later presses land where its first press did, on a mark the first press already cleared.
-    private static func pass(_ event: NSEvent, to onClick: (CGPoint) -> Void) {
+    private static func pass(_ event: NSEvent, to onClick: (Click) -> Void) {
         guard event.clickCount <= 1 else { return }
-        onClick(screenPlace(of: event))
+        onClick(Click(place: screenPlace(of: event), umiWindowLevel: event.window?.level))
     }
 
     private static func screenPlace(of event: NSEvent) -> CGPoint {
