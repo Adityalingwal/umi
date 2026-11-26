@@ -1,8 +1,6 @@
 struct MicrophoneSource: AudioSource {
     let permission: MicrophonePermission
 
-    var schedule: ListeningSchedule { .whileMenuIsOpen }
-
     func chunks() -> AsyncThrowingStream<AudioChunk, any Error> {
         let (stream, continuation) = AsyncThrowingStream.makeStream(of: AudioChunk.self)
         guard permission.currentAccess() == .allowed else {

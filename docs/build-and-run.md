@@ -46,7 +46,7 @@ ln -s <main checkout>/.env .env
 ```
 
 8. Install Claude Code (`claude`, version 2.1.328 or newer) and sign it in once with `claude auth login`. Umi answers through it on the user's own Claude subscription.
-9. To answer with Codex instead, install Codex (`codex`, version 0.170.0) and sign it in with ChatGPT once with `codex login`, keeping the login in the file store (`~/.codex/auth.json`). Then pick Codex in the menu's Brain row. Each time the menu opens, the row checks both brains (`claude auth status`, `codex login status` and whether the login file exists) and greys out one that can't be used, with what to do. Umi runs Codex from its own Codex home in Application Support, which holds only a link to that login file.
+9. To answer with Codex instead, install Codex (`codex`, version 0.170.0) and sign it in with ChatGPT once with `codex login`, keeping the login in the file store (`~/.codex/auth.json`). Then pick Codex on the Brain page of Umi's Settings. Each time the Brain page shows, it checks both brains (`claude auth status`, `codex login status` and whether the login file exists) and greys out one that can't be used, with what to do. Umi runs Codex from its own Codex home in Application Support, which holds only a link to that login file.
 
 ## Build
 
@@ -73,19 +73,17 @@ The build's "Write Keys" step copies `DEEPGRAM_API_KEY` from `.env` into `Conten
 open "build/Build/Products/Debug/Umi Dev.app"
 ```
 
-The app's icon is the `waveform` symbol in the menu bar; clicking it opens the menu. Every build also has a Dock icon; clicking it opens the chat window. The chat window remembers its size, its place and whether it was open (Umi's defaults: `chatWindowIsOpen` and `NSWindow Frame Chat`).
+Umi has no icon in the menu bar. A hover on the notch opens the chat panel. The gear at the panel's top right, or at the chat window's top right, opens Settings: Permissions (Microphone, Screen, Accessibility), Brain (Claude or Codex) and General (the version and Quit Umi). Each time the Permissions or the Brain page shows, it checks its rows again. Every build also has a Dock icon; clicking it opens the chat window. The chat window remembers its size, its place and whether it was open (Umi's defaults: `chatWindowIsOpen` and `NSWindow Frame Chat`).
 
 Launch only the `Umi Dev` build from your own checkout.
 
 The Debug build takes these launch arguments:
 
-- `-UmiAudioFile <path>` plays the file into the menu's level bar instead of the microphone.
 - `-UmiHoldFile <path>` plays the file as one question: the hold starts when the app launches and ends when the file ends. To ask several questions in one launch, give a list, `-UmiHoldFile '("<first>", "<second>")'`: the files play in order, and each next hold starts 25 s after the previous one ended, so a short answer finishes first. A list needs `-UmiScreenImage` too, so that no scheduled hold sends a picture of the real screen; without it no hold plays and the log says why.
 - `-UmiScreenImage <path>` sends that image to the brain instead of a picture of the screen, so a proof never carries the real screen. One image serves every question, held or typed. To show a screen that changes, give a list, `-UmiScreenImage '("<first>", "<second>")'`: each question takes the next image in order, matching the order of `-UmiHoldFile`'s list, and the last image serves every question after it. The log names the image number each question used.
 - `-UmiRefuseScreen YES` acts as if Screen Recording were refused, also with `-UmiScreenImage`: no picture is taken and a question gets the line for a refused screen. No macOS grant changes.
-- `-UmiBrainPicks '("codex", "claude")'` works with `-UmiHoldFile`: before each hold begins, the next brain in the list is chosen, the same way as picking it in the menu's Brain row (the choice is saved).
-- `-UmiBrainExecutables <folder>` looks for `claude` and `codex` only in that folder, for both the Brain row's check and the answers. A missing file makes that brain look not installed; a small script in its place can print a made-up status (for example `Not logged in` on stderr for `codex login status`, or `{"loggedIn": false}` for `claude auth status`) or `exec` the real tool. Launch with `open --env CODEX_HOME=<folder>` to point Umi at another Codex home. Never sign out of the real Codex or Claude to make a state.
-- `-UmiMenuUpdateEvery <seconds>` updates the menu every few seconds as if it had just opened, so the Brain row's check runs without clicking the menu. Each update logs every Brain option (chosen, enabled, hint).
+- `-UmiBrainPicks '("codex", "claude")'` works with `-UmiHoldFile`: before each hold begins, the next brain in the list is chosen, the same way as picking it on Settings' Brain page (the choice is saved).
+- `-UmiBrainExecutables <folder>` looks for `claude` and `codex` only in that folder, for both the Brain page's check and the answers. A missing file makes that brain look not installed; a small script in its place can print a made-up status (for example `Not logged in` on stderr for `codex login status`, or `{"loggedIn": false}` for `claude auth status`) or `exec` the real tool. Launch with `open --env CODEX_HOME=<folder>` to point Umi at another Codex home. Never sign out of the real Codex or Claude to make a state.
 - `-UmiFailFlux YES` opens no Flux socket, so every hold takes the fallback: the whole recording goes to Deepgram Nova-3 after release. Nothing about the network changes.
 - `-UmiHoldPause <seconds>` works with a `-UmiHoldFile` list: each next hold starts that many seconds after the previous one ended, in place of 25 s. A short pause asks the next question while an answer (or a drawing) is still going; a long one lets a long drawing answer finish first. A list, `-UmiHoldPause '(40, 8)'`, sets the pause after each hold in order, and the last one repeats: there a first drawing finishes, then the third question interrupts the second answer.
 - `-UmiCutVoiceAfter <milliseconds>` makes the voice fail on purpose once Umi has received that many milliseconds of audio in one answer, the same way a Deepgram voice error does: the answer stops as with Esc and the fail mark shows. Audio arrives faster than it plays, so the cut comes before that much has been heard; the log's "after ... ms of sound" says how much played. A value under 250 cuts before the first sound. It holds for every answer of that launch, so a shorter answer is not cut.
@@ -94,6 +92,8 @@ The Debug build takes these launch arguments:
 ```sh
 open "build/Build/Products/Debug/Umi Dev.app" --args -UmiHoldFile "$PWD/question.wav" -UmiScreenImage "$PWD/screen.jpg"
 ```
+
+In the Debug build, each time the Brain page's check answers, the log lists every Brain option (chosen, enabled, hint), and each time the Permissions page checks, the log lists the three rows' states.
 
 Read the app's log with `/usr/bin/log show --last 1m --style compact --predicate 'subsystem == "io.github.adityalingwal.umi.dev"'`.
 

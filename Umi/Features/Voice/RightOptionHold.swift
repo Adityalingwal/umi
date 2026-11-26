@@ -44,11 +44,6 @@ struct RightOptionHold {
         }
     }
 
-    mutating func keyWasReleased() -> HoldEvent? {
-        defer { phase = .released }
-        return phase == .asking ? .ended : nil
-    }
-
     mutating func keyPressed() -> HoldEvent? {
         guard phase == .asking else { return nil }
         phase = .waitingForRelease

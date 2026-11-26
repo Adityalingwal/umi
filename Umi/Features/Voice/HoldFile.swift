@@ -12,8 +12,6 @@ final class HoldFile: AudioSource {
     private let holdContinuation: AsyncStream<HoldEvent>.Continuation
     private var playedCount = 0
 
-    var schedule: ListeningSchedule { .fromLaunch }
-
     private init(fileURLs: [URL], pauses: [Duration] = [pauseBetweenHolds]) {
         self.fileURLs = fileURLs
         self.pauses = pauses.isEmpty ? [Self.pauseBetweenHolds] : pauses

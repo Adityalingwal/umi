@@ -8,8 +8,6 @@ nonisolated struct AudioFileSource: AudioSource, Sendable {
     let fileURL: URL
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Voice")
 
-    var schedule: ListeningSchedule { .fromLaunch }
-
     init(fileURL: URL) {
         self.fileURL = fileURL
     }

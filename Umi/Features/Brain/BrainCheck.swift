@@ -20,7 +20,7 @@ struct BrainCheck {
         self.environment = environment
     }
 
-    // A check that could not finish gives no answer, so the menu keeps what it showed before.
+    // A check that could not finish gives no answer, so Settings keeps what it showed before.
     func availability(of brain: BrainKind) async -> BrainAvailability? {
         do {
             switch brain {

@@ -14,45 +14,28 @@ enum UmiApp {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusMenu: StatusMenu?
     private var keyListener: KeyListener?
     private var brain: ChosenBrain?
     private var notchPanel: NotchPanel?
     private var chatWindow: ChatWindowKeeper?
     private var turns: Task<Void, Never>?
-    #if DEBUG
-    private var menuUpdates: Task<Void, Never>?
-    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !Self.isTestHost(ProcessInfo.processInfo.environment) else { return }
-        let listening = Listening.atLaunch(defaults: .standard)
         let accessibility = AccessibilityPermission(defaults: .standard)
         let keyListener = KeyListener(accessibility: accessibility)
         let parts = BrainParts(environment: ProcessInfo.processInfo.environment, defaults: .standard)
         let brain = parts.makeChosenBrain(defaults: .standard)
         brain.prepare()
         self.brain = brain
-        statusMenu = StatusMenu(
-            appName: ProcessInfo.processInfo.processName,
-            microphone: MicrophonePermission(),
-            screen: .atLaunch(defaults: .standard),
-            accessibility: accessibility,
-            keyListener: keyListener,
-            listening: listening,
-            brainRow: BrainRow(brain: brain, check: parts.makeCheck()),
-            relauncher: AppRelauncher()
-        )
-        listening.appDidLaunch()
+        let settings = Self.makeSettings(brain: brain, check: parts.makeCheck(), accessibility: accessibility)
         keyListener.start()
         self.keyListener = keyListener
         let conversation = Conversation()
         let notch = Notch(pasteboard: .general, defaults: .standard)
-        let settings = Self.makeSettings(brain: brain, check: parts.makeCheck(), accessibility: accessibility)
         let presses = keyListener.commandDoublePresses
         showHome(notch: notch, conversation: conversation, settings: settings, commandDoublePresses: presses)
         #if DEBUG
-        menuUpdates = statusMenu.flatMap { MenuUpdates.start(defaults: .standard, menu: $0) }
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
             let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
             let holds = picks?.applied(to: holdFile.holds) ?? holdFile.holds
@@ -130,9 +113,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         turns?.cancel()
-        #if DEBUG
-        menuUpdates?.cancel()
-        #endif
         keyListener?.stop()
         notchPanel?.stop()
         brain?.stop()
