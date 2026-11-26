@@ -95,6 +95,21 @@ final class Conversation {
         logger.notice("The chat holds \(kept, privacy: .public) messages")
     }
 
+    func clear() {
+        messages.removeAll()
+        let previous = saving
+        saving = Task { [file, logger] in
+            await previous?.value
+            do {
+                try await file.clear()
+                logger.notice("The saved chat was emptied, and no set-aside file is left")
+            } catch {
+                logger.error("The saved chat could not be emptied: \(Self.code(of: error), privacy: .public)")
+            }
+        }
+        logger.notice("The chat was cleared")
+    }
+
     // Waits for every save asked for so far, so a quit right after an answer still has it on disk.
     func saved() async {
         await saving?.value

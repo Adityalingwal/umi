@@ -19,7 +19,7 @@ enum SettingsPage: CaseIterable, Identifiable {
         switch self {
         case .permissions: "What Umi may use on this Mac."
         case .brain: "Who answers your questions."
-        case .general: "About this copy of Umi."
+        case .general: "Your chat and this copy of Umi."
         }
     }
 

@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             startTurns(
                 questions: QuestionSources(audio: holdFile, holds: holds, typed: notch.questions),
                 escapes: keyListener.escapes,
+                chatClears: settings.chatClears,
                 brain: brain,
                 conversation: conversation
             )
@@ -57,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 typed: notch.questions
             ),
             escapes: keyListener.escapes,
+            chatClears: settings.chatClears,
             brain: brain,
             conversation: conversation
         )
@@ -136,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startTurns(
         questions: QuestionSources,
         escapes: AsyncStream<Void>,
+        chatClears: AsyncStream<Void>,
         brain: ChosenBrain,
         conversation: Conversation
     ) {
@@ -178,6 +181,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         await Self.escape(turn: turn, notchPanel: notchPanel)
                     }
                 }
+                group.addTask {
+                    for await _ in chatClears {
+                        await Self.clearChat(turn: turn, conversation: conversation)
+                    }
+                }
             }
         }
     }
@@ -187,5 +195,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         turn.escape()
         guard !wasAnswering else { return }
         notchPanel?.escape()
+    }
+
+    // A running answer stops exactly as Esc stops it, and first, so nothing it writes later finds its question.
+    private static func clearChat(turn: Turn, conversation: Conversation) {
+        turn.escape()
+        conversation.clear()
     }
 }
