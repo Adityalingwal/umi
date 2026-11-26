@@ -3,7 +3,7 @@ struct SilenceRule {
     // from a piece's Flush, or from the connection when the piece was flushed before it.
     private static let waitingLimit = Duration.seconds(3)
     // A guess: connections in the runs of #78 took up to 4.6 s. It counts from the first Flush, so a long hold on a
-    // slow connection is not cut while nothing is owed to the voice yet.
+    // slow connection is not cut before the answer's first piece is flushed.
     private static let connectingLimit = Duration.seconds(10)
 
     private var isConnected = false
@@ -21,7 +21,7 @@ struct SilenceRule {
     }
 
     mutating func pieceFlushed() {
-        waitingSince = .now
+        waitingSince = waitingSince ?? .now
         if !isConnected, connectingSince == nil {
             connectingSince = .now
         }
