@@ -1,6 +1,6 @@
 enum UmiLine {
     static let couldNotHear = "Couldn't hear you, say it again"
-    static let couldNotDraw = "Sorry, I couldn't make that drawing."
+    private static let couldNotDraw = "Sorry, I couldn't make that drawing."
 
     private static let somethingWentWrong = "Something went wrong. Please try again."
     private static let noInternet = "Umi can't reach the internet. Check your connection and try again."
@@ -12,6 +12,7 @@ enum UmiLine {
         case let error as AudioSourceError: audio(error)
         case let error as ScreenError: screen(error)
         case let error as BrainError: brain(error)
+        case is DrawingError: couldNotDraw
         default: somethingWentWrong
         }
     }

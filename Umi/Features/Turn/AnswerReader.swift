@@ -63,8 +63,7 @@ struct AnswerReader {
         } catch let error as DrawingError {
             logger.error("The drawing could not be made: \(String(describing: error), privacy: .public)")
             board.fail()
-            voice.speak(UmiLine.couldNotDraw)
-            voice.endText()
+            throw error
         } catch {
             board.fail()
             throw error
