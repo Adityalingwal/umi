@@ -30,7 +30,7 @@ enum UmiLine {
 
     private static func audio(_ error: AudioSourceError) -> String {
         switch error {
-        case .microphoneNotAllowed: "Umi can't use the microphone. Allow it from Umi's menu or System Settings."
+        case .microphoneNotAllowed: "Umi can't use the microphone. Allow it in Umi's Settings or System Settings."
         case .microphoneUnavailable: "The microphone didn't start. Check your input device and try again."
         #if DEBUG
         case .audioFileUnreadable: somethingWentWrong
@@ -40,7 +40,7 @@ enum UmiLine {
 
     private static func screen(_ error: ScreenError) -> String {
         switch error {
-        case .notAllowed: "Umi can't see your screen. Allow Screen Recording from Umi's menu or System Settings."
+        case .notAllowed: "Umi can't see your screen. Allow Screen Recording in Umi's Settings or System Settings."
         case .needsRelaunch: "Screen Recording is on, but Umi needs a relaunch. Quit Umi and open it again."
         default: "Umi couldn't take a picture of your screen. Please try again."
         }
