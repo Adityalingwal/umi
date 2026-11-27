@@ -15,6 +15,7 @@ final class Jobs {
     @ObservationIgnored private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Jobs")
     @ObservationIgnored private let log = JobLog()
     @ObservationIgnored private var isStarting = false
+    @ObservationIgnored private var hasStartedAJob = false
     @ObservationIgnored private var process: JobProcess?
     @ObservationIgnored private var following: Task<Void, Never>?
 
@@ -38,8 +39,9 @@ final class Jobs {
         all.first { $0.id == jobID }
     }
 
+    // Saved jobs are never sent anywhere, so only a job started since Umi opened goes to the brain.
     var brief: String? {
-        shown.map(JobBrief.text(for:))
+        hasStartedAJob ? shown.map(JobBrief.text(for:)) : nil
     }
 
     // Runs once, before any question is taken, so the saved jobs are older than any job started after it.
@@ -176,6 +178,7 @@ final class Jobs {
             return .refused(.couldNotStart)
         }
         all.insert(Job(id: id, name: request.name, task: request.task, startedAt: .now), at: 0)
+        hasStartedAJob = true
         savedJobs.save(all[0])
         following = Task { [weak self] in
             await self?.follow(lines, of: process, jobID: id)
