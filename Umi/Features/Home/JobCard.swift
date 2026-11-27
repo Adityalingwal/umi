@@ -4,13 +4,20 @@ struct JobCard: View {
     let job: Job
     let showReport: () -> Void
     let open: (JobFile) -> Void
+    let stop: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(job.name)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
+            HStack(spacing: 8) {
+                Text(job.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if job.isWorking {
+                    JobStopButton(stop: stop)
+                }
+            }
             if let outcome = JobOutcome(job.state) {
                 JobEnd(outcome: outcome, showReport: showReport)
                 if !job.files.isEmpty {

@@ -11,6 +11,7 @@ final class Jobs {
     @ObservationIgnored private let runner: ClaudeJobRunner
     @ObservationIgnored private let opener: JobFileOpener
     @ObservationIgnored private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Jobs")
+    @ObservationIgnored private let log = JobLog()
     @ObservationIgnored private var isStarting = false
     @ObservationIgnored private var process: JobProcess?
     @ObservationIgnored private var following: Task<Void, Never>?
@@ -51,6 +52,44 @@ final class Jobs {
         return await launch(request)
     }
 
+    // The job ends at once: its card says it was stopped and the notch is plain, with no banner and no spoken line.
+    // Its process ends after it, and what it made is listed once its output is over.
+    @discardableResult
+    func stop() -> Bool {
+        guard var job = shown, job.isWorking, let process else {
+            logger.notice("Stop: no job is running")
+            return false
+        }
+        job.state = .stopped
+        shown = job
+        process.stop()
+        logger.notice("The job was stopped: its process \(process.processID, privacy: .public) was ended")
+        logger.notice("The job's process group was signalled: \(process.hasOwnProcessGroup, privacy: .public)")
+        return true
+    }
+
+    func send(_ message: String) async -> JobAsk.Outcome {
+        guard let job = shown, job.isWorking, let process, process.canTakeMessages else {
+            logger.notice("A message for the job was not passed on: no job is running")
+            return .noJobRunning
+        }
+        do {
+            try await process.send(message: message)
+        } catch is CancellationError {
+            logger.notice("A message for the job was not sent: the question was stopped")
+            return .cancelled
+        } catch {
+            logger.error("A message for the job could not be passed on (\((error as NSError).code, privacy: .public))")
+            return .notDelivered
+        }
+        logger.notice("A message was passed to the job: \(message.count, privacy: .public) characters")
+        if var sent = shown, sent.id == job.id {
+            sent.messages.append(message)
+            shown = sent
+        }
+        return .done
+    }
+
     // The folder is read again each time, so a file added or removed since the job ended is shown as it is now.
     func refreshFiles() async {
         guard let job = shown, !job.isWorking else { return }
@@ -77,7 +116,7 @@ final class Jobs {
     // At quit the job's process is ended, so no job outlives Umi.
     func stopAtQuit() {
         following?.cancel()
-        guard let process, process.isRunning else { return }
+        guard let process else { return }
         let processID = process.processID
         process.stop()
         logger.notice("Umi quits: the job's process \(processID, privacy: .public) was ended")
@@ -106,7 +145,7 @@ final class Jobs {
             return .refused(.couldNotStart)
         }
         self.process = process
-        log(launch, processID: process.processID, jobID: id)
+        log.started(launch, process: process, jobID: id)
         let lines: AsyncStream<String>
         do {
             lines = try await process.send(task: request.task)
@@ -131,16 +170,6 @@ final class Jobs {
         } catch {
             logger.error("The unused job folder could not be removed: \((error as NSError).code, privacy: .public)")
         }
-    }
-
-    private func log(_ launch: JobLaunch, processID: Int32, jobID: UUID) {
-        logger.notice("Started a job on Claude, process \(processID, privacy: .public)")
-        logger.notice("The job works in Umi's folder: Jobs/\(jobID.uuidString, privacy: .public)/work")
-        logger.notice("The job's switches: <claude> \(launch.loggedArguments, privacy: .public)")
-        let added = JobLaunch.addedVariables.keys.filter { launch.environment[$0] != nil }.sorted()
-        let hasOverride = launch.environment.keys.contains(where: JobLaunch.isProviderOverride)
-        logger.notice("The job's environment adds \(added.joined(separator: ", "), privacy: .public)")
-        logger.notice("The job's environment holds a key, server or provider: \(hasOverride, privacy: .public)")
     }
 
     private func follow(_ lines: AsyncStream<String>, of process: JobProcess, jobID: UUID) async {
@@ -168,11 +197,9 @@ final class Jobs {
     private func read(_ event: JobStreamEvent, of process: JobProcess, jobID: UUID, ending: inout JobEnding) {
         switch event {
         case let .started(model, apiKeySource, tools):
-            logger.notice("The job's Claude started: model \(model, privacy: .public)")
-            logger.notice("The job's Claude key source: \(apiKeySource, privacy: .public)")
-            logger.notice("The job's tools: \(Self.loggedNames(tools), privacy: .public)")
+            log.claudeStarted(model: model, apiKeySource: apiKeySource, tools: tools)
         case let .toolCalls(names, checklist):
-            logger.notice("The job called \(Self.loggedNames(names), privacy: .public)")
+            log.called(names)
             if let checklist {
                 updateSteps(JobStep.steps(inChecklist: checklist), jobID: jobID)
             }
@@ -184,11 +211,11 @@ final class Jobs {
             end(jobID, as: .failed(.noInternet))
             process.stop()
         case let .finished(result, refusedTools):
-            logRefused(refusedTools)
+            log.refused(refusedTools)
             ending.result = Self.oneLine(result)
             process.endInput()
         case .failed(let refusedTools):
-            logRefused(refusedTools)
+            log.refused(refusedTools)
             end(jobID, as: .failed(ending.failure ?? .claudeError))
             process.endInput()
         case .other:
@@ -209,7 +236,7 @@ final class Jobs {
         job.state = state
         shown = job
         switch state {
-        case .working:
+        case .working, .stopped:
             return
         case .done:
             logger.notice("The job is done")
@@ -217,17 +244,6 @@ final class Jobs {
             logger.error("The job did not finish: \(String(describing: failure), privacy: .public)")
         }
         endingContinuation.yield(job)
-    }
-
-    private func logRefused(_ tools: [String]) {
-        let count = tools.count
-        let names = Self.loggedNames(tools)
-        logger.notice("The job's Claude refused \(count, privacy: .public) tool calls: \(names, privacy: .public)")
-    }
-
-    // A tool name comes from the job's process, so only the names Umi gave the job are written as they are.
-    private static func loggedNames(_ names: [String]) -> String {
-        names.map { JobLaunch.tools.contains($0) ? $0 : "other" }.joined(separator: ", ")
     }
 
     private func setFiles(_ files: [JobFile], jobID: UUID) {

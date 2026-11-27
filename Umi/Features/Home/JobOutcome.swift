@@ -14,6 +14,11 @@ struct JobOutcome {
             return nil
         case .done(let result):
             self.init(title: "Done", symbol: "checkmark.circle.fill", tint: .green, line: result, hasReport: true)
+        case .stopped:
+            self.init(
+                title: "Stopped", symbol: "stop.circle.fill", tint: .white.opacity(0.7),
+                line: "You stopped this job. What it made so far is kept.", hasReport: false
+            )
         case .failed(let failure):
             self.init(
                 title: "Didn't finish", symbol: "exclamationmark.circle.fill", tint: .orange,
