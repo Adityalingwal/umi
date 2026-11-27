@@ -38,8 +38,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let jobs = parts.makeJobs(folder: Self.umiFolder.appending(path: "Jobs"))
         self.jobs = jobs
         let notch = Notch(pasteboard: .general, defaults: .standard)
-        let presses = keyListener.commandDoublePresses
-        showHome(notch: notch, conversation: conversation, settings: settings, commandDoublePresses: presses)
+        showHome(
+            notch: notch,
+            conversation: conversation,
+            jobs: jobs,
+            settings: settings,
+            commandDoublePresses: keyListener.commandDoublePresses
+        )
         #if DEBUG
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
             let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
@@ -100,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showHome(
         notch: Notch,
         conversation: Conversation,
+        jobs: Jobs,
         settings: UmiSettings,
         commandDoublePresses: AsyncStream<Void>
     ) {
@@ -112,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let notchPanel = NotchPanel(
             notch: notch,
             conversation: conversation,
+            jobs: jobs,
             chatWindow: chatWindow,
             settings: settings
         )

@@ -10,6 +10,7 @@ final class NotchPanel {
 
     private let notch: Notch
     private let conversation: Conversation
+    private let jobs: Jobs
     private let chatWindow: ChatWindowKeeper
     private let settings: UmiSettings
     private let hover = NotchHover()
@@ -20,10 +21,13 @@ final class NotchPanel {
     private var place: NotchPlace?
     private var screenChanges: Task<Void, Never>?
     private var shortcuts: Task<Void, Never>?
+    private var jobChanges: Task<Void, Never>?
+    private var isShowingWorking = false
 
-    init(notch: Notch, conversation: Conversation, chatWindow: ChatWindowKeeper, settings: UmiSettings) {
+    init(notch: Notch, conversation: Conversation, jobs: Jobs, chatWindow: ChatWindowKeeper, settings: UmiSettings) {
         self.notch = notch
         self.conversation = conversation
+        self.jobs = jobs
         self.chatWindow = chatWindow
         self.settings = settings
     }
@@ -43,6 +47,11 @@ final class NotchPanel {
                 self?.commandPressedTwice()
             }
         }
+        jobChanges = Task { [weak self, jobs] in
+            for await isWorking in Observations({ jobs.isWorking }) {
+                self?.jobWorkingChanged(to: isWorking)
+            }
+        }
     }
 
     func stop() {
@@ -50,6 +59,8 @@ final class NotchPanel {
         screenChanges = nil
         shortcuts?.cancel()
         shortcuts = nil
+        jobChanges?.cancel()
+        jobChanges = nil
     }
 
     func escape() {
@@ -72,7 +83,7 @@ final class NotchPanel {
             return
         }
         let window = makeWindow(notchHeight: place.notchHeight)
-        window.setFrame(place.restFrame, display: true)
+        window.setFrame(place.restFrame(isWorking: jobs.isWorking), display: true)
         window.orderFrontRegardless()
         self.window = window
         self.place = place
@@ -116,7 +127,7 @@ final class NotchPanel {
             toggleSettings: { [weak self] in self?.toggleSettings() }
         )
         let hostingView = NSHostingView(
-            rootView: view.environment(notch).environment(conversation).environment(settings)
+            rootView: view.environment(notch).environment(conversation).environment(jobs).environment(settings)
         )
         hostingView.sizingOptions = []
         hostingView.addTrackingArea(NSTrackingArea(
@@ -142,6 +153,15 @@ final class NotchPanel {
         sizeToState()
     }
 
+    // At rest the notch widens for "Working" while a job runs; an open panel keeps its size.
+    private func jobWorkingChanged(to isWorking: Bool) {
+        guard isWorking != isShowingWorking else { return }
+        isShowingWorking = isWorking
+        logger.notice("The notch \(isWorking ? "shows Working" : "is plain again", privacy: .public) at rest")
+        guard !notch.isOpen, let window, let place else { return }
+        resize(window, to: place.restFrame(isWorking: isWorking), duration: Self.openDuration)
+    }
+
     private func openWindow() {
         notch.chatMovedToWindow()
         sizeToState()
@@ -157,7 +177,9 @@ final class NotchPanel {
     // The window sits on whole points, so the notch's half-point edges are rounded out.
     private func pointerEntered() {
         guard !notch.isOpen, let place,
-              NSMouseInRect(NSEvent.mouseLocation, place.restFrame.integral, false) else { return }
+              NSMouseInRect(NSEvent.mouseLocation, place.restFrame(isWorking: jobs.isWorking).integral, false) else {
+            return
+        }
         notch.pointerEntered()
         logger.notice("The pointer came to the notch: the panel opened")
         sizeToState()
@@ -190,7 +212,7 @@ final class NotchPanel {
             moves.stop()
             clicks.stop()
             giveUpKey(window)
-            resize(window, to: place.restFrame, duration: Self.closeDuration)
+            resize(window, to: place.restFrame(isWorking: jobs.isWorking), duration: Self.closeDuration)
         }
     }
 
