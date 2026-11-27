@@ -64,6 +64,7 @@ final class Jobs {
         shown = job
         process.stop()
         logger.notice("The job was stopped: its process \(process.processID, privacy: .public) was ended")
+        logger.notice("The job's process group was signalled: \(process.hasOwnProcessGroup, privacy: .public)")
         return true
     }
 
@@ -112,7 +113,7 @@ final class Jobs {
     // At quit the job's process is ended, so no job outlives Umi.
     func stopAtQuit() {
         following?.cancel()
-        guard let process, process.isRunning else { return }
+        guard let process else { return }
         let processID = process.processID
         process.stop()
         logger.notice("Umi quits: the job's process \(processID, privacy: .public) was ended")
@@ -141,7 +142,7 @@ final class Jobs {
             return .refused(.couldNotStart)
         }
         self.process = process
-        log.started(launch, processID: process.processID, jobID: id)
+        log.started(launch, process: process, jobID: id)
         let lines: AsyncStream<String>
         do {
             lines = try await process.send(task: request.task)

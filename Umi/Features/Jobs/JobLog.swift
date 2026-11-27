@@ -5,8 +5,9 @@ import OSLog
 struct JobLog {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Jobs")
 
-    func started(_ launch: JobLaunch, processID: Int32, jobID: UUID) {
-        logger.notice("Started a job on Claude, process \(processID, privacy: .public)")
+    func started(_ launch: JobLaunch, process: JobProcess, jobID: UUID) {
+        logger.notice("Started a job on Claude, process \(process.processID, privacy: .public)")
+        logger.notice("The job runs in its own process group: \(process.hasOwnProcessGroup, privacy: .public)")
         logger.notice("The job works in Umi's folder: Jobs/\(jobID.uuidString, privacy: .public)/work")
         logger.notice("The job's switches: <claude> \(launch.loggedArguments, privacy: .public)")
         let added = JobLaunch.addedVariables.keys.filter { launch.environment[$0] != nil }.sorted()

@@ -9,10 +9,12 @@ final class JobProcess {
     private var isInputOpen = true
     private var isInputClosed = false
     private var writesUnderway = 0
+    private var processGroup: pid_t?
 
     var processID: Int32 { process.processIdentifier }
     var isRunning: Bool { process.isRunning }
     var canTakeMessages: Bool { isInputOpen && process.isRunning }
+    var hasOwnProcessGroup: Bool { processGroup != nil }
 
     init(launch: JobLaunch) {
         process.executableURL = launch.executableURL
@@ -30,6 +32,10 @@ final class JobProcess {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EPIPE)
         }
         try process.run()
+        let group = getpgid(process.processIdentifier)
+        if group == process.processIdentifier, group != getpgrp() {
+            processGroup = group
+        }
     }
 
     // Input stays open after the task, so a later message can reach the job while it works.
@@ -50,8 +56,14 @@ final class JobProcess {
         closeInputOnceWritten()
     }
 
+    // The whole group is signalled, so a child the job started ends with it, also after the job itself has ended.
+    // It is signalled only when it is the job's own group, never Umi's.
     func stop() {
-        if process.isRunning {
+        if let processGroup, processGroup != getpgrp() {
+            if kill(-processGroup, SIGTERM) == -1, errno != ESRCH {
+                logger.error("The job's process group could not be ended: \(errno, privacy: .public)")
+            }
+        } else if process.isRunning {
             process.terminate()
         }
     }
