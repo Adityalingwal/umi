@@ -12,10 +12,8 @@ final class Turn {
     private let pointer: Pointer
     private let board: Board
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
-    private let parts = TurnParts()
-    private lazy var follower = VoiceFollower(board: board) { [cursorStage] in
-        cursorStage.hide()
-    }
+    private let parts: TurnParts
+    private lazy var follower = VoiceFollower(board: board) { [cursorStage] in cursorStage.hide() }
     private let failureLines: FailureLines
     private lazy var reading = BrainReading(
         brain: brain,
@@ -36,7 +34,8 @@ final class Turn {
         cursor: UmiCursor,
         cursorPanel: CursorPanel,
         pointer: Pointer,
-        board: Board
+        board: Board,
+        parts: TurnParts
     ) {
         self.audioSource = MeteredAudioSource(source: audioSource, cursor: cursor)
         self.speech = speech
@@ -48,6 +47,7 @@ final class Turn {
         cursorStage = CursorStage(cursor: cursor, panel: cursorPanel)
         self.pointer = pointer
         self.board = board
+        self.parts = parts
     }
 
     func handle(_ event: HoldEvent) {
