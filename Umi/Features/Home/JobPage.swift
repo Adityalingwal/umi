@@ -66,6 +66,13 @@ private struct JobPageHeader: View {
                     .foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
                 JobPageState(state: job.state)
+                if let outcome = JobOutcome(job.state) {
+                    Text(outcome.line)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
             }
             Spacer(minLength: 0)
             if job.isWorking {

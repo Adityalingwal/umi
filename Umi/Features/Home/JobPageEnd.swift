@@ -1,18 +1,12 @@
 import SwiftUI
 
-// An ended job's page: its one line, then for a done job its report, then an Open control for each file it made.
+// The end of an ended job's page: for a done job its report, then an Open control for each file it made.
 struct JobPageEnd: View {
     let job: Job
     @Environment(Jobs.self) private var jobs
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            if let outcome = JobOutcome(job.state) {
-                Text(outcome.line)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             if case .done = job.state {
                 JobPageSection(title: "Report") {
                     JobPageReport(jobID: job.id)
