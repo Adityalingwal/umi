@@ -9,7 +9,7 @@ struct JobLaunchTests {
             executableURL: URL(filePath: "/tmp/umi-test/claude"),
             workFolder: workFolder,
             jobID: UUID(),
-            appEnvironment: ["HOME": "/Users/test", "PATH": "/usr/bin"]
+            appEnvironment: ["HOME": "/tmp/umi-test-home", "PATH": "/usr/bin"]
         )
         let arguments = launch.arguments
         func list(after switchName: String) -> Set<String>? {
