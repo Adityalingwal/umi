@@ -26,9 +26,9 @@ final class JobProcess {
     }
 
     // Input stays open after the task, so a later message can reach the job while it works.
-    func send(task: String) async throws -> AsyncLineSequence<FileHandle.AsyncBytes> {
+    func send(task: String) async throws -> AsyncStream<String> {
         try await Self.write(Self.userLine(task), to: input.fileHandleForWriting)
-        return output.fileHandleForReading.bytes.lines
+        return JobOutputLines.lines(of: output.fileHandleForReading)
     }
 
     // The process waits for more input after its result, so closing it lets the job end.

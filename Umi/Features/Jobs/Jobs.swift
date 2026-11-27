@@ -107,7 +107,7 @@ final class Jobs {
         }
         self.process = process
         log(launch, processID: process.processID, jobID: id)
-        let lines: AsyncLineSequence<FileHandle.AsyncBytes>
+        let lines: AsyncStream<String>
         do {
             lines = try await process.send(task: request.task)
         } catch {
@@ -143,18 +143,13 @@ final class Jobs {
         logger.notice("The job's environment holds a key, server or provider: \(hasOverride, privacy: .public)")
     }
 
-    private func follow(_ lines: AsyncLineSequence<FileHandle.AsyncBytes>, of process: JobProcess, jobID: UUID) async {
+    private func follow(_ lines: AsyncStream<String>, of process: JobProcess, jobID: UUID) async {
         var ending = JobEnding()
-        do {
-            for try await line in lines {
-                guard !Task.isCancelled else { return }
-                read(JobStreamEvent(line: line), of: process, jobID: jobID, ending: &ending)
-            }
-        } catch is CancellationError {
-            return
-        } catch {
-            logger.error("The job's output could not be read: \((error as NSError).code, privacy: .public)")
+        for await line in lines {
+            guard !Task.isCancelled else { return }
+            read(JobStreamEvent(line: line), of: process, jobID: jobID, ending: &ending)
         }
+        guard !Task.isCancelled else { return }
         logger.notice("The job's output ended")
         // The report is written before the result, so it is there once the output has ended.
         let files = await files(of: jobID)
