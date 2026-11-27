@@ -31,6 +31,15 @@ struct BrainParts {
         )
     }
 
+    func makeJobs(folder: URL) -> Jobs {
+        Jobs(runner: ClaudeJobRunner(
+            executable: claudeExecutable,
+            check: makeCheck(),
+            environment: environment,
+            jobsFolder: folder
+        ))
+    }
+
     private static func executablesFolder(defaults: UserDefaults) -> URL? {
         #if DEBUG
         defaults.string(forKey: "UmiBrainExecutables").map { URL(filePath: $0) }
