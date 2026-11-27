@@ -34,7 +34,9 @@ struct ReportView: View {
         }
         // Read once: a job that starts while the page is open never replaces the report shown.
         .task {
-            report = await jobs.report()
+            if let job = jobs.shown {
+                report = await jobs.report(of: job.id)
+            }
             isRead = true
         }
     }

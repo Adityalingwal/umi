@@ -2,10 +2,11 @@ import Foundation
 import Observation
 import OSLog
 
-// Owns the one job: the answer that asked for it may end or be stopped while the job goes on.
+// Owns the jobs of this run: the answer that asked for one may end or be stopped while the job goes on.
 @Observable
 final class Jobs {
-    private(set) var shown: Job?
+    // Newest first; only the newest can be working.
+    private(set) var all: [Job] = []
     @ObservationIgnored let endings: AsyncStream<Job>
     @ObservationIgnored private let endingContinuation: AsyncStream<Job>.Continuation
     @ObservationIgnored private let runner: ClaudeJobRunner
@@ -22,8 +23,17 @@ final class Jobs {
         (endings, endingContinuation) = AsyncStream.makeStream(of: Job.self)
     }
 
+    // The running job, or the last one until a new one starts.
+    var shown: Job? {
+        all.first
+    }
+
     var isWorking: Bool {
         shown?.isWorking == true
+    }
+
+    func job(_ jobID: UUID) -> Job? {
+        all.first { $0.id == jobID }
     }
 
     var brief: String? {
@@ -55,21 +65,20 @@ final class Jobs {
     // The job ends at once: its card says it was stopped and the notch is plain, with no banner and no spoken line.
     // Its process ends after it, and what it made is listed once its output is over.
     @discardableResult
-    func stop() -> Bool {
-        guard var job = shown, job.isWorking, let process else {
+    func stop(_ jobID: UUID? = nil) -> Bool {
+        guard let job = working(jobID), let process else {
             logger.notice("Stop: no job is running")
             return false
         }
-        job.state = .stopped
-        shown = job
+        update(job.id) { $0.state = .stopped }
         process.stop()
         logger.notice("The job was stopped: its process \(process.processID, privacy: .public) was ended")
         logger.notice("The job's process group was signalled: \(process.hasOwnProcessGroup, privacy: .public)")
         return true
     }
 
-    func send(_ message: String) async -> JobAsk.Outcome {
-        guard let job = shown, job.isWorking, let process, process.canTakeMessages else {
+    func send(_ message: String, to jobID: UUID? = nil) async -> JobAsk.Outcome {
+        guard let job = working(jobID), let process, process.canTakeMessages else {
             logger.notice("A message for the job was not passed on: no job is running")
             return .noJobRunning
         }
@@ -83,28 +92,26 @@ final class Jobs {
             return .notDelivered
         }
         logger.notice("A message was passed to the job: \(message.count, privacy: .public) characters")
-        if var sent = shown, sent.id == job.id {
-            sent.messages.append(message)
-            shown = sent
-        }
+        update(job.id) { $0.messages.append(message) }
         return .done
     }
 
     // The folder is read again each time, so a file added or removed since the job ended is shown as it is now.
-    func refreshFiles() async {
-        guard let job = shown, !job.isWorking else { return }
-        setFiles(await files(of: job.id), jobID: job.id)
+    func refreshFiles(of jobID: UUID) async {
+        guard let job = job(jobID), !job.isWorking else { return }
+        setFiles(await files(of: jobID), jobID: jobID)
     }
 
-    func open(_ file: JobFile) async {
-        guard let job = shown else { return }
-        await opener.open(runner.workFolder(jobID: job.id).appending(path: file.name))
+    // The file is looked for in the folder of the job whose card or page shows it, never another job's.
+    func open(_ file: JobFile, of jobID: UUID) async {
+        guard job(jobID) != nil else { return }
+        await opener.open(runner.workFolder(jobID: jobID).appending(path: file.name))
     }
 
-    func report() async -> JobReport? {
-        guard let job = shown, case .done = job.state else { return nil }
+    func report(of jobID: UUID) async -> JobReport? {
+        guard let job = job(jobID), case .done = job.state else { return nil }
         do {
-            let report = try await runner.report(jobID: job.id)
+            let report = try await runner.report(jobID: jobID)
             logger.notice("The job's report was read: \(report.blocks.count, privacy: .public) blocks")
             return report
         } catch {
@@ -157,7 +164,7 @@ final class Jobs {
             logger.error("No job started: the task could not be sent (\((error as NSError).code, privacy: .public))")
             return .refused(.couldNotStart)
         }
-        shown = Job(id: id, name: request.name, task: request.task)
+        all.insert(Job(id: id, name: request.name, task: request.task), at: 0)
         following = Task { [weak self] in
             await self?.follow(lines, of: process, jobID: id)
         }
@@ -224,17 +231,16 @@ final class Jobs {
     }
 
     private func updateSteps(_ steps: [JobStep], jobID: UUID) {
-        guard var job = shown, job.id == jobID, job.isWorking else { return }
-        job.steps = steps
-        shown = job
-        let done = job.doneCount
+        guard let job = job(jobID), job.isWorking else { return }
+        update(jobID) { $0.steps = steps }
+        let done = steps.count { $0.isDone }
         logger.notice("The job's checklist: \(done, privacy: .public) of \(steps.count, privacy: .public) steps done")
     }
 
     private func end(_ jobID: UUID, as state: Job.State) {
-        guard var job = shown, job.id == jobID, job.isWorking else { return }
+        guard var job = job(jobID), job.isWorking else { return }
         job.state = state
-        shown = job
+        update(jobID) { $0.state = state }
         switch state {
         case .working, .stopped:
             return
@@ -247,9 +253,19 @@ final class Jobs {
     }
 
     private func setFiles(_ files: [JobFile], jobID: UUID) {
-        guard var job = shown, job.id == jobID, !job.isWorking, job.files != files else { return }
-        job.files = files
-        shown = job
+        guard let job = job(jobID), !job.isWorking, job.files != files else { return }
+        update(jobID) { $0.files = files }
+    }
+
+    // A job's own page names its job, so its Stop or message never reaches another one; the brain names none.
+    private func working(_ jobID: UUID?) -> Job? {
+        guard let job = shown, job.isWorking, jobID == nil || jobID == job.id else { return nil }
+        return job
+    }
+
+    private func update(_ jobID: UUID, _ change: (inout Job) -> Void) {
+        guard let index = all.firstIndex(where: { $0.id == jobID }) else { return }
+        change(&all[index])
     }
 
     private func files(of jobID: UUID) async -> [JobFile] {
