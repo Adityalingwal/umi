@@ -61,8 +61,11 @@ struct ClaudeJobRunner {
         try await JobFile.list(in: workFolder(jobID: jobID))
     }
 
+    // A link or an alias named report.md would show another file's text, so only a plain file is read.
     func report(jobID: UUID) async throws -> JobReport {
-        try await JobReport.read(from: workFolder(jobID: jobID).appending(path: JobInstructions.reportName))
+        let report = workFolder(jobID: jobID).appending(path: JobInstructions.reportName)
+        guard await JobFile.checkedKind(of: report) == .document else { throw CocoaError(.fileReadNoPermission) }
+        return try await JobReport.read(from: report)
     }
 
     @concurrent

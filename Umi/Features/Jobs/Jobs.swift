@@ -154,7 +154,7 @@ final class Jobs {
         // The report is written before the result, so it is there once the output has ended.
         let files = await files(of: jobID)
         if let result = ending.result {
-            let hasReport = files.contains { $0.name == JobInstructions.reportName }
+            let hasReport = files.contains { $0.name == JobInstructions.reportName && $0.kind == .document }
             logger.notice("The job's folder holds report.md: \(hasReport, privacy: .public)")
             end(jobID, as: hasReport ? .done(result: result) : .failed(.noReport))
         }
