@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let chatWindow = ChatWindowKeeper(
             notch: notch,
             conversation: conversation,
+            jobs: jobs,
             settings: settings,
             defaults: .standard
         )

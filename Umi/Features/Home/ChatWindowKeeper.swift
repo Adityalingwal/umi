@@ -5,18 +5,20 @@ import SwiftUI
 final class ChatWindowKeeper: NSObject, NSWindowDelegate {
     private static let isOpenKey = "chatWindowIsOpen"
     private static let frameName = "Chat"
-    private static let firstSize = CGSize(width: 520, height: 640)
+    private static let firstSize = CGSize(width: 720, height: 640)
 
     private let notch: Notch
     private let conversation: Conversation
+    private let jobs: Jobs
     private let settings: UmiSettings
     private let defaults: UserDefaults
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Home")
     private var window: ChatWindow?
 
-    init(notch: Notch, conversation: Conversation, settings: UmiSettings, defaults: UserDefaults) {
+    init(notch: Notch, conversation: Conversation, jobs: Jobs, settings: UmiSettings, defaults: UserDefaults) {
         self.notch = notch
         self.conversation = conversation
+        self.jobs = jobs
         self.settings = settings
         self.defaults = defaults
     }
@@ -85,7 +87,11 @@ final class ChatWindowKeeper: NSObject, NSWindowDelegate {
 
     private func hostingView() -> NSView {
         let hostingView = NSHostingView(
-            rootView: ChatWindowView().environment(notch).environment(conversation).environment(settings)
+            rootView: ChatWindowView()
+                .environment(notch)
+                .environment(conversation)
+                .environment(jobs)
+                .environment(settings)
         )
         hostingView.sizingOptions = [.minSize]
         return hostingView

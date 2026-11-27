@@ -11,9 +11,7 @@ struct ReportView: View {
             if let report {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
-                        ForEach(Array(report.blocks.enumerated()), id: \.offset) { _, block in
-                            ReportBlockView(block: block)
-                        }
+                        ReportBlocks(report: report)
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
