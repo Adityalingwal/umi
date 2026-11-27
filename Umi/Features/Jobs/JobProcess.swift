@@ -70,6 +70,7 @@ final class JobProcess {
 
     // The input is closed only once no write is underway, so a message is never written to a closed handle.
     private func write(_ line: Data) async throws {
+        try Task.checkCancellation()
         guard isInputOpen else { throw POSIXError(.EPIPE) }
         writesUnderway += 1
         defer {
@@ -99,8 +100,10 @@ final class JobProcess {
         return line
     }
 
+    // A question stopped after the hand-off sends nothing.
     @concurrent
     private static func write(_ line: Data, to handle: FileHandle) async throws {
+        try Task.checkCancellation()
         try handle.write(contentsOf: line)
     }
 }

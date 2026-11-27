@@ -135,10 +135,10 @@ struct AnswerReader {
             return await jobs.start(request).line
         case .stop:
             logger.notice("The answer asks to stop the job")
-            return ask.line(isDone: jobs.stop())
+            return ask.line(after: jobs.stop() ? .done : .noJobRunning)
         case .message(let message, _):
             logger.notice("The answer asks to pass a message to the job")
-            return ask.line(isDone: await jobs.send(message))
+            return ask.line(after: await jobs.send(message))
         }
     }
 

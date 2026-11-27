@@ -68,23 +68,26 @@ final class Jobs {
         return true
     }
 
-    func send(_ message: String) async -> Bool {
+    func send(_ message: String) async -> JobAsk.Outcome {
         guard let job = shown, job.isWorking, let process, process.canTakeMessages else {
             logger.notice("A message for the job was not passed on: no job is running")
-            return false
+            return .noJobRunning
         }
         do {
             try await process.send(message: message)
+        } catch is CancellationError {
+            logger.notice("A message for the job was not sent: the question was stopped")
+            return .cancelled
         } catch {
             logger.error("A message for the job could not be passed on (\((error as NSError).code, privacy: .public))")
-            return false
+            return .notDelivered
         }
         logger.notice("A message was passed to the job: \(message.count, privacy: .public) characters")
         if var sent = shown, sent.id == job.id {
             sent.messages.append(message)
             shown = sent
         }
-        return true
+        return .done
     }
 
     // The folder is read again each time, so a file added or removed since the job ended is shown as it is now.
