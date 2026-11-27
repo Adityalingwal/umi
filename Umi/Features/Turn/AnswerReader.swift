@@ -63,7 +63,7 @@ struct AnswerReader {
             }
             try Task.checkCancellation()
             try add(jobTags.finish())
-            await startRequestedJob()
+            await actOnJobTag()
             try Task.checkCancellation()
             try finish()
             board.answerRead()
@@ -114,12 +114,12 @@ struct AnswerReader {
         }
     }
 
-    // The job tag is never spoken: Umi says the brain's start line once the job runs, or why nothing started.
-    private mutating func startRequestedJob() async {
+    // The job tag is never spoken: Umi says the brain's line once it was done, or why nothing was done.
+    private mutating func actOnJobTag() async {
         jobTags.problems.forEach { logger.notice("A job tag was dropped: \(String(describing: $0), privacy: .public)") }
-        guard let request = jobTags.request else { return }
+        guard let ask = jobTags.ask else { return }
         guard case .drawing = form else {
-            guard let line = await jobs.start(request).line, !Task.isCancelled else { return }
+            guard let line = await line(after: ask), !Task.isCancelled else { return }
             form = .spoken
             readText += readText.isEmpty ? line : " " + line
             voice.speak(line)
@@ -127,6 +127,19 @@ struct AnswerReader {
             return
         }
         logger.notice("A job tag in a drawing answer was dropped")
+    }
+
+    private func line(after ask: JobAsk) async -> String? {
+        switch ask {
+        case .start(let request):
+            return await jobs.start(request).line
+        case .stop:
+            logger.notice("The answer asks to stop the job")
+            return ask.line(isDone: jobs.stop())
+        case .message(let message, _):
+            logger.notice("The answer asks to pass a message to the job")
+            return ask.line(isDone: await jobs.send(message))
+        }
     }
 
     private mutating func readDrawing(_ text: String) throws {
