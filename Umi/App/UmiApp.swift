@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         let conversation = Conversation(file: ChatFile(folder: Self.chatFolder(defaults: .standard)))
         self.conversation = conversation
-        let jobs = parts.makeJobs(folder: Self.umiFolder.appending(path: "Jobs"))
+        let jobs = parts.makeJobs(folder: Self.umiFolder.appending(path: "Jobs"), workspace: .shared)
         self.jobs = jobs
         let notch = Notch(pasteboard: .general, defaults: .standard)
         showHome(
@@ -164,26 +164,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) {
         let cursor = UmiCursor()
         let cursorPanel = CursorPanel(cursor: cursor)
-        let pointerOverlay = PointerOverlay()
-        let pointer = Pointer(overlay: pointerOverlay, panel: PointerPanel(overlay: pointerOverlay), workspace: .shared)
+        let pointer = Self.makePointer()
         let screen = ScreenCapture.atLaunch(defaults: .standard, bundle: .main)
-        let boardContent = BoardContent()
-        let board = Board(content: boardContent, window: BoardWindow(content: boardContent))
+        let board = Self.makeBoard()
         let bundleURL = Bundle.main.bundleURL
         let notchPanel = notchPanel
+        let parts = TurnParts()
         turns = Task {
             await conversation.load()
+            let speaker = await Speaker.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared)
             let turn = Turn(
                 audioSource: questions.audio,
                 speech: await SpeechToText.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),
-                speaker: await Speaker.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared),
+                speaker: speaker,
                 screen: screen,
                 brain: brain,
                 conversation: conversation,
                 cursor: cursor,
                 cursorPanel: cursorPanel,
                 pointer: pointer,
-                board: board
+                board: board,
+                parts: parts
             )
             await withDiscardingTaskGroup { group in
                 group.addTask {
@@ -206,6 +207,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         await Self.clearChat(turn: turn, board: board, conversation: conversation)
                     }
                 }
+                group.addTask {
+                    await Self.follow(brain.jobs, notchPanel: notchPanel, speaker: speaker, parts: parts, board: board)
+                }
             }
         }
     }
@@ -215,6 +219,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         turn.escape()
         guard !wasAnswering else { return }
         notchPanel?.escape()
+    }
+
+    private static func makePointer() -> Pointer {
+        let overlay = PointerOverlay()
+        return Pointer(overlay: overlay, panel: PointerPanel(overlay: overlay), workspace: .shared)
+    }
+
+    private static func makeBoard() -> Board {
+        let content = BoardContent()
+        return Board(content: content, window: BoardWindow(content: content))
+    }
+
+    // The banner shows at once; the line waits until no one is speaking.
+    private static func follow(
+        _ jobs: Jobs,
+        notchPanel: NotchPanel?,
+        speaker: Speaker,
+        parts: TurnParts,
+        board: Board
+    ) async {
+        let speech = JobEndSpeech(speaker: speaker, parts: parts, board: board)
+        for await job in jobs.endings {
+            notchPanel?.jobEnded(job)
+            if let line = JobEndLine.text(for: job) {
+                speech.say(line)
+            }
+        }
     }
 
     // A running answer stops exactly as Esc stops it, and first, so nothing it writes later finds its question.

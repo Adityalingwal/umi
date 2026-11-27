@@ -9,7 +9,9 @@ final class Notch {
     private(set) var isOpen = false
     private(set) var isHeld = false
     private(set) var readsAloud: Bool
-    private(set) var panelContent = HomeContent.chat
+    private(set) var panelContent = PanelPage.chat
+    private(set) var banner: Job?
+    private(set) var endedWord: NotchWord?
     private(set) var windowContent = HomeContent.chat
     var draft = ""
     private var isPanelFieldWanted = false
@@ -43,7 +45,35 @@ final class Notch {
     }
 
     func pointerEntered() {
-        isOpen = true
+        open()
+    }
+
+    // With the panel open the card already shows the end, so there is no banner and no word to keep.
+    func jobEnded(_ job: Job) {
+        guard !isOpen else { return }
+        banner = job
+        if case .failed = job.state {
+            endedWord = .didNotFinish
+        } else {
+            endedWord = .done
+        }
+    }
+
+    func jobStarted() {
+        banner = nil
+        endedWord = nil
+    }
+
+    func bannerFolded() {
+        banner = nil
+    }
+
+    // The report is read, not hovered past, so it stays until a click outside or Esc.
+    func showReport() {
+        open()
+        isHeld = true
+        panelContent = .report
+        logger.notice("The panel shows the job's report")
     }
 
     // Held at once, so the panel stays while the pointer is elsewhere.
@@ -52,7 +82,7 @@ final class Notch {
             close()
             return
         }
-        isOpen = true
+        open()
         isHeld = true
         panelContent = .chat
         isPanelFieldWanted = true
@@ -144,6 +174,13 @@ final class Notch {
     func copy(_ text: String) {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+    }
+
+    // Opening the panel shows the job's end on its card, so the banner and the word go.
+    private func open() {
+        isOpen = true
+        banner = nil
+        endedWord = nil
     }
 
     private func hold() {

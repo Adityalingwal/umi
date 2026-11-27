@@ -2,6 +2,7 @@ import SwiftUI
 
 // The running job, or the last finished one until a new one starts, sits above the chat.
 struct JobSection: View {
+    let showReport: () -> Void
     @Environment(Jobs.self) private var jobs
 
     var body: some View {
@@ -13,13 +14,18 @@ struct JobSection: View {
                         .foregroundStyle(.white.opacity(0.55))
                         .padding(.leading, 4)
                 }
-                JobCard(job: job)
+                JobCard(job: job, showReport: showReport) { file in
+                    Task { await jobs.open(file) }
+                }
             }
             .padding(.horizontal, 12)
             .padding(.top, 2)
             .padding(.bottom, 8)
             .transition(.opacity)
             .animation(.easeOut(duration: 0.2), value: job)
+            .task(id: job.state) {
+                await jobs.refreshFiles()
+            }
         }
     }
 }

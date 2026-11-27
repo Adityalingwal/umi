@@ -57,9 +57,15 @@ struct ClaudeJobRunner {
         try await Self.remove(jobsFolder.appending(path: jobID.uuidString))
     }
 
-    @concurrent
-    static func files(in folder: URL) async throws -> [String] {
-        try FileManager.default.contentsOfDirectory(atPath: folder.path)
+    func files(jobID: UUID) async throws -> [JobFile] {
+        try await JobFile.list(in: workFolder(jobID: jobID))
+    }
+
+    // A link or an alias named report.md would show another file's text, so only a plain file is read.
+    func report(jobID: UUID) async throws -> JobReport {
+        let report = workFolder(jobID: jobID).appending(path: JobInstructions.reportName)
+        guard await JobFile.checkedKind(of: report) == .document else { throw CocoaError(.fileReadNoPermission) }
+        return try await JobReport.read(from: report)
     }
 
     @concurrent

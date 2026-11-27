@@ -6,14 +6,19 @@ import OSLog
 @Observable
 final class Jobs {
     private(set) var shown: Job?
+    @ObservationIgnored let endings: AsyncStream<Job>
+    @ObservationIgnored private let endingContinuation: AsyncStream<Job>.Continuation
     @ObservationIgnored private let runner: ClaudeJobRunner
+    @ObservationIgnored private let opener: JobFileOpener
     @ObservationIgnored private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Jobs")
     @ObservationIgnored private var isStarting = false
     @ObservationIgnored private var process: JobProcess?
     @ObservationIgnored private var following: Task<Void, Never>?
 
-    init(runner: ClaudeJobRunner) {
+    init(runner: ClaudeJobRunner, opener: JobFileOpener) {
         self.runner = runner
+        self.opener = opener
+        (endings, endingContinuation) = AsyncStream.makeStream(of: Job.self)
     }
 
     var isWorking: Bool {
@@ -44,6 +49,29 @@ final class Jobs {
             return .cancelled
         }
         return await launch(request)
+    }
+
+    // The folder is read again each time, so a file added or removed since the job ended is shown as it is now.
+    func refreshFiles() async {
+        guard let job = shown, !job.isWorking else { return }
+        setFiles(await files(of: job.id), jobID: job.id)
+    }
+
+    func open(_ file: JobFile) async {
+        guard let job = shown else { return }
+        await opener.open(runner.workFolder(jobID: job.id).appending(path: file.name))
+    }
+
+    func report() async -> JobReport? {
+        guard let job = shown, case .done = job.state else { return nil }
+        do {
+            let report = try await runner.report(jobID: job.id)
+            logger.notice("The job's report was read: \(report.blocks.count, privacy: .public) blocks")
+            return report
+        } catch {
+            logger.error("The job's report could not be read: \((error as NSError).code, privacy: .public)")
+            return nil
+        }
     }
 
     // At quit the job's process is ended, so no job outlives Umi.
@@ -79,7 +107,7 @@ final class Jobs {
         }
         self.process = process
         log(launch, processID: process.processID, jobID: id)
-        let lines: AsyncLineSequence<FileHandle.AsyncBytes>
+        let lines: AsyncStream<String>
         do {
             lines = try await process.send(task: request.task)
         } catch {
@@ -115,24 +143,23 @@ final class Jobs {
         logger.notice("The job's environment holds a key, server or provider: \(hasOverride, privacy: .public)")
     }
 
-    private func follow(_ lines: AsyncLineSequence<FileHandle.AsyncBytes>, of process: JobProcess, jobID: UUID) async {
+    private func follow(_ lines: AsyncStream<String>, of process: JobProcess, jobID: UUID) async {
         var ending = JobEnding()
-        do {
-            for try await line in lines {
-                guard !Task.isCancelled else { return }
-                read(JobStreamEvent(line: line), of: process, jobID: jobID, ending: &ending)
-            }
-        } catch is CancellationError {
-            return
-        } catch {
-            logger.error("The job's output could not be read: \((error as NSError).code, privacy: .public)")
+        for await line in lines {
+            guard !Task.isCancelled else { return }
+            read(JobStreamEvent(line: line), of: process, jobID: jobID, ending: &ending)
         }
+        guard !Task.isCancelled else { return }
         logger.notice("The job's output ended")
+        // The report is written before the result, so it is there once the output has ended.
+        let files = await files(of: jobID)
         if let result = ending.result {
-            let hasReport = await Self.logFolder(runner.workFolder(jobID: jobID), logger: logger)
+            let hasReport = files.contains { $0.name == JobInstructions.reportName && $0.kind == .document }
+            logger.notice("The job's folder holds report.md: \(hasReport, privacy: .public)")
             end(jobID, as: hasReport ? .done(result: result) : .failed(.noReport))
         }
         end(jobID, as: .failed(ending.failure ?? .endedEarly))
+        setFiles(files, jobID: jobID)
         if self.process === process {
             self.process = nil
         }
@@ -189,6 +216,7 @@ final class Jobs {
         case .failed(let failure):
             logger.error("The job did not finish: \(String(describing: failure), privacy: .public)")
         }
+        endingContinuation.yield(job)
     }
 
     private func logRefused(_ tools: [String]) {
@@ -202,17 +230,23 @@ final class Jobs {
         names.map { JobLaunch.tools.contains($0) ? $0 : "other" }.joined(separator: ", ")
     }
 
-    // The report is written before the result, so it is there once the output has ended.
-    private static func logFolder(_ folder: URL, logger: Logger) async -> Bool {
+    private func setFiles(_ files: [JobFile], jobID: UUID) {
+        guard var job = shown, job.id == jobID, !job.isWorking, job.files != files else { return }
+        job.files = files
+        shown = job
+    }
+
+    private func files(of jobID: UUID) async -> [JobFile] {
         do {
-            let files = try await ClaudeJobRunner.files(in: folder)
-            let hasReport = files.contains(JobInstructions.reportName)
-            logger.notice("The job's folder holds \(files.count, privacy: .public) files")
-            logger.notice("The job's folder holds report.md: \(hasReport, privacy: .public)")
-            return hasReport
+            let files = try await runner.files(jobID: jobID)
+            let documents = files.count { $0.kind == .document }
+            let count = files.count
+            logger.notice("The job's folder holds \(count, privacy: .public) files")
+            logger.notice("The job's folder holds \(documents, privacy: .public) documents")
+            return files
         } catch {
             logger.error("The job's folder could not be listed: \((error as NSError).code, privacy: .public)")
-            return false
+            return []
         }
     }
 

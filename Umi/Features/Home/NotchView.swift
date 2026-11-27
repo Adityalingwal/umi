@@ -6,40 +6,46 @@ struct NotchView: View {
     let notchHeight: CGFloat
     let openWindow: () -> Void
     let toggleSettings: () -> Void
+    let showReport: () -> Void
     @Environment(Notch.self) private var notch
     @Environment(Jobs.self) private var jobs
 
     var body: some View {
+        let word = NotchWord.atRest(isWorking: jobs.isWorking, ended: notch.endedWord)
+        let isLow = notch.isOpen || notch.banner != nil
         let shape = NotchShape(
             shoulder: NotchPlace.shoulder,
-            bottomRadius: notch.isOpen ? NotchPlace.openBottomRadius : NotchPlace.restBottomRadius
+            bottomRadius: isLow ? NotchPlace.openBottomRadius : NotchPlace.restBottomRadius
         )
         ZStack(alignment: .top) {
             Color.black
-            if !notch.isOpen, jobs.isWorking {
-                WorkingNotch(height: notchHeight)
-                    .transition(.opacity)
-            }
             if notch.isOpen {
                 DottedPattern()
                 VStack(spacing: 0) {
                     PanelTopRow(height: notchHeight, content: notch.panelContent, toggle: toggleSettings)
-                    PanelContent(content: notch.panelContent, openWindow: openWindow)
+                    PanelContent(content: notch.panelContent, openWindow: openWindow, showReport: showReport)
                 }
                 .padding(.horizontal, NotchPlace.shoulder)
                 .transition(.opacity)
+            } else if let banner = notch.banner {
+                JobBanner(job: banner, notchHeight: notchHeight, showReport: showReport)
+                    .transition(.opacity)
+            } else if let word {
+                NotchWordView(word: word, height: notchHeight)
+                    .transition(.opacity)
             }
         }
         .clipShape(shape)
         .animation(Self.motion, value: notch.isOpen)
-        .animation(Self.motion, value: jobs.isWorking)
+        .animation(Self.motion, value: notch.banner?.id)
+        .animation(Self.motion, value: word)
     }
 }
 
 // The row beside the hardware notch keeps the chat's width, so its button stays put while the panel widens.
 private struct PanelTopRow: View {
     let height: CGFloat
-    let content: HomeContent
+    let content: PanelPage
     let toggle: () -> Void
 
     var body: some View {
@@ -47,7 +53,7 @@ private struct PanelTopRow: View {
             Spacer(minLength: 0)
             switch content {
             case .chat: SettingsButton(open: toggle)
-            case .settings: BackButton(back: toggle)
+            case .settings, .report: BackButton(back: toggle)
             }
         }
         .padding(.trailing, 12)
@@ -57,15 +63,16 @@ private struct PanelTopRow: View {
 }
 
 private struct PanelContent: View {
-    let content: HomeContent
+    let content: PanelPage
     let openWindow: () -> Void
+    let showReport: () -> Void
 
     var body: some View {
         Group {
             switch content {
             case .chat:
                 VStack(spacing: 0) {
-                    JobSection()
+                    JobSection(showReport: showReport)
                     ChatView(jumpsToNewest: false)
                         .clipped()
                     HStack(spacing: 8) {
@@ -77,6 +84,9 @@ private struct PanelContent: View {
                 }
             case .settings:
                 SettingsView()
+                    .padding(.bottom, 10)
+            case .report:
+                ReportView()
                     .padding(.bottom, 10)
             }
         }
