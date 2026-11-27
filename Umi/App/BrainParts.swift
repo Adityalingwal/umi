@@ -34,7 +34,8 @@ struct BrainParts {
     func makeJobs(folder: URL, workspace: NSWorkspace) -> Jobs {
         Jobs(
             runner: ClaudeJobRunner(executable: claudeExecutable, environment: environment, jobsFolder: folder),
-            opener: JobFileOpener(workspace: workspace)
+            opener: JobFileOpener(workspace: workspace),
+            records: JobRecords(folder: folder)
         )
     }
 

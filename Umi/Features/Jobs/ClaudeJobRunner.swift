@@ -3,6 +3,8 @@ import OSLog
 
 // Jobs run on Claude whichever brain answers, so this checks and starts Claude itself, never the chosen brain.
 struct ClaudeJobRunner {
+    nonisolated static let workFolderName = "work"
+
     private let executable: ClaudeExecutable
     private let environment: [String: String]
     private let jobsFolder: URL
@@ -49,7 +51,7 @@ struct ClaudeJobRunner {
     }
 
     func workFolder(jobID: UUID) -> URL {
-        jobsFolder.appending(path: jobID.uuidString).appending(path: "work")
+        jobsFolder.appending(path: jobID.uuidString).appending(path: Self.workFolderName)
     }
 
     // A job stopped before its process ran leaves no empty folder behind.
@@ -57,8 +59,19 @@ struct ClaudeJobRunner {
         try await Self.remove(jobsFolder.appending(path: jobID.uuidString))
     }
 
-    func files(jobID: UUID) async throws -> [JobFile] {
-        try await JobFile.list(in: workFolder(jobID: jobID))
+    // A folder that cannot be listed shows no files; the log says so with the error's code only.
+    func listedFiles(jobID: UUID) async -> [JobFile] {
+        do {
+            let files = try await JobFile.list(in: workFolder(jobID: jobID))
+            let documents = files.count { $0.kind == .document }
+            let count = files.count
+            logger.notice("The job's folder holds \(count, privacy: .public) files")
+            logger.notice("The job's folder holds \(documents, privacy: .public) documents")
+            return files
+        } catch {
+            logger.error("The job's folder could not be listed: \((error as NSError).code, privacy: .public)")
+            return []
+        }
     }
 
     // A link or an alias named report.md would show another file's text, so only a plain file is read.

@@ -16,6 +16,25 @@ struct JobLog {
         logger.notice("The job's environment holds a key, server or provider: \(hasOverride, privacy: .public)")
     }
 
+    // Only counts and record file names: a record's text is the user's task and the job's result.
+    func read(_ reading: JobRecords.Reading, quitCount: Int) {
+        let count = reading.jobs.count
+        let setAside = JobRecords.setAsideName
+        logger.notice("The saved jobs were read: \(count, privacy: .public) jobs")
+        if quitCount > 0 {
+            logger.notice("Saved jobs working when Umi quit: \(quitCount, privacy: .public), shown as did not finish")
+        }
+        for id in reading.setAside {
+            let file = Self.recordFile(of: id)
+            logger.error("A saved job could not be read: \(file, privacy: .public) was set aside")
+            logger.notice("The set-aside record is named \(setAside, privacy: .public) and left out")
+        }
+        for id in reading.unreadable {
+            let file = Self.recordFile(of: id)
+            logger.error("A saved job could not be read nor set aside: \(file, privacy: .public) was left out")
+        }
+    }
+
     func claudeStarted(model: String, apiKeySource: String, tools: [String]) {
         logger.notice("The job's Claude started: model \(model, privacy: .public)")
         logger.notice("The job's Claude key source: \(apiKeySource, privacy: .public)")
@@ -30,6 +49,10 @@ struct JobLog {
         let count = tools.count
         let names = Self.loggedNames(tools)
         logger.notice("The job's Claude refused \(count, privacy: .public) tool calls: \(names, privacy: .public)")
+    }
+
+    private static func recordFile(of jobID: UUID) -> String {
+        "Jobs/\(jobID.uuidString)/\(JobRecords.recordName)"
     }
 
     // A tool name comes from the job's process, so only the names Umi gave the job are written as they are.

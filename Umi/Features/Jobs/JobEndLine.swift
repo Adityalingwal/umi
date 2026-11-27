@@ -24,6 +24,7 @@ enum JobEndLine {
         case .claudeError: "Claude ने एक error बताया।"
         case .endedEarly: "Job पूरा होने से पहले रुक गया।"
         case .noReport: "Job ने अपनी report लिखे बिना काम ख़त्म कर दिया।"
+        case .umiQuit: "Job चल रहा था तभी Umi बंद हो गया।"
         }
     }
 }
