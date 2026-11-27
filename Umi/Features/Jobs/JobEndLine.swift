@@ -3,7 +3,7 @@
 enum JobEndLine {
     static func text(for job: Job) -> String? {
         switch job.state {
-        case .working: nil
+        case .working, .stopped: nil
         case .done(let result): "\(job.name). \(result)"
         case .failed(let failure): didNotFinish(job.name, failure, in: JobLanguage(task: job.task))
         }

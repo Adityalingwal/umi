@@ -5,12 +5,14 @@ struct Job: Identifiable, Equatable {
         case working
         case done(result: String)
         case failed(JobFailure)
+        case stopped
     }
 
     let id: UUID
     let name: String
     let task: String
     var steps: [JobStep] = []
+    var messages: [String] = []
     var state = State.working
     var files: [JobFile] = []
 
