@@ -6,6 +6,9 @@ struct JobLaunch {
     private static let effort = "high"
     private static let settings = #"{"autoMemoryEnabled":false}"#
     static let addedVariables = ["DISABLE_TELEMETRY": "1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"]
+    private static let providerSwitches: Set = [
+        "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY", "AWS_BEARER_TOKEN_BEDROCK"
+    ]
 
     let executableURL: URL
     let workFolder: URL
@@ -16,8 +19,18 @@ struct JobLaunch {
         self.executableURL = executableURL
         self.workFolder = workFolder
         arguments = Self.arguments(instructions: JobInstructions.text, sessionID: jobID.uuidString.lowercased())
-        environment = ClaudeSubscription.childEnvironment(from: appEnvironment)
-            .merging(Self.addedVariables) { _, added in added }
+        environment = Self.environment(from: appEnvironment)
+    }
+
+    // A job runs only on the user's Claude subscription, so no key, other server or other provider reaches it.
+    static func environment(from appEnvironment: [String: String]) -> [String: String] {
+        ClaudeSubscription.childEnvironment(from: appEnvironment)
+            .filter { !isProviderOverride($0.key) }
+            .merging(addedVariables) { _, added in added }
+    }
+
+    static func isProviderOverride(_ name: String) -> Bool {
+        name.hasPrefix("ANTHROPIC_") || providerSwitches.contains(name)
     }
 
     // The instructions are Umi's own fixed text, so the log shows them as a placeholder.

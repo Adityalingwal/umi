@@ -18,7 +18,8 @@ enum JobStart: Equatable {
         case .refused(.claudeNotInstalled):
             "Jobs run on Claude Code, which isn't installed. Install it, then sign in with claude auth login."
         case .refused(.claudeNotSignedIn):
-            "Jobs run on Claude Code, which isn't signed in. Run claude auth login in Terminal."
+            "Jobs run on your Claude subscription, and Claude Code isn't signed in to it. "
+                + "Run claude auth login in Terminal."
         case .refused(.couldNotStart): "The job couldn't start this time. Please try again."
         case .cancelled: nil
         }
