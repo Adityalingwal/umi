@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         let conversation = Conversation(file: ChatFile(folder: Self.chatFolder(defaults: .standard)))
         self.conversation = conversation
-        let jobs = parts.makeJobs(folder: Self.umiFolder.appending(path: "Jobs"))
+        let jobs = parts.makeJobs(folder: Self.umiFolder.appending(path: "Jobs"), workspace: .shared)
         self.jobs = jobs
         let notch = Notch(pasteboard: .general, defaults: .standard)
         showHome(

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 struct BrainParts {
     private let environment: [String: String]
@@ -31,12 +31,11 @@ struct BrainParts {
         )
     }
 
-    func makeJobs(folder: URL) -> Jobs {
-        Jobs(runner: ClaudeJobRunner(
-            executable: claudeExecutable,
-            environment: environment,
-            jobsFolder: folder
-        ))
+    func makeJobs(folder: URL, workspace: NSWorkspace) -> Jobs {
+        Jobs(
+            runner: ClaudeJobRunner(executable: claudeExecutable, environment: environment, jobsFolder: folder),
+            opener: JobFileOpener(workspace: workspace)
+        )
     }
 
     private static func executablesFolder(defaults: UserDefaults) -> URL? {

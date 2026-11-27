@@ -57,9 +57,12 @@ struct ClaudeJobRunner {
         try await Self.remove(jobsFolder.appending(path: jobID.uuidString))
     }
 
-    @concurrent
-    static func files(in folder: URL) async throws -> [String] {
-        try FileManager.default.contentsOfDirectory(atPath: folder.path)
+    func files(jobID: UUID) async throws -> [JobFile] {
+        try await JobFile.list(in: workFolder(jobID: jobID))
+    }
+
+    func report(jobID: UUID) async throws -> JobReport {
+        try await JobReport.read(from: workFolder(jobID: jobID).appending(path: JobInstructions.reportName))
     }
 
     @concurrent

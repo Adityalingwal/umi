@@ -12,6 +12,7 @@ struct Job: Identifiable, Equatable {
     let task: String
     var steps: [JobStep] = []
     var state = State.working
+    var files: [JobFile] = []
 
     var isWorking: Bool {
         state == .working
