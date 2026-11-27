@@ -6,6 +6,7 @@ nonisolated struct JobTagReader {
         case unfinishedTag
         case missingNameOrTask
         case secondTag
+        case notStandingAlone
     }
 
     private static let opening = "<job"
@@ -15,6 +16,7 @@ nonisolated struct JobTagReader {
     private(set) var problems: [Problem] = []
     private var buffer = ""
     private var isInsideTag = false
+    private var hasTextBesideTag = false
 
     mutating func add(_ piece: String) -> String {
         buffer += piece
@@ -26,11 +28,13 @@ nonisolated struct JobTagReader {
                 buffer = String(buffer[end.upperBound...])
                 isInsideTag = false
             } else if let start = Self.tagStart(in: buffer) {
+                note(buffer[..<start])
                 passed += buffer[..<start]
                 buffer = String(buffer[start...])
                 isInsideTag = true
             } else {
                 let kept = Self.possibleTagStart(atEndOf: buffer)
+                note(buffer[..<kept])
                 passed += buffer[..<kept]
                 buffer = String(buffer[kept...])
                 return passed
@@ -38,17 +42,28 @@ nonisolated struct JobTagReader {
         }
     }
 
-    // A tag the answer never closed starts nothing.
+    // A tag the answer never closed starts nothing, and nor does one inside other words, such as a quote of one.
     mutating func finish() -> String {
         defer {
             buffer = ""
             isInsideTag = false
         }
-        guard !isInsideTag else {
+        if isInsideTag {
             problems.append(.unfinishedTag)
-            return ""
+        } else {
+            note(buffer[...])
         }
-        return buffer
+        if request != nil, hasTextBesideTag {
+            request = nil
+            problems.append(.notStandingAlone)
+        }
+        return isInsideTag ? "" : buffer
+    }
+
+    private mutating func note(_ text: Substring) {
+        if text.contains(where: { !$0.isWhitespace }) {
+            hasTextBesideTag = true
+        }
     }
 
     private mutating func read(_ tag: String) {
