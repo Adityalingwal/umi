@@ -17,6 +17,7 @@ struct JobSection: View {
             }
             .padding(.horizontal, 12)
             .padding(.top, 2)
+            .padding(.bottom, 8)
             .transition(.opacity)
             .animation(.easeOut(duration: 0.2), value: job)
         }
