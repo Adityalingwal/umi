@@ -5,6 +5,7 @@ import SwiftUI
 final class NotchPanel {
     private static let openDuration = 0.22
     private static let closeDuration = 0.16
+    private static let bannerDuration = Duration.seconds(10)
     // The mark overlay sits at the status bar level; the chat stays readable above it.
     private static let aboveMarks = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
 
@@ -22,6 +23,7 @@ final class NotchPanel {
     private var screenChanges: Task<Void, Never>?
     private var shortcuts: Task<Void, Never>?
     private var jobChanges: Task<Void, Never>?
+    private var bannerFolding: Task<Void, Never>?
     private var isShowingWorking = false
 
     init(notch: Notch, conversation: Conversation, jobs: Jobs, chatWindow: ChatWindowKeeper, settings: UmiSettings) {
@@ -61,6 +63,25 @@ final class NotchPanel {
         shortcuts = nil
         jobChanges?.cancel()
         jobChanges = nil
+        bannerFolding?.cancel()
+        bannerFolding = nil
+    }
+
+    // The banner comes by itself and folds away after a while, or at a click elsewhere.
+    func jobEnded(_ job: Job) {
+        notch.jobEnded(job)
+        guard notch.banner != nil else {
+            logger.notice("A job ended with the panel open: its card shows it, so no banner")
+            return
+        }
+        logger.notice("A job ended: the banner shows under the notch")
+        bannerFolding?.cancel()
+        bannerFolding = Task { [weak self] in
+            try? await Task.sleep(for: Self.bannerDuration)
+            guard !Task.isCancelled else { return }
+            self?.foldBanner(because: "after ten seconds")
+        }
+        sizeToState()
     }
 
     func escape() {
@@ -83,7 +104,7 @@ final class NotchPanel {
             return
         }
         let window = makeWindow(notchHeight: place.notchHeight)
-        window.setFrame(place.restFrame(isWorking: jobs.isWorking), display: true)
+        window.setFrame(notch.banner == nil ? place.restFrame(showing: restWord) : place.bannerFrame, display: true)
         window.orderFrontRegardless()
         self.window = window
         self.place = place
@@ -124,7 +145,8 @@ final class NotchPanel {
         let view = NotchView(
             notchHeight: notchHeight,
             openWindow: { [weak self] in self?.openWindow() },
-            toggleSettings: { [weak self] in self?.toggleSettings() }
+            toggleSettings: { [weak self] in self?.toggleSettings() },
+            showReport: { [weak self] in self?.showReport() }
         )
         let hostingView = NSHostingView(
             rootView: view.environment(notch).environment(conversation).environment(jobs).environment(settings)
@@ -153,13 +175,35 @@ final class NotchPanel {
         sizeToState()
     }
 
-    // At rest the notch widens for "Working" while a job runs; an open panel keeps its size.
+    private var restWord: NotchWord? {
+        NotchWord.atRest(isWorking: jobs.isWorking, ended: notch.endedWord)
+    }
+
+    // At rest the notch widens for its word while a job runs; an open panel keeps its size.
     private func jobWorkingChanged(to isWorking: Bool) {
         guard isWorking != isShowingWorking else { return }
         isShowingWorking = isWorking
-        logger.notice("The notch \(isWorking ? "shows Working" : "is plain again", privacy: .public) at rest")
-        guard !notch.isOpen, let window, let place else { return }
-        resize(window, to: place.restFrame(isWorking: isWorking), duration: Self.openDuration)
+        logger.notice("The notch \(isWorking ? "shows Working" : "no longer shows Working", privacy: .public) at rest")
+        if isWorking {
+            bannerFolding?.cancel()
+            notch.jobStarted()
+        }
+        sizeToState()
+    }
+
+    private func foldBanner(because reason: String) {
+        guard notch.banner != nil else { return }
+        notch.bannerFolded()
+        logger.notice("The banner folded \(reason, privacy: .public)")
+        if let word = restWord {
+            logger.notice("The notch shows \(String(describing: word), privacy: .public) at rest")
+        }
+        sizeToState()
+    }
+
+    private func showReport() {
+        notch.showReport()
+        sizeToState()
     }
 
     private func openWindow() {
@@ -177,7 +221,7 @@ final class NotchPanel {
     // The window sits on whole points, so the notch's half-point edges are rounded out.
     private func pointerEntered() {
         guard !notch.isOpen, let place,
-              NSMouseInRect(NSEvent.mouseLocation, place.restFrame(isWorking: jobs.isWorking).integral, false) else {
+              NSMouseInRect(NSEvent.mouseLocation, place.restFrame(showing: restWord).integral, false) else {
             return
         }
         notch.pointerEntered()
@@ -202,17 +246,28 @@ final class NotchPanel {
         sizeToState()
     }
 
+    // A click inside the banner is its own; only a click elsewhere folds it.
+    private func clickedNearBanner(at point: CGPoint) {
+        guard notch.banner != nil, let place, !NSMouseInRect(point, place.bannerFrame, false) else { return }
+        foldBanner(because: "at a click elsewhere")
+    }
+
     private func sizeToState() {
         guard let window, let place else { return }
+        clicks.stop()
         if notch.isOpen {
+            bannerFolding?.cancel()
             moves.start { [weak self] in self?.pointerMayHaveLeft() }
             clicks.start { [weak self] click in self?.clicked(at: click.place) }
             resize(window, to: place.openFrame(showing: notch.panelContent), duration: Self.openDuration)
+        } else if notch.banner != nil {
+            moves.stop()
+            clicks.start { [weak self] click in self?.clickedNearBanner(at: click.place) }
+            resize(window, to: place.bannerFrame, duration: Self.openDuration)
         } else {
             moves.stop()
-            clicks.stop()
             giveUpKey(window)
-            resize(window, to: place.restFrame(isWorking: jobs.isWorking), duration: Self.closeDuration)
+            resize(window, to: place.restFrame(showing: restWord), duration: Self.closeDuration)
         }
     }
 

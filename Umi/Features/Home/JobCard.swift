@@ -2,6 +2,8 @@ import SwiftUI
 
 struct JobCard: View {
     let job: Job
+    let showReport: () -> Void
+    let open: (JobFile) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -9,13 +11,13 @@ struct JobCard: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
-            switch job.state {
-            case .working:
+            if let outcome = JobOutcome(job.state) {
+                JobEnd(outcome: outcome, showReport: showReport)
+                if !job.files.isEmpty {
+                    JobFileList(files: job.files, open: open)
+                }
+            } else {
                 JobWork(job: job)
-            case .done(let result):
-                JobEnd(title: "Done", line: result, symbol: "checkmark.circle.fill", tint: .green)
-            case .failed(let failure):
-                JobEnd(title: "Didn't finish", line: failure.reason, symbol: "exclamationmark.circle", tint: .orange)
             }
         }
         .padding(12)
@@ -105,17 +107,21 @@ private struct JobStepRow: View {
 }
 
 private struct JobEnd: View {
-    let title: String
-    let line: String
-    let symbol: String
-    let tint: Color
+    let outcome: JobOutcome
+    let showReport: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemImage: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(tint)
-            Text(line)
+            HStack {
+                Label(outcome.title, systemImage: outcome.symbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(outcome.tint)
+                Spacer(minLength: 0)
+                if outcome.hasReport {
+                    FullReportButton(show: showReport)
+                }
+            }
+            Text(outcome.line)
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.85))
                 .lineLimit(3)

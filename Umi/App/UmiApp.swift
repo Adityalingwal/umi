@@ -208,7 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
                 group.addTask {
-                    await Self.follow(brain.jobs, speaker: speaker, parts: parts, board: board)
+                    await Self.follow(brain.jobs, notchPanel: notchPanel, speaker: speaker, parts: parts, board: board)
                 }
             }
         }
@@ -231,15 +231,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return Board(content: content, window: BoardWindow(content: content))
     }
 
-    // The line waits until no one is speaking.
+    // The banner shows at once; the line waits until no one is speaking.
     private static func follow(
         _ jobs: Jobs,
+        notchPanel: NotchPanel?,
         speaker: Speaker,
         parts: TurnParts,
         board: Board
     ) async {
         let speech = JobEndSpeech(speaker: speaker, parts: parts, board: board)
         for await job in jobs.endings {
+            notchPanel?.jobEnded(job)
             if let line = JobEndLine.text(for: job) {
                 speech.say(line)
             }
