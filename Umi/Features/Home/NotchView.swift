@@ -67,6 +67,7 @@ private struct PanelContent: View {
                 VStack(spacing: 0) {
                     JobSection()
                     ChatView(jumpsToNewest: false)
+                        .clipped()
                     HStack(spacing: 8) {
                         AskRow(place: .panel)
                         OpenWindowButton(open: openWindow)
