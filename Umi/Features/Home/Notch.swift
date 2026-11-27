@@ -14,6 +14,7 @@ final class Notch {
     private(set) var endedWord: NotchWord?
     private(set) var windowContent = HomeContent.chat
     var draft = ""
+    private var windowPageBeforeSettings = HomeContent.chat
     private var isPanelFieldWanted = false
     private var isWindowFieldWanted = false
     @ObservationIgnored let questions: AsyncStream<SentQuestion>
@@ -110,13 +111,25 @@ final class Notch {
     }
 
     func showSettingsInWindow() {
+        windowPageBeforeSettings = windowContent
         windowContent = .settings
         logger.notice("The chat window shows Settings")
     }
 
+    // Back from Settings goes to the page it was opened from.
+    func leaveSettingsInWindow() {
+        windowContent = windowPageBeforeSettings
+        logger.notice("The chat window left Settings")
+    }
+
     func showChatInWindow() {
         windowContent = .chat
-        logger.notice("The chat window is back to the chat")
+        logger.notice("The chat window shows the chat")
+    }
+
+    func showJobInWindow(_ jobID: UUID) {
+        windowContent = .job(jobID)
+        logger.notice("The chat window shows a job's page")
     }
 
     // A click on the switch readies the field beside it for the keys typed next.
@@ -148,9 +161,10 @@ final class Notch {
         return true
     }
 
-    // The chat moves into the window, so the panel closes.
+    // The chat moves into the window, so the panel closes and the window shows the chat, whatever page it had.
     func chatMovedToWindow() {
         close()
+        windowContent = .chat
         logger.notice("The panel's window button was clicked")
     }
 

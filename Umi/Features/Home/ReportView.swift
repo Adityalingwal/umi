@@ -11,9 +11,7 @@ struct ReportView: View {
             if let report {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
-                        ForEach(Array(report.blocks.enumerated()), id: \.offset) { _, block in
-                            ReportBlockView(block: block)
-                        }
+                        ReportBlocks(report: report)
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
@@ -34,7 +32,9 @@ struct ReportView: View {
         }
         // Read once: a job that starts while the page is open never replaces the report shown.
         .task {
-            report = await jobs.report()
+            if let job = jobs.shown {
+                report = await jobs.report(of: job.id)
+            }
             isRead = true
         }
     }

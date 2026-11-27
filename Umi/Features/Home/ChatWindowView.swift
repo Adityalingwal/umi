@@ -4,18 +4,26 @@ struct ChatWindowView: View {
     @Environment(Notch.self) private var notch
 
     var body: some View {
-        VStack(spacing: 0) {
-            WindowTopRow(content: notch.windowContent)
-            Group {
-                switch notch.windowContent {
-                case .chat: WindowChat()
-                case .settings: SettingsView()
+        HStack(spacing: 0) {
+            WindowColumn()
+            Rectangle()
+                .fill(.white.opacity(0.08))
+                .frame(width: 1)
+            VStack(spacing: 0) {
+                WindowTopRow(content: notch.windowContent)
+                Group {
+                    switch notch.windowContent {
+                    case .chat: WindowChat()
+                    case .job(let jobID): JobPage(jobID: jobID).id(jobID)
+                    case .settings: SettingsView()
+                    }
                 }
+                .transition(.opacity)
+                .animation(.easeOut(duration: 0.15), value: notch.windowContent)
             }
-            .transition(.opacity)
-            .animation(.easeOut(duration: 0.15), value: notch.windowContent)
+            .frame(minWidth: 380)
         }
-        .frame(minWidth: 380, minHeight: 360)
+        .frame(minHeight: 360)
         .background(Color.black)
     }
 }
@@ -27,11 +35,11 @@ private struct WindowTopRow: View {
     var body: some View {
         HStack {
             switch content {
-            case .chat:
+            case .chat, .job:
                 Spacer(minLength: 0)
                 SettingsButton { notch.showSettingsInWindow() }
             case .settings:
-                BackButton { notch.showChatInWindow() }
+                BackButton { notch.leaveSettingsInWindow() }
                 Spacer(minLength: 0)
             }
         }

@@ -45,20 +45,7 @@ private struct JobWork: View {
             } else {
                 JobChecklist(steps: job.steps, current: job.currentStepIndex)
             }
-            HStack(spacing: 8) {
-                ProgressView(value: Double(job.doneCount), total: Double(max(job.steps.count, 1)))
-                    .progressViewStyle(.linear)
-                    .controlSize(.mini)
-                    .tint(.green)
-                Text("\(job.doneCount)/\(job.steps.count)")
-                    .font(.system(size: 11, weight: .medium).monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.7))
-                if job.isFinalizing {
-                    Text("Finalizing")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-            }
+            JobProgress(job: job)
         }
     }
 }
@@ -91,25 +78,6 @@ private struct JobChecklist: View {
                 }
             }
         }
-    }
-}
-
-private struct JobStepRow: View {
-    let step: JobStep
-    let isCurrent: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: step.isDone ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(step.isDone ? .green.opacity(0.8) : .white.opacity(isCurrent ? 0.9 : 0.4))
-            Text(step.text)
-                .font(.system(size: 12, weight: isCurrent ? .bold : .regular))
-                .strikethrough(step.isDone)
-                .foregroundStyle(.white.opacity(step.isDone ? 0.45 : (isCurrent ? 0.95 : 0.7)))
-                .lineLimit(1)
-        }
-        .frame(height: 17)
     }
 }
 

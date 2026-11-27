@@ -16,9 +16,9 @@ struct JobSection: View {
                     .opacity(job.isWorking ? 1 : 0)
                     .accessibilityHidden(!job.isWorking)
                 JobCard(job: job, showReport: showReport, open: { file in
-                    Task { await jobs.open(file) }
+                    Task { await jobs.open(file, of: job.id) }
                 }, stop: {
-                    jobs.stop()
+                    jobs.stop(job.id)
                 })
             }
             .padding(.horizontal, 12)
@@ -27,7 +27,7 @@ struct JobSection: View {
             .transition(.opacity)
             .animation(.easeOut(duration: 0.2), value: job)
             .task(id: job.state) {
-                await jobs.refreshFiles()
+                await jobs.refreshFiles(of: job.id)
             }
         }
     }
