@@ -122,10 +122,8 @@ final class Notch {
         logger.notice("The chat window left Settings")
     }
 
-    // The chat's row readies its field, as opening the window does.
     func showChatInWindow() {
         windowContent = .chat
-        isWindowFieldWanted = true
         logger.notice("The chat window shows the chat")
     }
 
