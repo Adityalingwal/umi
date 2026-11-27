@@ -47,7 +47,8 @@ struct JobPage: View {
             }
             .animation(.easeOut(duration: 0.25), value: job.state)
             .animation(.easeOut(duration: 0.2), value: job.messages)
-            .task(id: job.state) {
+            // A job that ends while its page is open gets its files from the end of its output.
+            .task {
                 await jobs.refreshFiles(of: job.id)
             }
         }
