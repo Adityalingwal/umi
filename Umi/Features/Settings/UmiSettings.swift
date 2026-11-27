@@ -7,6 +7,8 @@ final class UmiSettings {
     let permissions: PermissionRows
     let brains: BrainOptions
     let version: String
+    @ObservationIgnored let chatClears: AsyncStream<Void>
+    @ObservationIgnored private let chatClearContinuation: AsyncStream<Void>.Continuation
 
     @ObservationIgnored private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "Umi",
@@ -17,10 +19,16 @@ final class UmiSettings {
         self.permissions = permissions
         self.brains = brains
         version = Self.version(of: bundle)
+        (chatClears, chatClearContinuation) = AsyncStream.makeStream(of: Void.self)
     }
 
     func pageShown(_ page: SettingsPage) {
         logger.notice("Settings shows the \(page.title, privacy: .public) page")
+    }
+
+    func clearChat() {
+        logger.notice("Clear chat was confirmed in Settings")
+        chatClearContinuation.yield()
     }
 
     func quit() {

@@ -6,6 +6,7 @@ struct GeneralPage: View {
     var body: some View {
         SettingsPageLayout(page: .general) {
             SettingsGroup {
+                ClearChatRow()
                 SettingsRow(title: "Version", detail: nil) {
                     Text(settings.version)
                         .font(.system(size: 13))
