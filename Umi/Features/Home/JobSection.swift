@@ -14,9 +14,11 @@ struct JobSection: View {
                         .foregroundStyle(.white.opacity(0.55))
                         .padding(.leading, 4)
                 }
-                JobCard(job: job, showReport: showReport) { file in
+                JobCard(job: job, showReport: showReport, open: { file in
                     Task { await jobs.open(file) }
-                }
+                }, stop: {
+                    jobs.stop()
+                })
             }
             .padding(.horizontal, 12)
             .padding(.top, 2)
