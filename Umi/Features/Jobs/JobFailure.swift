@@ -4,7 +4,7 @@ nonisolated enum JobFailure: Equatable, Sendable {
     case limitReached
     case claudeError
     case endedEarly
-    case couldNotStart
+    case noReport
 
     var reason: String {
         switch self {
@@ -13,7 +13,7 @@ nonisolated enum JobFailure: Equatable, Sendable {
         case .limitReached: "Your Claude usage limit is reached."
         case .claudeError: "Claude reported an error."
         case .endedEarly: "The job stopped before it finished."
-        case .couldNotStart: "Claude Code didn't start."
+        case .noReport: "The job ended without writing its report."
         }
     }
 

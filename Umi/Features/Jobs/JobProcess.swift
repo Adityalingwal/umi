@@ -21,9 +21,12 @@ final class JobProcess {
         process.standardError = FileHandle.nullDevice
     }
 
-    // Input stays open after the task, so a later message can reach the job while it works.
-    func start(task: String) async throws -> AsyncLineSequence<FileHandle.AsyncBytes> {
+    func run() throws {
         try process.run()
+    }
+
+    // Input stays open after the task, so a later message can reach the job while it works.
+    func send(task: String) async throws -> AsyncLineSequence<FileHandle.AsyncBytes> {
         try await Self.write(Self.userLine(task), to: input.fileHandleForWriting)
         return output.fileHandleForReading.bytes.lines
     }
