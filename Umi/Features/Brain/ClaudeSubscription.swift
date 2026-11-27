@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 final class ClaudeSubscription: Brain {
-    private static let model = "claude-fable-5-2"
+    static let model = "claude-fable-5-2"
     private static let effort = "low"
 
     private let executable: ClaudeExecutable

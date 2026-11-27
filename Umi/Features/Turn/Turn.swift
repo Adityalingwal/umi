@@ -6,7 +6,7 @@ final class Turn {
     private let speech: SpeechToText
     private let speaker: Speaker
     private let screen: ScreenCapture
-    private let brain: any Brain
+    private let brain: BrainWithJobs
     private let conversation: Conversation
     private let cursorStage: CursorStage
     private let pointer: Pointer
@@ -31,7 +31,7 @@ final class Turn {
         speech: SpeechToText,
         speaker: Speaker,
         screen: ScreenCapture,
-        brain: any Brain,
+        brain: BrainWithJobs,
         conversation: Conversation,
         cursor: UmiCursor,
         cursorPanel: CursorPanel,

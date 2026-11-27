@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var notchPanel: NotchPanel?
     private var chatWindow: ChatWindowKeeper?
     private var conversation: Conversation?
+    private var jobs: Jobs?
     private var turns: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -34,9 +35,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyListener = keyListener
         let conversation = Conversation(file: ChatFile(folder: Self.chatFolder(defaults: .standard)))
         self.conversation = conversation
+        let jobs = parts.makeJobs(folder: Self.umiFolder.appending(path: "Jobs"))
+        self.jobs = jobs
         let notch = Notch(pasteboard: .general, defaults: .standard)
-        let presses = keyListener.commandDoublePresses
-        showHome(notch: notch, conversation: conversation, settings: settings, commandDoublePresses: presses)
+        showHome(
+            notch: notch,
+            conversation: conversation,
+            jobs: jobs,
+            settings: settings,
+            commandDoublePresses: keyListener.commandDoublePresses
+        )
         #if DEBUG
         if let holdFile = HoldFile.atLaunch(defaults: .standard) {
             let picks = BrainPicks.atLaunch(defaults: .standard, brain: brain)
@@ -45,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 questions: QuestionSources(audio: holdFile, holds: holds, typed: notch.questions),
                 escapes: keyListener.escapes,
                 chatClears: settings.chatClears,
-                brain: brain,
+                brain: BrainWithJobs(brain: brain, jobs: jobs),
                 conversation: conversation
             )
             return
@@ -59,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ),
             escapes: keyListener.escapes,
             chatClears: settings.chatClears,
-            brain: brain,
+            brain: BrainWithJobs(brain: brain, jobs: jobs),
             conversation: conversation
         )
     }
@@ -70,7 +78,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return URL(filePath: folder)
         }
         #endif
-        return URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Umi")
+        return umiFolder
+    }
+
+    private static var umiFolder: URL {
+        URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Umi")
     }
 
     private static func makeSettings(
@@ -93,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showHome(
         notch: Notch,
         conversation: Conversation,
+        jobs: Jobs,
         settings: UmiSettings,
         commandDoublePresses: AsyncStream<Void>
     ) {
@@ -105,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let notchPanel = NotchPanel(
             notch: notch,
             conversation: conversation,
+            jobs: jobs,
             chatWindow: chatWindow,
             settings: settings
         )
@@ -135,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         turns?.cancel()
+        jobs?.stopAtQuit()
         keyListener?.stop()
         notchPanel?.stop()
         brain?.stop()
@@ -144,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         questions: QuestionSources,
         escapes: AsyncStream<Void>,
         chatClears: AsyncStream<Void>,
-        brain: ChosenBrain,
+        brain: BrainWithJobs,
         conversation: Conversation
     ) {
         let cursor = UmiCursor()

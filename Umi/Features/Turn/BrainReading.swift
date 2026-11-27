@@ -1,18 +1,20 @@
 struct BrainReading {
     private let brain: any Brain
+    private let jobs: Jobs
     private let conversation: Conversation
     private let board: Board
     private let follower: VoiceFollower
     private let stopped: (any Error, SpokenAnswer, AskedQuestion) -> Void
 
     init(
-        brain: any Brain,
+        brain: BrainWithJobs,
         conversation: Conversation,
         board: Board,
         follower: VoiceFollower,
         stopped: @escaping (any Error, SpokenAnswer, AskedQuestion) -> Void
     ) {
-        self.brain = brain
+        self.brain = brain.brain
+        jobs = brain.jobs
         self.conversation = conversation
         self.board = board
         self.follower = follower
@@ -45,7 +47,8 @@ struct BrainReading {
             screenWidth: screen.width,
             screenHeight: screen.height,
             earlierExchanges: conversation.exchanges,
-            boardBrief: board.brief
+            boardBrief: board.brief,
+            jobBrief: jobs.brief
         )
         let answer = brain.answer(brainQuestion)
         await withDiscardingTaskGroup { group in
@@ -64,7 +67,9 @@ struct BrainReading {
         on picture: ScreenPicture
     ) async {
         let conversation = conversation
-        var reader = AnswerReader(voice: voice, pointing: pointing, picture: picture, board: board) { text in
+        var reader = AnswerReader(
+            voice: voice, pointing: pointing, picture: picture, board: board, jobs: jobs
+        ) { text in
             conversation.writeAnswer(text, to: question.id)
         }
         defer { conversation.writeAnswer(reader.arrivedText, to: question.id) }

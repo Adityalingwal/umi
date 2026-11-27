@@ -7,6 +7,7 @@ nonisolated struct BrainQuestion: Sendable {
     let screenHeight: Int
     let earlierExchanges: [Exchange]
     let boardBrief: String?
+    let jobBrief: String?
 
     var screenSizeText: String {
         "The screen picture is \(screenWidth) by \(screenHeight) pixels."

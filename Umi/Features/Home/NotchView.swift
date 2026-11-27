@@ -7,6 +7,7 @@ struct NotchView: View {
     let openWindow: () -> Void
     let toggleSettings: () -> Void
     @Environment(Notch.self) private var notch
+    @Environment(Jobs.self) private var jobs
 
     var body: some View {
         let shape = NotchShape(
@@ -15,6 +16,10 @@ struct NotchView: View {
         )
         ZStack(alignment: .top) {
             Color.black
+            if !notch.isOpen, jobs.isWorking {
+                WorkingNotch(height: notchHeight)
+                    .transition(.opacity)
+            }
             if notch.isOpen {
                 DottedPattern()
                 VStack(spacing: 0) {
@@ -27,6 +32,7 @@ struct NotchView: View {
         }
         .clipShape(shape)
         .animation(Self.motion, value: notch.isOpen)
+        .animation(Self.motion, value: jobs.isWorking)
     }
 }
 
@@ -59,7 +65,9 @@ private struct PanelContent: View {
             switch content {
             case .chat:
                 VStack(spacing: 0) {
+                    JobSection()
                     ChatView(jumpsToNewest: false)
+                        .clipped()
                     HStack(spacing: 8) {
                         AskRow(place: .panel)
                         OpenWindowButton(open: openWindow)
