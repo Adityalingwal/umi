@@ -255,17 +255,17 @@ final class NotchPanel {
     private func sizeToState() {
         guard let window, let place else { return }
         clicks.stop()
+        moves.stop()
         if notch.isOpen {
             bannerFolding?.cancel()
             moves.start { [weak self] in self?.pointerMayHaveLeft() }
             clicks.start { [weak self] click in self?.clicked(at: click.place) }
             resize(window, to: place.openFrame(showing: notch.panelContent), duration: Self.openDuration)
         } else if notch.banner != nil {
-            moves.stop()
+            moves.start { [weak self] in self?.pointerEntered() }
             clicks.start { [weak self] click in self?.clickedNearBanner(at: click.place) }
             resize(window, to: place.bannerFrame, duration: Self.openDuration)
         } else {
-            moves.stop()
             giveUpKey(window)
             resize(window, to: place.restFrame(showing: restWord), duration: Self.closeDuration)
         }
