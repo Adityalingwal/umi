@@ -11,10 +11,12 @@ struct AnswerReader {
     private let pointing: Pointing?
     private let picture: ScreenPicture
     private let board: Board
+    private let jobs: Jobs
     private let written: (String) -> Void
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private var form = Form.undecided
     private var undecidedText = ""
+    private var jobTags = JobTagReader()
     private var tags = MarkTagParser()
     private var drawing = DrawingReader()
     private var drawingSpokenText = ""
@@ -37,12 +39,14 @@ struct AnswerReader {
         pointing: Pointing?,
         picture: ScreenPicture,
         board: Board,
+        jobs: Jobs,
         written: @escaping (String) -> Void
     ) {
         self.voice = voice
         self.pointing = pointing
         self.picture = picture
         self.board = board
+        self.jobs = jobs
         self.written = written
     }
 
@@ -55,8 +59,11 @@ struct AnswerReader {
                     isFirstPiece = false
                     logger.notice("The brain's first text arrived")
                 }
-                try add(piece)
+                try add(jobTags.add(piece))
             }
+            try Task.checkCancellation()
+            try add(jobTags.finish())
+            await startRequestedJob()
             try Task.checkCancellation()
             try finish()
             board.answerRead()
@@ -105,6 +112,21 @@ struct AnswerReader {
             board.endReading()
             voice.endText()
         }
+    }
+
+    // The job tag is never spoken: Umi says the brain's start line once the job runs, or why nothing started.
+    private mutating func startRequestedJob() async {
+        jobTags.problems.forEach { logger.notice("A job tag was dropped: \(String(describing: $0), privacy: .public)") }
+        guard let request = jobTags.request else { return }
+        guard case .drawing = form else {
+            guard let line = await jobs.start(request).line, !Task.isCancelled else { return }
+            form = .spoken
+            readText += readText.isEmpty ? line : " " + line
+            voice.speak(line)
+            written(readText)
+            return
+        }
+        logger.notice("A job tag in a drawing answer was dropped")
     }
 
     private mutating func readDrawing(_ text: String) throws {
