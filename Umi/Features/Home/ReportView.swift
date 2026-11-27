@@ -32,7 +32,8 @@ struct ReportView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .task(id: jobs.shown?.id) {
+        // Read once: a job that starts while the page is open never replaces the report shown.
+        .task {
             report = await jobs.report()
             isRead = true
         }
