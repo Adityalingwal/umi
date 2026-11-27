@@ -50,13 +50,10 @@ nonisolated struct JobRecords: Sendable {
         try data.write(to: jobFolder.appending(path: Self.recordName), options: .atomic)
     }
 
-    // One set-aside name per job, so a newer unreadable record replaces an older one.
+    // Nothing set aside is ever deleted: with the name taken, the move fails and the record stays where it is.
     private func setAside(_ record: URL, fileManager: FileManager) -> Bool {
         let setAsideFile = record.deletingLastPathComponent().appending(path: Self.setAsideName)
         do {
-            if fileManager.fileExists(atPath: setAsideFile.path) {
-                try fileManager.removeItem(at: setAsideFile)
-            }
             try fileManager.moveItem(at: record, to: setAsideFile)
             return true
         } catch {
