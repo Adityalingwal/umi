@@ -161,9 +161,10 @@ final class Notch {
         return true
     }
 
-    // The chat moves into the window, so the panel closes.
+    // The chat moves into the window, so the panel closes and the window shows the chat, whatever page it had.
     func chatMovedToWindow() {
         close()
+        windowContent = .chat
         logger.notice("The panel's window button was clicked")
     }
 
