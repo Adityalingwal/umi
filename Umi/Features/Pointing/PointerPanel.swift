@@ -28,6 +28,13 @@ final class PointerPanel {
         self.panel = panel
     }
 
+    // Window frames in screen points, for the log; never a place of the pointer.
+    var placement: String {
+        guard let panel else { return "not shown" }
+        let contentFrame = panel.convertToScreen(content.convert(content.bounds, to: nil))
+        return "panel \(panel.frame.debugDescription), content \(contentFrame.debugDescription)"
+    }
+
     func hide() {
         panel?.orderOut(nil)
         // A panel kept ordered out is left on the desktop Space alone once a full-screen Space closes.

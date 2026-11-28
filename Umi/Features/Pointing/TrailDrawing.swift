@@ -55,10 +55,17 @@ final class TrailDrawing {
             logger.notice("The pointer left the start circle, so the trail is painted")
         }
         if !isShown {
-            panel.show(on: displayFrame)
-            isShown = true
+            showPanel()
         }
         trail.paint(TrailPart(start: viewPoint(step.start), end: viewPoint(step.end), paintedAt: .now))
+    }
+
+    private func showPanel() {
+        panel.show(on: displayFrame)
+        isShown = true
+        let asked = displayFrame.debugDescription
+        let placement = panel.placement
+        logger.notice("The trail's panel shows: asked \(asked, privacy: .public), \(placement, privacy: .public)")
     }
 
     private func fadeOut() {
