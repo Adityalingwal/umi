@@ -27,13 +27,23 @@ nonisolated struct UserMark: Sendable {
         let total = lengths.last ?? 0
         var points: [(x: Int, y: Int)] = []
         for index in 0..<pointCount {
-            let target = total * Double(index) / Double(pointCount - 1)
-            let place = places[lengths.firstIndex { $0 >= target } ?? places.count - 1]
+            let place = place(at: total * Double(index) / Double(pointCount - 1), along: places, lengths: lengths)
             let point = (x: Int(place.x.rounded()), y: Int(place.y.rounded()))
             if points.last.map({ $0 != point }) ?? true {
                 points.append(point)
             }
         }
         return points
+    }
+
+    // Sparse pointer events leave long straight steps, so a point between two places is placed on the step.
+    private static func place(at distance: Double, along places: [CGPoint], lengths: [Double]) -> CGPoint {
+        guard let end = lengths.firstIndex(where: { $0 >= distance }) else { return places[places.count - 1] }
+        guard end > 0 else { return places[0] }
+        let step = lengths[end] - lengths[end - 1]
+        let share = step > 0 ? (distance - lengths[end - 1]) / step : 0
+        let start = places[end - 1]
+        let finish = places[end]
+        return CGPoint(x: start.x + (finish.x - start.x) * share, y: start.y + (finish.y - start.y) * share)
     }
 }
