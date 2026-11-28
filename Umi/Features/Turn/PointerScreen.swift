@@ -3,6 +3,7 @@ import AppKit
 struct PointerScreen {
     let screen: NSScreen
     let displayID: CGDirectDisplayID
+    let pointer: CGPoint
 
     static func current() -> PointerScreen? {
         let pointer = NSEvent.mouseLocation
@@ -10,6 +11,6 @@ struct PointerScreen {
               let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
             return nil
         }
-        return PointerScreen(screen: screen, displayID: number.uint32Value)
+        return PointerScreen(screen: screen, displayID: number.uint32Value, pointer: pointer)
     }
 }

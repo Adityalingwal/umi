@@ -15,13 +15,8 @@ final class Pointer {
         self.workspace = workspace
     }
 
-    func trail(on displayFrame: CGRect) -> TrailDrawing {
-        let drawing = TrailDrawing(
-            trail: trail,
-            panel: trailPanel,
-            displayFrame: displayFrame,
-            start: NSEvent.mouseLocation
-        )
+    func trail(on displayFrame: CGRect, from start: CGPoint) -> TrailDrawing {
+        let drawing = TrailDrawing(trail: trail, panel: trailPanel, displayFrame: displayFrame, start: start)
         drawing.start()
         return drawing
     }

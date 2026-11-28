@@ -116,7 +116,7 @@ final class Turn {
             return
         }
         startLooking(at: underPointer)
-        parts.trail = pointer.trail(on: underPointer.screen.frame)
+        parts.trail = pointer.trail(on: underPointer.screen.frame, from: underPointer.pointer)
         cursorStage.listen()
         hearing.start()
         start(speaking, for: .spoken)
