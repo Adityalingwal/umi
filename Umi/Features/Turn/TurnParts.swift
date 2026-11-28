@@ -4,6 +4,7 @@ final class TurnParts {
     var answering: Task<Void, Never>?
     var speaking: SpokenAnswer?
     var pointing: Pointing?
+    var trail: TrailDrawing?
 
     func release(_ hearing: HoldHearing) {
         if self.hearing === hearing {
@@ -35,5 +36,7 @@ final class TurnParts {
         speaking = nil
         pointing?.stop()
         pointing = nil
+        trail?.stop()
+        trail = nil
     }
 }

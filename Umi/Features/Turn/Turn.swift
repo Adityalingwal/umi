@@ -80,10 +80,7 @@ final class Turn {
         }
         let question = AskedQuestion(id: conversation.addQuestion(text, way: .typed), way: .typed)
         logger.notice("A typed question came: \(text.count, privacy: .public) characters")
-        let speaking = readsAloud ? typedVoice() : .silent()
-        if !readsAloud {
-            logger.notice("Read aloud is off: the typed answer is text only")
-        }
+        let speaking = speaker.typedAnswer(readsAloud: readsAloud)
         parts.speaking = speaking
         start(speaking, for: question.way)
         guard screen.isAllowed else {
@@ -94,16 +91,6 @@ final class Turn {
         cursorStage.think()
         parts.answering = Task { [weak self] in
             await self?.answer(typed: text, question: question, picture: picture, voice: speaking, pointing: pointing)
-        }
-    }
-
-    private func typedVoice() -> SpokenAnswer {
-        do {
-            return try speaker.answer()
-        } catch {
-            let reason = StopReason.text(for: error)
-            logger.error("No voice for the typed answer, so it is text only: \(reason, privacy: .public)")
-            return .silent()
         }
     }
 
@@ -129,6 +116,7 @@ final class Turn {
             return
         }
         startLooking(at: underPointer)
+        parts.trail = pointer.trail(on: underPointer.screen.frame, from: underPointer.pointer)
         cursorStage.listen()
         hearing.start()
         start(speaking, for: .spoken)
@@ -141,6 +129,8 @@ final class Turn {
               let speaking = parts.speaking else { return }
         cursorStage.think()
         logger.notice("Hold ended")
+        let hasMark = parts.trail?.end() ?? false
+        logger.notice("The hold had a mark: \(hasMark, privacy: .public)")
         let pointing = parts.pointing
         parts.answering = Task { [weak self] in
             await self?.answer(heardBy: hearing, picture: picture, voice: speaking, pointing: pointing)
