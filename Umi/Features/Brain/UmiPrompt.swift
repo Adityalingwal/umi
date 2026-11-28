@@ -261,6 +261,8 @@ extension UmiPrompt {
         When the question is not about the screen, ignore the mark. \
         The mark is not part of the screen and is never one of your marks: \
         place your own point, box, stroke, arrow and shape tags on the things in the screen picture, as always. \
+        The mark's places are only for finding the thing: \
+        never say them, and never write them in an answer, a label or a job's task. \
         When there is no mark and the words are vague, like "what is this" or "ये क्या है", \
         they mean one thing on the screen, never the whole screen. \
         When the screen shows one plain thing, like a single dialog, answer about it. \
