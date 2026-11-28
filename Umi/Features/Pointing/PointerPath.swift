@@ -23,6 +23,12 @@ nonisolated struct PointerPath: Sendable {
         !places.isEmpty
     }
 
+    // Places outside the picture are left out.
+    func picturePlaces(width: Int, height: Int) -> [CGPoint] {
+        let mapping = ScreenMapping(pictureWidth: width, pictureHeight: height, displayFrame: displayFrame)
+        return places.compactMap(mapping.picturePoint(for:)).map { CGPoint(x: $0.pixelX, y: $0.pixelY) }
+    }
+
     mutating func add(_ place: CGPoint) -> Step? {
         guard NSMouseInRect(place, displayFrame, false) else {
             isLastPlaceOnDisplay = false

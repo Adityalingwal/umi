@@ -78,7 +78,7 @@ final class Turn {
             logger.error("No screen is under the pointer")
             return
         }
-        let question = AskedQuestion(id: conversation.addQuestion(text, way: .typed), way: .typed)
+        let question = AskedQuestion(id: conversation.addQuestion(text, way: .typed), way: .typed, mark: nil)
         logger.notice("A typed question came: \(text.count, privacy: .public) characters")
         let speaking = speaker.typedAnswer(readsAloud: readsAloud)
         parts.speaking = speaking
@@ -129,17 +129,18 @@ final class Turn {
               let speaking = parts.speaking else { return }
         cursorStage.think()
         logger.notice("Hold ended")
-        let hasMark = parts.trail?.end() ?? false
-        logger.notice("The hold had a mark: \(hasMark, privacy: .public)")
+        let mark = parts.trail?.end()
+        logger.notice("The hold had a mark: \(mark != nil, privacy: .public)")
         let pointing = parts.pointing
         parts.answering = Task { [weak self] in
-            await self?.answer(heardBy: hearing, picture: picture, voice: speaking, pointing: pointing)
+            await self?.answer(heardBy: hearing, picture: picture, mark: mark, voice: speaking, pointing: pointing)
         }
     }
 
     private func answer(
         heardBy hearing: HoldHearing,
         picture: Task<ScreenPicture, any Error>,
+        mark: PointerPath?,
         voice: SpokenAnswer,
         pointing: Pointing?
     ) async {
@@ -154,7 +155,7 @@ final class Turn {
             switch heard {
             case .words(let text):
                 logger.notice("Heard \(text.count, privacy: .public) characters")
-                let question = AskedQuestion(id: conversation.addQuestion(text, way: .spoken), way: .spoken)
+                let question = AskedQuestion(id: conversation.addQuestion(text, way: .spoken), way: .spoken, mark: mark)
                 defer { conversation.endAnswer(to: question.id) }
                 await reading.answer(text, to: question, picture: picture, voice: voice, pointing: pointing)
             case .silence:

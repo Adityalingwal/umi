@@ -7,9 +7,10 @@ nonisolated enum CodexTurnRequest {
             .compactMap(\.self)
             .map { ["type": "text", "text": $0] }
         let picture = "data:image/jpeg;base64,\(question.screenJPEG.base64EncodedString())"
+        let lines = [question.screenSizeText, question.userMark?.text, question.text].compactMap(\.self)
         let input: [[String: Any]] = context + [
             ["type": "image", "url": picture],
-            ["type": "text", "text": "\(question.screenSizeText)\n\(question.text)"]
+            ["type": "text", "text": lines.joined(separator: "\n")]
         ]
         let params: [String: Any] = ["threadId": threadID, "effort": effort, "input": input]
         return try CodexLine.request(id: id, method: "turn/start", params: params)
