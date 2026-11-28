@@ -141,8 +141,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let conversation else { return .terminateNow }
+        let jobs = jobs
         Task {
             await conversation.saveAnswerBeforeQuit()
+            await jobs?.saved()
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
@@ -172,7 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let notchPanel = notchPanel
         let parts = TurnParts()
         turns = Task {
-            await conversation.load()
+            await Self.loadSaved(conversation: conversation, jobs: brain.jobs)
             let speaker = await Speaker.atLaunch(bundleURL: bundleURL, defaults: .standard, session: .shared)
             let turn = Turn(
                 audioSource: questions.audio,
@@ -213,6 +215,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    // Read before any question is taken, so no question, answer or job can replace what was saved first.
+    private static func loadSaved(conversation: Conversation, jobs: Jobs) async {
+        await jobs.load()
+        await conversation.load()
     }
 
     private static func escape(turn: Turn, notchPanel: NotchPanel?) {

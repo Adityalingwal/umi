@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import OSLog
 
-// Owns the jobs of this run: the answer that asked for one may end or be stopped while the job goes on.
+// Owns the jobs, saved ones included: the answer that asked for one may end or be stopped while the job goes on.
 @Observable
 final class Jobs {
     // Newest first; only the newest can be working.
@@ -11,15 +11,18 @@ final class Jobs {
     @ObservationIgnored private let endingContinuation: AsyncStream<Job>.Continuation
     @ObservationIgnored private let runner: ClaudeJobRunner
     @ObservationIgnored private let opener: JobFileOpener
+    @ObservationIgnored private let savedJobs: SavedJobs
     @ObservationIgnored private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Jobs")
     @ObservationIgnored private let log = JobLog()
     @ObservationIgnored private var isStarting = false
+    @ObservationIgnored private var hasStartedAJob = false
     @ObservationIgnored private var process: JobProcess?
     @ObservationIgnored private var following: Task<Void, Never>?
 
-    init(runner: ClaudeJobRunner, opener: JobFileOpener) {
+    init(runner: ClaudeJobRunner, opener: JobFileOpener, records: JobRecords) {
         self.runner = runner
         self.opener = opener
+        savedJobs = SavedJobs(records: records)
         (endings, endingContinuation) = AsyncStream.makeStream(of: Job.self)
     }
 
@@ -36,8 +39,18 @@ final class Jobs {
         all.first { $0.id == jobID }
     }
 
+    // Saved jobs are never sent anywhere, so only a job started since Umi opened goes to the brain.
     var brief: String? {
-        shown.map(JobBrief.text(for:))
+        hasStartedAJob ? shown.map(JobBrief.text(for:)) : nil
+    }
+
+    // Runs once, before any question is taken, so the saved jobs are older than any job started after it.
+    func load() async {
+        all.append(contentsOf: await savedJobs.read())
+    }
+
+    func saved() async {
+        await savedJobs.written()
     }
 
     func start(_ request: JobRequest) async -> JobStart {
@@ -70,7 +83,7 @@ final class Jobs {
             logger.notice("Stop: no job is running")
             return false
         }
-        update(job.id) { $0.state = .stopped }
+        update(job.id) { $0.end(as: .stopped) }
         process.stop()
         logger.notice("The job was stopped: its process \(process.processID, privacy: .public) was ended")
         logger.notice("The job's process group was signalled: \(process.hasOwnProcessGroup, privacy: .public)")
@@ -99,7 +112,7 @@ final class Jobs {
     // The folder is read again each time, so a file added or removed since the job ended is shown as it is now.
     func refreshFiles(of jobID: UUID) async {
         guard let job = job(jobID), !job.isWorking else { return }
-        setFiles(await files(of: jobID), jobID: jobID)
+        setFiles(await runner.listedFiles(jobID: jobID), jobID: jobID)
     }
 
     // The file is looked for in the folder of the job whose card or page shows it, never another job's.
@@ -164,7 +177,9 @@ final class Jobs {
             logger.error("No job started: the task could not be sent (\((error as NSError).code, privacy: .public))")
             return .refused(.couldNotStart)
         }
-        all.insert(Job(id: id, name: request.name, task: request.task), at: 0)
+        all.insert(Job(id: id, name: request.name, task: request.task, startedAt: .now), at: 0)
+        hasStartedAJob = true
+        savedJobs.save(all[0])
         following = Task { [weak self] in
             await self?.follow(lines, of: process, jobID: id)
         }
@@ -188,7 +203,7 @@ final class Jobs {
         guard !Task.isCancelled else { return }
         logger.notice("The job's output ended")
         // The report is written before the result, so it is there once the output has ended.
-        let files = await files(of: jobID)
+        let files = await runner.listedFiles(jobID: jobID)
         if let result = ending.result {
             let hasReport = files.contains { $0.name == JobInstructions.reportName && $0.kind == .document }
             logger.notice("The job's folder holds report.md: \(hasReport, privacy: .public)")
@@ -239,8 +254,8 @@ final class Jobs {
 
     private func end(_ jobID: UUID, as state: Job.State) {
         guard var job = job(jobID), job.isWorking else { return }
-        job.state = state
-        update(jobID) { $0.state = state }
+        job.end(as: state)
+        update(jobID) { [job] in $0 = job }
         switch state {
         case .working, .stopped:
             return
@@ -266,20 +281,7 @@ final class Jobs {
     private func update(_ jobID: UUID, _ change: (inout Job) -> Void) {
         guard let index = all.firstIndex(where: { $0.id == jobID }) else { return }
         change(&all[index])
-    }
-
-    private func files(of jobID: UUID) async -> [JobFile] {
-        do {
-            let files = try await runner.files(jobID: jobID)
-            let documents = files.count { $0.kind == .document }
-            let count = files.count
-            logger.notice("The job's folder holds \(count, privacy: .public) files")
-            logger.notice("The job's folder holds \(documents, privacy: .public) documents")
-            return files
-        } catch {
-            logger.error("The job's folder could not be listed: \((error as NSError).code, privacy: .public)")
-            return []
-        }
+        savedJobs.save(all[index])
     }
 
     // The job ends with a sentence for the voice; any text before it is not that line.

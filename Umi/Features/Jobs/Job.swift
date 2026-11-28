@@ -1,7 +1,7 @@
 import Foundation
 
-struct Job: Identifiable, Equatable {
-    enum State: Equatable {
+nonisolated struct Job: Identifiable, Equatable, Sendable {
+    enum State: Equatable, Sendable {
         case working
         case done(result: String)
         case failed(JobFailure)
@@ -11,6 +11,8 @@ struct Job: Identifiable, Equatable {
     let id: UUID
     let name: String
     let task: String
+    let startedAt: Date
+    var endedAt: Date?
     var steps: [JobStep] = []
     var messages: [String] = []
     var state = State.working
@@ -26,6 +28,11 @@ struct Job: Identifiable, Equatable {
 
     var currentStepIndex: Int? {
         steps.firstIndex { !$0.isDone }
+    }
+
+    mutating func end(as state: State) {
+        self.state = state
+        endedAt = .now
     }
 
     // Every step is done and the job has not ended yet.
