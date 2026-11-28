@@ -1,6 +1,6 @@
 import CoreGraphics
 
-struct ScreenMapping {
+nonisolated struct ScreenMapping: Sendable {
     let pictureWidth: Int
     let pictureHeight: Int
     let displayFrame: CGRect
@@ -13,6 +13,16 @@ struct ScreenMapping {
         case .drag(let drag): screenDrag(for: drag)
         case .shape(let shape): screenShape(for: shape)
         }
+    }
+
+    func picturePoint(for screenPoint: CGPoint) -> PointLocation? {
+        guard displayFrame.width > 0, displayFrame.height > 0 else { return nil }
+        let pixelX = (screenPoint.x - displayFrame.minX) * Double(pictureWidth) / displayFrame.width
+        let pixelY = (displayFrame.maxY - screenPoint.y) * Double(pictureHeight) / displayFrame.height
+        guard (0...Double(pictureWidth)).contains(pixelX), (0...Double(pictureHeight)).contains(pixelY) else {
+            return nil
+        }
+        return PointLocation(pixelX: pixelX, pixelY: pixelY)
     }
 
     private var picture: CGRect {
