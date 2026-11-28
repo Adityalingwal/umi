@@ -129,7 +129,7 @@ final class Turn {
               let speaking = parts.speaking else { return }
         cursorStage.think()
         logger.notice("Hold ended")
-        let hasMark = parts.trail?.end().hasMark ?? false
+        let hasMark = parts.trail?.end() ?? false
         logger.notice("The hold had a mark: \(hasMark, privacy: .public)")
         let pointing = parts.pointing
         parts.answering = Task { [weak self] in

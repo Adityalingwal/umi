@@ -4,15 +4,17 @@ import OSLog
 final class TrailDrawing {
     private let trail: Trail
     private let panel: PointerPanel
+    private let displayFrame: CGRect
     private let moves = PointerMoveWatch()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Pointing")
-    private var path: PointerPath
+    private var path: PointerPath?
     private var isShown = false
     private var hiding: Task<Void, Never>?
 
     init(trail: Trail, panel: PointerPanel, displayFrame: CGRect, start: CGPoint) {
         self.trail = trail
         self.panel = panel
+        self.displayFrame = displayFrame
         path = PointerPath(displayFrame: displayFrame, start: start)
     }
 
@@ -23,16 +25,18 @@ final class TrailDrawing {
         }
     }
 
-    func end() -> PointerPath {
+    // The path is dropped here; only the painted parts stay, for the release fade.
+    func end() -> Bool {
         moves.stop()
-        let ended = path
-        path = PointerPath(displayFrame: path.displayFrame, start: path.start)
+        let hasMark = path?.hasMark ?? false
+        path = nil
         fadeOut()
-        return ended
+        return hasMark
     }
 
     func stop() {
         moves.stop()
+        path = nil
         hiding?.cancel()
         hiding = nil
         if isShown {
@@ -42,13 +46,16 @@ final class TrailDrawing {
     }
 
     private func pointerMoved() {
+        guard var path else { return }
         let hadMark = path.hasMark
-        guard let step = path.add(NSEvent.mouseLocation) else { return }
+        let step = path.add(NSEvent.mouseLocation)
+        self.path = path
+        guard let step else { return }
         if !hadMark {
             logger.notice("The pointer left the start circle, so the trail is painted")
         }
         if !isShown {
-            panel.show(on: path.displayFrame)
+            panel.show(on: displayFrame)
             isShown = true
         }
         trail.paint(TrailPart(start: viewPoint(step.start), end: viewPoint(step.end), paintedAt: .now))
@@ -72,6 +79,6 @@ final class TrailDrawing {
     }
 
     private func viewPoint(_ screenPoint: CGPoint) -> CGPoint {
-        CGPoint(x: screenPoint.x - path.displayFrame.minX, y: path.displayFrame.maxY - screenPoint.y)
+        CGPoint(x: screenPoint.x - displayFrame.minX, y: displayFrame.maxY - screenPoint.y)
     }
 }
