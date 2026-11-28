@@ -116,6 +116,7 @@ final class Turn {
             return
         }
         startLooking(at: underPointer)
+        parts.trail = pointer.trail(on: underPointer.screen.frame)
         cursorStage.listen()
         hearing.start()
         start(speaking, for: .spoken)
@@ -128,6 +129,8 @@ final class Turn {
               let speaking = parts.speaking else { return }
         cursorStage.think()
         logger.notice("Hold ended")
+        let hasMark = parts.trail?.end().hasMark ?? false
+        logger.notice("The hold had a mark: \(hasMark, privacy: .public)")
         let pointing = parts.pointing
         parts.answering = Task { [weak self] in
             await self?.answer(heardBy: hearing, picture: picture, voice: speaking, pointing: pointing)

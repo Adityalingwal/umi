@@ -232,7 +232,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static func makePointer() -> Pointer {
         let overlay = PointerOverlay()
-        return Pointer(overlay: overlay, panel: PointerPanel(overlay: overlay), workspace: .shared)
+        let trail = Trail()
+        return Pointer(
+            overlay: overlay,
+            panel: PointerPanel(overlay: overlay),
+            trail: trail,
+            trailPanel: PointerPanel(trail: trail),
+            workspace: .shared
+        )
     }
 
     private static func makeBoard() -> Board {

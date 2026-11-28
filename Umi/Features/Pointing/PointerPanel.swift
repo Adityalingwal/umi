@@ -7,10 +7,18 @@ final class PointerPanel {
     private let content: NSView
     private var panel: NSPanel?
 
-    init(overlay: PointerOverlay) {
-        let hostingView = NSHostingView(rootView: PointerView().environment(overlay))
+    init(rootView: some View) {
+        let hostingView = NSHostingView(rootView: rootView)
         hostingView.sizingOptions = []
         content = hostingView
+    }
+
+    convenience init(overlay: PointerOverlay) {
+        self.init(rootView: PointerView().environment(overlay))
+    }
+
+    convenience init(trail: Trail) {
+        self.init(rootView: TrailView().environment(trail))
     }
 
     func show(on displayFrame: CGRect) {
