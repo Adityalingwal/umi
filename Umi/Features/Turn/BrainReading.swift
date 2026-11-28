@@ -1,4 +1,7 @@
+import OSLog
+
 struct BrainReading {
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Umi", category: "Turn")
     private let brain: any Brain
     private let jobs: Jobs
     private let conversation: Conversation
@@ -48,8 +51,13 @@ struct BrainReading {
             screenHeight: screen.height,
             earlierExchanges: conversation.exchanges,
             boardBrief: board.brief,
-            jobBrief: jobs.brief
+            jobBrief: jobs.brief,
+            userMark: question.mark.flatMap { mark in
+                UserMark(places: mark.picturePlaces(width: screen.width, height: screen.height))
+            }
         )
+        let hasMark = brainQuestion.userMark != nil
+        logger.notice("The question goes to the brain with the user's mark: \(hasMark, privacy: .public)")
         let answer = brain.answer(brainQuestion)
         await withDiscardingTaskGroup { group in
             group.addTask { await send(answer, for: question, to: voice, pointing: pointing, on: screen) }

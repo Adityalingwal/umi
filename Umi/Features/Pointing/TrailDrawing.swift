@@ -25,13 +25,13 @@ final class TrailDrawing {
         }
     }
 
-    // The path is dropped here; only the painted parts stay, for the release fade.
-    func end() -> Bool {
+    // The path leaves here, only when it is a mark; only the painted parts stay, for the release fade.
+    func end() -> PointerPath? {
         moves.stop()
-        let hasMark = path?.hasMark ?? false
+        let mark = path?.hasMark == true ? path : nil
         path = nil
         fadeOut()
-        return hasMark
+        return mark
     }
 
     func stop() {
