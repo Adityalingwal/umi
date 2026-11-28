@@ -27,7 +27,9 @@ nonisolated struct UserMark: Sendable {
         let total = lengths.last ?? 0
         var points: [(x: Int, y: Int)] = []
         for index in 0..<pointCount {
-            let place = place(at: total * Double(index) / Double(pointCount - 1), along: places, lengths: lengths)
+            let isLast = index == pointCount - 1
+            let distance = total * Double(index) / Double(pointCount - 1)
+            let place = isLast ? places[places.count - 1] : place(at: distance, along: places, lengths: lengths)
             let point = (x: Int(place.x.rounded()), y: Int(place.y.rounded()))
             if points.last.map({ $0 != point }) ?? true {
                 points.append(point)
