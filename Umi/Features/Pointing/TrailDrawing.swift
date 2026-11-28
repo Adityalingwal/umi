@@ -65,7 +65,7 @@ final class TrailDrawing {
         isShown = true
         let asked = displayFrame.debugDescription
         let placement = panel.placement
-        logger.notice("The trail's panel shows: asked \(asked, privacy: .public), \(placement, privacy: .public)")
+        logger.notice("The trail's panel shows: asked \(asked, privacy: .private), \(placement, privacy: .private)")
     }
 
     private func fadeOut() {
