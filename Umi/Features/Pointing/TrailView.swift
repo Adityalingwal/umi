@@ -22,6 +22,8 @@ struct TrailView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .ignoresSafeArea()
         .accessibilityHidden(true)
     }
 }
